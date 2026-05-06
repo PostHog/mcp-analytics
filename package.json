@@ -51,6 +51,11 @@
     "url": "https://github.com/PostHog/mcp-analytics/issues"
   },
   "homepage": "https://github.com/PostHog/mcp-analytics#readme",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "packageManager": "pnpm@10.33.2",
   "devDependencies": {
     "@biomejs/biome": "2.4.14",
