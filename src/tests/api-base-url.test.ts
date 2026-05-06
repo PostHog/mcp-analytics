@@ -46,7 +46,7 @@ vi.mock("../modules/session.js");
 vi.mock("../modules/internal.js");
 vi.mock("../modules/tools.js");
 vi.mock("../modules/tracing.js");
-vi.mock("../modules/tracingV2.js");
+vi.mock("../modules/tracing-v2.js");
 vi.mock("../modules/telemetry.js");
 
 import {

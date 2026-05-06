@@ -1,5 +1,4 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { MCPAnalyticsEventType } from "./event-types.js";
 import type {
   CompatibleRequestHandlerExtra,
   HighLevelMCPServerLike,
@@ -8,6 +7,7 @@ import type {
   UnredactedEvent,
 } from "../types.js";
 import { publishEvent } from "./event-queue.js";
+import { MCPAnalyticsEventType } from "./event-types.js";
 import { captureException } from "./exceptions.js";
 import {
   getServerTrackingData,
@@ -27,14 +27,40 @@ import { getServerSessionId } from "./session.js";
 import { handleReportMissing } from "./tools.js";
 import { setupInitializeTracing, setupListToolsTracing } from "./tracing.js";
 
+type MCPRequestHandler = NonNullable<
+  MCPServerLike["_requestHandlers"] extends Map<string, infer THandler>
+    ? THandler
+    : never
+>;
+type MCPRequest = Parameters<MCPRequestHandler>[0];
+type MCPRequestExtra = Parameters<MCPRequestHandler>[1];
+
 // WeakMap to track which callbacks have already been wrapped
-const wrappedCallbacks = new WeakMap<Function, boolean>();
+const wrappedCallbacks = new WeakMap<object, boolean>();
 
 // Symbol to mark tools that have already been processed
 const MCP_ANALYTICS_PROCESSED = Symbol("__posthog_mcp_analytics_processed__");
 
-function isToolResultError(result: any): boolean {
-  return result && typeof result === "object" && result.isError === true;
+type ProcessedRegisteredTool = RegisteredTool & {
+  [MCP_ANALYTICS_PROCESSED]?: boolean;
+};
+
+function isToolResultError(result: unknown): boolean {
+  return (
+    !!result &&
+    typeof result === "object" &&
+    "isError" in result &&
+    result.isError === true
+  );
+}
+
+function isCallbackUpdate(value: unknown): value is { callback: unknown } {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    "callback" in value &&
+    typeof value.callback === "function"
+  );
 }
 
 function addTracingToToolRegistry(
@@ -73,7 +99,7 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
             hasToolFunction(value)
           ) {
             // Check if tool has already been processed
-            if ((value as any)[MCP_ANALYTICS_PROCESSED]) {
+            if ((value as ProcessedRegisteredTool)[MCP_ANALYTICS_PROCESSED]) {
               writeToLog(
                 `Tool ${String(property)} already processed, skipping proxy wrapping`
               );
@@ -91,24 +117,25 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
             }
 
             // Apply tracing to the callback (context injection happens in setupListToolsTracing)
-            value = addTracingToToolCallbackInternal(value, property, server);
+            const nextValue = addTracingToToolCallbackInternal(
+              value,
+              property,
+              server
+            );
 
             // After adding a tool, try to set up list tools tracing
             // This handles the case where track() is called before tools are registered
             setupListToolsTracing(server);
 
             // If the tool has an update method, wrap it to handle callback updates
-            if (typeof value.update === "function") {
-              const originalUpdate = value.update;
-              value.update = function (...updateArgs: any[]) {
+            if (typeof nextValue.update === "function") {
+              const originalUpdate = nextValue.update;
+              nextValue.update = function (...updateArgs: unknown[]) {
                 // If callback is being updated, wrap the new callback
                 // Note: MCP SDK's update() method API uses "callback" property in its interface
                 if (updateArgs[0]) {
                   const updateObj = updateArgs[0];
-                  if (
-                    updateObj.callback &&
-                    typeof updateObj.callback === "function"
-                  ) {
+                  if (isCallbackUpdate(updateObj)) {
                     const wrappedTool = addTracingToToolCallbackInternal(
                       { callback: updateObj.callback } as RegisteredTool,
                       property,
@@ -120,6 +147,7 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
                 return originalUpdate.apply(this, updateArgs);
               };
             }
+            return Reflect.set(target, property, nextValue);
           }
 
           // Use Reflect to perform the actual property set
@@ -136,7 +164,7 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
       get(
         target: Record<string, RegisteredTool>,
         property: string | symbol
-      ): any {
+      ): unknown {
         return Reflect.get(target, property);
       },
 
@@ -179,24 +207,26 @@ function addTracingToToolCallbackInternal(
     return tool;
   }
 
-  if ((tool as any)[MCP_ANALYTICS_PROCESSED]) {
+  if ((tool as ProcessedRegisteredTool)[MCP_ANALYTICS_PROCESSED]) {
     writeToLog(`Tool ${toolName} already processed, skipping re-wrap`);
     return tool;
   }
 
-  const wrappedCallback = async (...params: any[]): Promise<CallToolResult> => {
-    let args: any;
+  const wrappedCallback = async (
+    ...params: unknown[]
+  ): Promise<CallToolResult> => {
+    let args: unknown;
     let extra: CompatibleRequestHandlerExtra;
 
     if (params.length === 2) {
       args = params[0];
-      extra = params[1];
+      extra = params[1] as CompatibleRequestHandlerExtra;
     } else {
       args = undefined;
-      extra = params[0];
+      extra = params[0] as CompatibleRequestHandlerExtra;
     }
 
-    const removeContextFromArgs = (args: any): any => {
+    const removeContextFromArgs = (args: unknown): unknown => {
       if (args && typeof args === "object" && "context" in args) {
         const { context: _context, ...argsWithoutContext } = args;
         return argsWithoutContext;
@@ -215,13 +245,13 @@ function addTracingToToolCallbackInternal(
         return await handler(extra);
       }
       const handler = originalCallback as (
-        args: any,
+        args: unknown,
         extra: CompatibleRequestHandlerExtra
       ) => Promise<CallToolResult>;
       return await handler(cleanedArgs, extra);
     } catch (error) {
       if (error instanceof Error) {
-        (extra as any).__mcp_analytics_error = error;
+        extra.__mcp_analytics_error = error;
       }
       throw error;
     }
@@ -237,7 +267,7 @@ function addTracingToToolCallbackInternal(
   const wrappedTool = createWrappedTool(tool, wrappedCallback);
 
   // Mark the tool as processed
-  (wrappedTool as any)[MCP_ANALYTICS_PROCESSED] = true;
+  (wrappedTool as ProcessedRegisteredTool)[MCP_ANALYTICS_PROCESSED] = true;
 
   return wrappedTool;
 }
@@ -259,7 +289,10 @@ function setupToolsCallHandlerWrapping(server: HighLevelMCPServerLike): void {
   const originalSetRequestHandler =
     lowLevelServer.setRequestHandler.bind(lowLevelServer);
 
-  lowLevelServer.setRequestHandler = ((requestSchema: any, handler: any) => {
+  lowLevelServer.setRequestHandler = ((
+    requestSchema: unknown,
+    handler: MCPRequestHandler
+  ) => {
     const shape = getObjectShape(requestSchema);
     const method = shape?.method ? getLiteralValue(shape.method) : undefined;
 
@@ -271,137 +304,193 @@ function setupToolsCallHandlerWrapping(server: HighLevelMCPServerLike): void {
 
     // Pass through all other handlers unchanged
     return originalSetRequestHandler(requestSchema, handler);
-  }) as any;
+  }) as MCPServerLike["setRequestHandler"];
 }
 
 function createToolsCallWrapper(
-  originalHandler: any,
+  originalHandler: MCPRequestHandler,
   server: MCPServerLike
-): any {
-  return async (request: any, extra: any) => {
-    const startTime = new Date();
-    let shouldPublishEvent = false;
-    let event: UnredactedEvent | null = null;
+): MCPRequestHandler {
+  return async (request: MCPRequest, extra: MCPRequestExtra) =>
+    await handleWrappedToolsCall(originalHandler, server, request, extra);
+}
 
-    try {
-      const data = getServerTrackingData(server);
+async function handleWrappedToolsCall(
+  originalHandler: MCPRequestHandler,
+  server: MCPServerLike,
+  request: MCPRequest,
+  extra: MCPRequestExtra
+): Promise<unknown> {
+  const startTime = new Date();
+  const tracing = await initializeToolCallEvent(
+    server,
+    request,
+    extra,
+    startTime
+  );
 
-      if (data) {
-        shouldPublishEvent = true;
+  if (request?.params?.name === "get_more_tools") {
+    return await executeReportMissingTool(server, request, tracing, startTime);
+  }
 
-        const sessionId = getServerSessionId(server, extra);
+  return await executeOriginalTool(
+    originalHandler,
+    server,
+    request,
+    extra,
+    tracing,
+    startTime
+  );
+}
 
-        event = {
-          sessionId,
-          resourceName: request.params?.name || "Unknown Tool",
-          parameters: { request, extra },
-          eventType: MCPAnalyticsEventType.mcpToolsCall,
-          timestamp: startTime,
-          redactionFn: data.options.redactSensitiveInformation,
-        };
-
-        // Identify user session
-        await handleIdentify(server, data, request, extra);
-        event.sessionId = data.sessionId;
-
-        const resolvedTags = await resolveEventTags(data, request, extra);
-        if (resolvedTags) {
-          event.tags = resolvedTags;
-        }
-        const resolvedProperties = await resolveEventProperties(
-          data,
-          request,
-          extra
-        );
-        if (resolvedProperties) {
-          event.properties = resolvedProperties;
-        }
-
-        // Extract context for userIntent
-        if (
-          data.options.enableToolCallContext &&
-          request.params?.arguments?.context
-        ) {
-          event.userIntent = request.params.arguments.context;
-        }
-      } else {
-        writeToLog(
-          "Warning: PostHog MCP analytics is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
-        );
-      }
-    } catch (error) {
-      // If tracing setup fails, log it but continue with tool execution
+async function initializeToolCallEvent(
+  server: MCPServerLike,
+  request: MCPRequest,
+  extra: MCPRequestExtra,
+  startTime: Date
+): Promise<{ event: UnredactedEvent | null; shouldPublishEvent: boolean }> {
+  try {
+    const data = getServerTrackingData(server);
+    if (!data) {
       writeToLog(
-        `Warning: PostHog MCP analytics tracing failed for tool ${request.params?.name}, falling back to original handler - ${error}`
+        "Warning: PostHog MCP analytics is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
       );
+      return { event: null, shouldPublishEvent: false };
     }
 
-    // If this is get_more_tools, handle it directly without relying on server registration
-    if (request?.params?.name === "get_more_tools") {
-      try {
-        const result = await handleReportMissing({
-          context: request?.params?.arguments?.context,
-        });
+    const event: UnredactedEvent = {
+      sessionId: getServerSessionId(server, extra),
+      resourceName: request.params?.name || "Unknown Tool",
+      parameters: { request, extra },
+      eventType: MCPAnalyticsEventType.mcpToolsCall,
+      timestamp: startTime,
+      redactionFn: data.options.redactSensitiveInformation,
+    };
 
-        if (event && shouldPublishEvent) {
-          event.userIntent = request?.params?.arguments?.context;
-          event.response = result;
-          event.duration = new Date().getTime() - startTime.getTime();
-          publishEvent(server, event);
-        }
-        return result;
-      } catch (error) {
-        if (event && shouldPublishEvent) {
-          event.isError = true;
-          event.error = captureException(error);
-          event.duration = new Date().getTime() - startTime.getTime();
-          publishEvent(server, event);
-        }
-        throw error;
-      }
+    await handleIdentify(server, data, request, extra);
+    event.sessionId = data.sessionId;
+    await applyResolvedMetadata(event, data, request, extra);
+
+    if (
+      data.options.enableToolCallContext &&
+      request.params?.arguments?.context
+    ) {
+      event.userIntent = request.params.arguments.context;
     }
 
-    // Execute other tools (even if tracing setup failed)
-    try {
-      const result = await originalHandler(request, extra);
+    return { event, shouldPublishEvent: true };
+  } catch (error) {
+    writeToLog(
+      `Warning: PostHog MCP analytics tracing failed for tool ${request.params?.name}, falling back to original handler - ${error}`
+    );
+    return { event: null, shouldPublishEvent: false };
+  }
+}
 
-      if (event && shouldPublishEvent) {
-        // Check for execution errors (SDK converts them to CallToolResult)
-        if (isToolResultError(result)) {
-          event.isError = true;
+async function applyResolvedMetadata(
+  event: UnredactedEvent,
+  data: NonNullable<ReturnType<typeof getServerTrackingData>>,
+  request: MCPRequest,
+  extra: MCPRequestExtra
+): Promise<void> {
+  const resolvedTags = await resolveEventTags(data, request, extra);
+  if (resolvedTags) {
+    event.tags = resolvedTags;
+  }
+  const resolvedProperties = await resolveEventProperties(data, request, extra);
+  if (resolvedProperties) {
+    event.properties = resolvedProperties;
+  }
+}
 
-          // Check if callback captured the original error (has full stack)
-          const capturedError = (extra as any).__mcp_analytics_error;
+async function executeReportMissingTool(
+  server: MCPServerLike,
+  request: MCPRequest,
+  tracing: { event: UnredactedEvent | null; shouldPublishEvent: boolean },
+  startTime: Date
+): Promise<unknown> {
+  try {
+    const result = await handleReportMissing({
+      context: request?.params?.arguments?.context,
+    });
+    publishSuccessfulToolEvent(server, tracing, result, startTime, {
+      userIntent: request?.params?.arguments?.context,
+    });
+    return result;
+  } catch (error) {
+    publishFailedToolEvent(server, tracing, error, startTime);
+    throw error;
+  }
+}
 
-          if (capturedError) {
-            // Use captured error from callback
-            event.error = captureException(capturedError);
-            delete (extra as any).__mcp_analytics_error; // Cleanup
-          } else {
-            // SDK 1.21.0+ converted error (no stack trace available)
-            event.error = captureException(result);
-          }
+async function executeOriginalTool(
+  originalHandler: MCPRequestHandler,
+  server: MCPServerLike,
+  request: MCPRequest,
+  extra: MCPRequestExtra,
+  tracing: { event: UnredactedEvent | null; shouldPublishEvent: boolean },
+  startTime: Date
+): Promise<unknown> {
+  try {
+    const result = await originalHandler(request, extra);
+    publishSuccessfulToolEvent(server, tracing, result, startTime, {
+      capturedError: extra?.__mcp_analytics_error,
+      clearCapturedError: () => {
+        if (extra) {
+          extra.__mcp_analytics_error = undefined;
         }
+      },
+    });
+    return result;
+  } catch (error) {
+    publishFailedToolEvent(server, tracing, error, startTime);
+    throw error;
+  }
+}
 
-        event.response = result;
-        event.duration = new Date().getTime() - startTime.getTime();
-        publishEvent(server, event);
-      }
+function publishSuccessfulToolEvent(
+  server: MCPServerLike,
+  tracing: { event: UnredactedEvent | null; shouldPublishEvent: boolean },
+  result: unknown,
+  startTime: Date,
+  options: {
+    capturedError?: unknown;
+    clearCapturedError?: () => void;
+    userIntent?: string;
+  } = {}
+): void {
+  if (!(tracing.event && tracing.shouldPublishEvent)) {
+    return;
+  }
 
-      return result;
-    } catch (error) {
-      // Validation errors, unknown tool, disabled tool
-      if (event && shouldPublishEvent) {
-        event.isError = true;
-        event.error = captureException(error);
-        event.duration = new Date().getTime() - startTime.getTime();
-        publishEvent(server, event);
-      }
+  if (options.userIntent) {
+    tracing.event.userIntent = options.userIntent;
+  }
+  if (isToolResultError(result)) {
+    tracing.event.isError = true;
+    tracing.event.error = captureException(options.capturedError || result);
+    options.clearCapturedError?.();
+  }
 
-      // Re-throw so Protocol converts to JSONRPC error response
-      throw error;
-    }
-  };
+  tracing.event.response = result;
+  tracing.event.duration = Date.now() - startTime.getTime();
+  publishEvent(server, tracing.event);
+}
+
+function publishFailedToolEvent(
+  server: MCPServerLike,
+  tracing: { event: UnredactedEvent | null; shouldPublishEvent: boolean },
+  error: unknown,
+  startTime: Date
+): void {
+  if (!(tracing.event && tracing.shouldPublishEvent)) {
+    return;
+  }
+
+  tracing.event.isError = true;
+  tracing.event.error = captureException(error);
+  tracing.event.duration = Date.now() - startTime.getTime();
+  publishEvent(server, tracing.event);
 }
 
 export function setupTracking(server: HighLevelMCPServerLike): void {

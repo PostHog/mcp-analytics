@@ -24,7 +24,7 @@ import {
 import { TelemetryManager } from "./modules/telemetry.js";
 import { setupMCPAnalyticsTools } from "./modules/tools.js";
 import { setupToolCallTracing } from "./modules/tracing.js";
-import { setupTracking } from "./modules/tracingV2.js";
+import { setupTracking } from "./modules/tracing-v2.js";
 import { validateTags } from "./modules/validation.js";
 import type {
   CustomEventData,
