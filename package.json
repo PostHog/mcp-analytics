@@ -24,13 +24,13 @@
     "test": "vitest",
     "test:compatibility": "vitest run src/tests/mcp-version-compatibility.test.ts",
     "format": "biome format --write .",
-    "lint": "biome format .",
-    "lint:ultracite": "ultracite check .",
+    "format:check": "biome format .",
+    "lint": "ultracite check .",
     "lint:fix": "ultracite fix .",
     "typecheck": "tsgo --noEmit",
     "typecheck:tsc6": "tsc6 --noEmit",
     "prepare": "husky",
-    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "verify": "pnpm format:check && pnpm typecheck && pnpm test && pnpm build",
     "prepublishOnly": "pnpm verify"
   },
   "keywords": [
