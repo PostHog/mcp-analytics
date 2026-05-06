@@ -15,19 +15,14 @@ export function newSessionId(): string {
 }
 
 /**
- * Creates a deterministic SDK session ID from an MCP sessionId and optional API key.
+ * Creates a deterministic SDK session ID from an MCP sessionId.
  * The same inputs will always produce the same session ID, enabling correlation across server restarts.
  *
  * @param mcpSessionId - The session ID from the MCP protocol
- * @param apiKey - Optional PostHog project API key to include in the hash
  * @returns An SDK session ID with "ses" prefix derived deterministically from the inputs
  */
-export function deriveSessionIdFromMCPSession(
-  mcpSessionId: string,
-  apiKey?: string
-): string {
-  const input = apiKey ? `${mcpSessionId}:${apiKey}` : mcpSessionId;
-  return deterministicPrefixedId("ses", input);
+export function deriveSessionIdFromMCPSession(mcpSessionId: string): string {
+  return deterministicPrefixedId("ses", mcpSessionId);
 }
 
 /**
@@ -53,10 +48,7 @@ export function getServerSessionId(
   // If MCP sessionId is provided
   if (mcpSessionId) {
     // Derive deterministic SDK session ID from MCP sessionId
-    data.sessionId = deriveSessionIdFromMCPSession(
-      mcpSessionId,
-      data.apiKey || undefined
-    );
+    data.sessionId = deriveSessionIdFromMCPSession(mcpSessionId);
     data.lastMcpSessionId = mcpSessionId;
     data.sessionSource = "mcp";
     setServerTrackingData(server, data);

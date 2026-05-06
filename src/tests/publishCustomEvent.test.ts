@@ -38,8 +38,7 @@ describe("publishCustomEvent", () => {
 
     // Mock deriveSessionIdFromMCPSession
     (deriveSessionIdFromMCPSession as any).mockImplementation(
-      (sessionId: string, apiKey: string) =>
-        `ses_derived_${sessionId}_${apiKey}`
+      (sessionId: string) => `ses_derived_${sessionId}`
     );
 
     // Mock publishEventToQueue
@@ -140,12 +139,11 @@ describe("publishCustomEvent", () => {
       await publishCustomEvent(customSessionId, eventData);
 
       expect(deriveSessionIdFromMCPSession).toHaveBeenCalledWith(
-        customSessionId,
-        apiKey
+        customSessionId
       );
       expect(mockEventQueue.add).toHaveBeenCalledWith(
         expect.objectContaining({
-          sessionId: `ses_derived_${customSessionId}_${apiKey}`,
+          sessionId: `ses_derived_${customSessionId}`,
           apiKey,
           eventType: "posthog:custom",
           resourceName: "custom-action",

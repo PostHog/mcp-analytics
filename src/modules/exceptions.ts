@@ -28,8 +28,6 @@ const MAX_EXCEPTION_CHAIN_DEPTH = 10;
 const MAX_STACK_FRAMES = 50;
 
 const LOCATION_WITH_LINE_COLUMN_REGEX = /^(.+):(\d+):(\d+)$/;
-const EVAL_LOCATION_REGEX = /^eval at (.+?) \((.+)\)$/;
-const STACK_FRAME_WITH_FUNCTION_REGEX = /^(.+?)\s+\((.+)\)$/;
 const WINDOWS_DRIVE_PREFIX_REGEX = /^[A-Za-z]:/;
 const WINDOWS_ABSOLUTE_PATH_REGEX = /^[A-Za-z]:\\/;
 const WINDOWS_ABSOLUTE_SLASH_PATH_REGEX = /^[A-Za-z]:[/]/;
@@ -274,13 +272,10 @@ function parseEvalOrigin(evalLocation: string): {
     evalChainPart = evalLocation.slice(0, commaIndex);
   }
 
-  // Match "eval at <anything> (<innerLocation>)"
-  const match = evalChainPart.match(EVAL_LOCATION_REGEX);
-  if (!match) {
+  const innerLocation = extractTrailingParenthesizedContent(evalChainPart);
+  if (!(innerLocation && evalChainPart.startsWith("eval at "))) {
     return null;
   }
-
-  const innerLocation = match[2];
 
   // Recursively parse the inner location
   if (innerLocation.startsWith("eval at ")) {
@@ -340,6 +335,38 @@ function findCommaAfterBalancedParens(str: string): number {
   return -1;
 }
 
+function extractTrailingParenthesizedContent(value: string): string | null {
+  const trimmedValue = value.trim();
+  if (!trimmedValue.endsWith(")")) {
+    return null;
+  }
+
+  const openingParenIndex = findMatchingOpeningParen(trimmedValue);
+  if (openingParenIndex === -1) {
+    return null;
+  }
+
+  return trimmedValue.slice(openingParenIndex + 1, -1);
+}
+
+function findMatchingOpeningParen(value: string): number {
+  let depth = 0;
+
+  for (let index = value.length - 1; index >= 0; index--) {
+    const char = value[index];
+    if (char === ")") {
+      depth++;
+    } else if (char === "(") {
+      depth--;
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+
+  return -1;
+}
+
 /**
  * Parses a single V8 stack frame line into a StackFrame object.
  *
@@ -362,14 +389,15 @@ function parseV8StackFrame(line: string): StackFrame | null {
   // Try to extract function name and location
   // Format 1: "functionName (location)"
   // Location can be: filename:line:col, eval at ..., native, unknown location
-  const matchWithFunction = withoutAt.match(STACK_FRAME_WITH_FUNCTION_REGEX);
-  if (matchWithFunction) {
-    const [, functionName, location] = matchWithFunction;
+  const location = extractTrailingParenthesizedContent(withoutAt);
+  if (location) {
+    const openingParenIndex = findMatchingOpeningParen(withoutAt.trim());
+    const functionName = withoutAt.slice(0, openingParenIndex).trim();
     const parsedLocation = parseLocation(location);
 
-    if (parsedLocation) {
+    if (functionName && parsedLocation) {
       return {
-        function: functionName.trim(),
+        function: functionName,
         filename: parsedLocation.filename,
         abs_path: parsedLocation.abs_path,
         lineno: parsedLocation.lineno,

@@ -400,7 +400,7 @@ function resolveSessionIdTarget(
     apiKey,
     lowLevelServer: null,
     posthogClient: eventData.posthogClient,
-    sessionId: deriveSessionIdFromMCPSession(sessionIdInput, apiKey),
+    sessionId: deriveSessionIdFromMCPSession(sessionIdInput),
   };
 }
 
