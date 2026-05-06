@@ -3,6 +3,9 @@ import { POSTHOG_MCP_ANALYTICS_SOURCE } from "../constants.js";
 import { writeToLog } from "../logging.js";
 import { traceContext } from "./trace-context.js";
 
+const SENTRY_DSN_REGEX =
+  /^(https?):\/\/([a-f0-9]+)@([\w.-]+)(:\d+)?(\/.*)?\/(\d+)$/;
+
 export interface SentryExporterConfig {
   dsn: string;
   enableTracing?: boolean; // Default: false (logs/errors only)
@@ -28,11 +31,11 @@ interface SentryTransaction {
       op: string;
       status?: "ok" | "internal_error";
     };
-    [key: string]: any;
+    [key: string]: unknown;
   };
   event_id: string;
-  extra?: Record<string, any>;
-  spans?: Array<{
+  extra?: Record<string, unknown>;
+  spans?: {
     span_id: string;
     trace_id: string;
     parent_span_id?: string;
@@ -41,7 +44,7 @@ interface SentryTransaction {
     start_timestamp: number;
     timestamp: number;
     status?: "ok" | "internal_error";
-  }>;
+  }[];
   start_timestamp: number;
   tags?: Record<string, string>;
   timestamp: number;
@@ -57,7 +60,7 @@ interface SentryErrorEvent {
       parent_span_id?: string;
       op?: string;
     };
-    [key: string]: any;
+    [key: string]: unknown;
   };
   event_id: string;
   exception: {
@@ -70,7 +73,7 @@ interface SentryErrorEvent {
       };
     }>;
   };
-  extra?: Record<string, any>;
+  extra?: Record<string, unknown>;
   level: "error" | "fatal" | "warning";
   tags?: Record<string, string>;
   timestamp: number;
@@ -81,7 +84,7 @@ interface SentryErrorEvent {
 interface SentryLog {
   attributes?: Record<
     string,
-    { value: any; type: "string" | "boolean" | "integer" | "double" }
+    { value: unknown; type: "string" | "boolean" | "integer" | "double" }
   >;
   body: string;
   event_id: string;
@@ -91,10 +94,10 @@ interface SentryLog {
 }
 
 export class SentryExporter implements Exporter {
-  private endpoint: string;
-  private authHeader: string;
-  private config: SentryExporterConfig;
-  private parsedDSN: ParsedDSN;
+  private readonly endpoint: string;
+  private readonly authHeader: string;
+  private readonly config: SentryExporterConfig;
+  private readonly parsedDSN: ParsedDSN;
 
   constructor(config: SentryExporterConfig) {
     this.config = config;
@@ -113,8 +116,7 @@ export class SentryExporter implements Exporter {
 
   private parseDSN(dsn: string): ParsedDSN {
     // DSN format: protocol://publicKey@host[:port]/path/projectId
-    const regex = /^(https?):\/\/([a-f0-9]+)@([\w.-]+)(:\d+)?(\/.*)?\/(\d+)$/;
-    const match = dsn.match(regex);
+    const match = dsn.match(SENTRY_DSN_REGEX);
 
     if (!match) {
       throw new Error(`Invalid Sentry DSN: ${dsn}`);
@@ -124,7 +126,7 @@ export class SentryExporter implements Exporter {
       protocol: match[1],
       publicKey: match[2],
       host: match[3],
-      port: match[4]?.substring(1), // Remove leading ':'
+      port: match[4]?.slice(1), // Remove leading ':'
       path: match[5] || "",
       projectId: match[6],
     };
@@ -249,11 +251,11 @@ export class SentryExporter implements Exporter {
     event: Event
   ): Record<
     string,
-    { value: any; type: "string" | "boolean" | "integer" | "double" }
+    { value: unknown; type: "string" | "boolean" | "integer" | "double" }
   > {
     const attributes: Record<
       string,
-      { value: any; type: "string" | "boolean" | "integer" | "double" }
+      { value: unknown; type: "string" | "boolean" | "integer" | "double" }
     > = {};
 
     if (event.eventType) {
@@ -319,13 +321,11 @@ export class SentryExporter implements Exporter {
     };
 
     // Build envelope with TRAILING NEWLINE
-    return (
-      [
-        JSON.stringify(envelopeHeader),
-        JSON.stringify(itemHeader),
-        JSON.stringify(payload),
-      ].join("\n") + "\n"
-    ); // Added required trailing newline
+    return `${[
+      JSON.stringify(envelopeHeader),
+      JSON.stringify(itemHeader),
+      JSON.stringify(payload),
+    ].join("\n")}\n`; // Added required trailing newline
   }
 
   private eventToTransaction(event: Event): SentryTransaction {
@@ -402,8 +402,8 @@ export class SentryExporter implements Exporter {
     return tags;
   }
 
-  private buildExtra(event: Event): Record<string, any> {
-    const extra: Record<string, any> = {};
+  private buildExtra(event: Event): Record<string, unknown> {
+    const extra: Record<string, unknown> = {};
 
     if (event.sessionId) {
       extra.session_id = event.sessionId;
@@ -432,9 +432,9 @@ export class SentryExporter implements Exporter {
 
   private buildContexts(
     event: Event,
-    traceCtx: Record<string, any>
-  ): Record<string, any> {
-    const contexts: Record<string, any> = {
+    traceCtx: Record<string, unknown>
+  ): Record<string, unknown> {
+    const contexts: Record<string, unknown> = {
       trace: traceCtx,
     };
 
@@ -450,24 +450,7 @@ export class SentryExporter implements Exporter {
     event: Event,
     transaction?: SentryTransaction
   ): SentryErrorEvent {
-    // Extract error message
-    let errorMessage = "Unknown error";
-    let errorType = "ToolCallError";
-
-    if (event.error) {
-      if (typeof event.error === "string") {
-        errorMessage = event.error;
-      } else if (typeof event.error === "object" && event.error !== null) {
-        if ("message" in event.error) {
-          errorMessage = String(event.error.message);
-        } else {
-          errorMessage = JSON.stringify(event.error);
-        }
-        if ("type" in event.error) {
-          errorType = String(event.error.type);
-        }
-      }
-    }
+    const { errorMessage, errorType } = getSentryErrorDetails(event.error);
 
     // Use same trace context as the transaction for correlation (if available)
     const traceId = transaction
@@ -475,11 +458,7 @@ export class SentryExporter implements Exporter {
       : traceContext.getTraceId(event.sessionId);
     const spanId = traceContext.getSpanId(event.id);
 
-    const timestamp = transaction
-      ? transaction.timestamp
-      : event.timestamp
-        ? new Date(event.timestamp).getTime() / 1000
-        : Date.now() / 1000;
+    const timestamp = getSentryTimestamp(event, transaction);
 
     const errorEvent: SentryErrorEvent = {
       type: "event",
@@ -564,4 +543,34 @@ export class SentryExporter implements Exporter {
       JSON.stringify(errorEvent),
     ].join("\n");
   }
+}
+
+function getSentryErrorDetails(error: Event["error"]): {
+  errorMessage: string;
+  errorType: string;
+} {
+  if (!error) {
+    return {
+      errorMessage: "Unknown error",
+      errorType: "ToolCallError",
+    };
+  }
+
+  return {
+    errorMessage: error.message || JSON.stringify(error),
+    errorType: error.type || "ToolCallError",
+  };
+}
+
+function getSentryTimestamp(
+  event: Event,
+  transaction?: SentryTransaction
+): number {
+  if (transaction) {
+    return transaction.timestamp;
+  }
+
+  return event.timestamp
+    ? new Date(event.timestamp).getTime() / 1000
+    : Date.now() / 1000;
 }

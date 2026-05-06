@@ -3,6 +3,12 @@ import { POSTHOG_MCP_ANALYTICS_SOURCE } from "../constants.js";
 import { writeToLog } from "../logging.js";
 import { traceContext } from "./trace-context.js";
 
+const HTTP_PROTOCOL_REGEX = /^https?:\/\//;
+const TRAILING_SLASH_REGEX = /\/$/;
+const SLASH_REGEX = /\//g;
+const TAG_KEY_SEPARATOR_REGEX = /[\s:,]+/g;
+const COMMA_REGEX = /,/g;
+
 export interface DatadogExporterConfig {
   apiKey: string; // Required - Datadog API key
   env?: string; // Optional - environment
@@ -35,9 +41,9 @@ interface DatadogLog {
     server_name?: string;
     server_version?: string;
     is_error?: boolean;
-    error?: any;
+    error?: unknown;
     tags?: Record<string, string> | null;
-    properties?: Record<string, any> | null;
+    properties?: Record<string, unknown> | null;
   };
   message: string;
   service: string;
@@ -47,21 +53,23 @@ interface DatadogLog {
 
 interface DatadogMetric {
   metric: string;
-  points: Array<[number, number]>;
+  points: [number, number][];
   tags?: string[];
   type: "count" | "gauge" | "rate";
 }
 
 export class DatadogExporter implements Exporter {
-  private logsUrl: string;
-  private metricsUrl: string;
-  private config: DatadogExporterConfig;
+  private readonly logsUrl: string;
+  private readonly metricsUrl: string;
+  private readonly config: DatadogExporterConfig;
 
   constructor(config: DatadogExporterConfig) {
     this.config = config;
 
     // Build API endpoints based on site
-    const site = config.site.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    const site = config.site
+      .replace(HTTP_PROTOCOL_REGEX, "")
+      .replace(TRAILING_SLASH_REGEX, "");
     this.logsUrl = `https://http-intake.logs.${site}/api/v2/logs`;
     this.metricsUrl = `https://api.${site}/api/v1/series`;
   }
@@ -142,7 +150,7 @@ export class DatadogExporter implements Exporter {
       tags.push(`env:${this.config.env}`);
     }
     if (event.eventType) {
-      tags.push(`event_type:${event.eventType.replace(/\//g, ".")}`);
+      tags.push(`event_type:${event.eventType.replace(SLASH_REGEX, ".")}`);
     }
     if (event.resourceName) {
       tags.push(`resource:${event.resourceName}`);
@@ -156,8 +164,10 @@ export class DatadogExporter implements Exporter {
     // Add customer-defined tags to ddtags (namespaced to avoid collisions with reserved Datadog tags)
     if (event.tags) {
       for (const [key, value] of Object.entries(event.tags)) {
-        const sanitizedKey = key.toLowerCase().replace(/[\s:,]+/g, "_");
-        const sanitizedValue = value.replace(/,/g, "_");
+        const sanitizedKey = key
+          .toLowerCase()
+          .replace(TAG_KEY_SEPARATOR_REGEX, "_");
+        const sanitizedValue = value.replace(COMMA_REGEX, "_");
         tags.push(`posthog_mcp_analytics.${sanitizedKey}:${sanitizedValue}`);
       }
     }
@@ -218,7 +228,7 @@ export class DatadogExporter implements Exporter {
       tags.push(`env:${this.config.env}`);
     }
     if (event.eventType) {
-      tags.push(`event_type:${event.eventType.replace(/\//g, ".")}`);
+      tags.push(`event_type:${event.eventType.replace(SLASH_REGEX, ".")}`);
     }
     if (event.resourceName) {
       tags.push(`resource:${event.resourceName}`);

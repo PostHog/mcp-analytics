@@ -1,9 +1,14 @@
-import { createHash } from "crypto";
-import { MCPAnalyticsEventType } from "../event-types.js";
+import { createHash } from "node:crypto";
 import KSUID from "../../thirdparty/ksuid/index.js";
 import type { Event, Exporter } from "../../types.js";
 import { POSTHOG_MCP_ANALYTICS_SOURCE } from "../constants.js";
+import { MCPAnalyticsEventType } from "../event-types.js";
 import { writeToLog } from "../logging.js";
+
+const PREFIXED_KSUID_REGEX = /^[a-z]+_/;
+const MCP_EVENT_PREFIX_REGEX = /^mcp:/;
+const SLASH_REGEX = /\//g;
+const TRAILING_SLASH_REGEX = /\/$/;
 
 /**
  * Generates a deterministic UUIDv7 from a prefixed KSUID (e.g. ses_xxx).
@@ -12,7 +17,7 @@ import { writeToLog } from "../logging.js";
  */
 export function toUUIDv7(prefixedId: string): string {
   // Strip prefix (ses_, evt_, etc.) and parse KSUID
-  const ksuidStr = prefixedId.replace(/^[a-z]+_/, "");
+  const ksuidStr = prefixedId.replace(PREFIXED_KSUID_REGEX, "");
   let timestampMs: number;
   try {
     const ksuid = KSUID.parse(ksuidStr);
@@ -31,12 +36,12 @@ export function toUUIDv7(prefixedId: string): string {
   buf.writeUIntBE(timestampMs, 0, 6);
 
   // Byte 6: version 7 (0111) + high 4 bits of rand_a from hash
-  buf[6] = 0x70 | (hash[0] & 0x0f);
+  buf[6] = 0x70 + (hash[0] % 16);
   // Byte 7: low 8 bits of rand_a from hash
   buf[7] = hash[1];
 
   // Byte 8: variant 10 + high 6 bits of rand_b from hash
-  buf[8] = 0x80 | (hash[2] & 0x3f);
+  buf[8] = 0x80 + (hash[2] % 64);
   // Bytes 9-15: remaining rand_b from hash
   buf[9] = hash[3];
   buf[10] = hash[4];
@@ -48,11 +53,11 @@ export function toUUIDv7(prefixedId: string): string {
 
   const hex = buf.toString("hex");
   return [
-    hex.substring(0, 8),
-    hex.substring(8, 12),
-    hex.substring(12, 16),
-    hex.substring(16, 20),
-    hex.substring(20, 32),
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20, 32),
   ].join("-");
 }
 
@@ -84,7 +89,7 @@ export interface PostHogExporterConfig {
 export interface PostHogCaptureEvent {
   distinct_id: string;
   event: string;
-  properties: Record<string, any>;
+  properties: Record<string, unknown>;
   timestamp: string;
   type: "capture";
 }
@@ -97,7 +102,7 @@ export function buildPostHogCaptureEvents(
   event: Event,
   options: BuildPostHogCaptureEventsOptions = {}
 ): PostHogCaptureEvent[] {
-  const batch = [buildCaptureEvent(event, options)];
+  const batch = [buildCaptureEvent(event)];
 
   if (event.isError && event.error) {
     batch.push(buildExceptionEvent(event));
@@ -113,19 +118,32 @@ export function buildPostHogCaptureEvents(
   return batch;
 }
 
-function buildCaptureEvent(
-  event: Event,
-  options: BuildPostHogCaptureEventsOptions
-): PostHogCaptureEvent {
+function buildCaptureEvent(event: Event): PostHogCaptureEvent {
   const distinctId = getDistinctId(event);
   const eventName = mapEventType(event.eventType);
   const timestamp = getTimestamp(event);
 
-  const properties: Record<string, any> = {
+  const properties: Record<string, unknown> = {
     $session_id: toUUIDv7(event.sessionId),
     source: POSTHOG_MCP_ANALYTICS_SOURCE,
   };
 
+  addCommonEventProperties(event, properties);
+  addCustomEventProperties(event, properties);
+
+  return {
+    event: eventName,
+    distinct_id: distinctId,
+    properties,
+    timestamp,
+    type: "capture",
+  };
+}
+
+function addCommonEventProperties(
+  event: Event,
+  properties: Record<string, unknown>
+): void {
   if (event.resourceName) {
     properties.resource_name = event.resourceName;
     if (event.eventType === MCPAnalyticsEventType.mcpToolsCall) {
@@ -161,7 +179,7 @@ function buildCaptureEvent(
     properties.response = event.response;
   }
 
-  const $set: Record<string, any> = {};
+  const $set: Record<string, unknown> = {};
   if (event.identifyActorName) {
     $set.name = event.identifyActorName;
   }
@@ -171,7 +189,12 @@ function buildCaptureEvent(
   if (Object.keys($set).length > 0) {
     properties.$set = $set;
   }
+}
 
+function addCustomEventProperties(
+  event: Event,
+  properties: Record<string, unknown>
+): void {
   if (event.tags) {
     for (const [key, value] of Object.entries(event.tags)) {
       properties[key] = value;
@@ -183,21 +206,13 @@ function buildCaptureEvent(
       properties[key] = value;
     }
   }
-
-  return {
-    event: eventName,
-    distinct_id: distinctId,
-    properties,
-    timestamp,
-    type: "capture",
-  };
 }
 
 function buildExceptionEvent(event: Event): PostHogCaptureEvent {
   const distinctId = getDistinctId(event);
   const timestamp = getTimestamp(event);
 
-  const properties: Record<string, any> = {
+  const properties: Record<string, unknown> = {
     $exception_source: "backend",
     $session_id: toUUIDv7(event.sessionId),
   };
@@ -246,7 +261,7 @@ function buildAISpanEvent(event: Event): PostHogCaptureEvent {
   const distinctId = getDistinctId(event);
   const timestamp = getTimestamp(event);
 
-  const properties: Record<string, any> = {
+  const properties: Record<string, unknown> = {
     $ai_session_id: `posthog_mcp_analytics_${event.sessionId}`,
     $ai_trace_id: toUUIDv7(event.sessionId),
     $ai_span_id: toUUIDv7(event.id),
@@ -309,18 +324,21 @@ function mapEventType(eventType: string): string {
 
   return (
     mapping[eventType] ||
-    `mcp_${eventType.replace(/^mcp:/, "").replace(/\//g, "_")}`
+    `mcp_${eventType.replace(MCP_EVENT_PREFIX_REGEX, "").replace(SLASH_REGEX, "_")}`
   );
 }
 
 export class PostHogExporter implements Exporter {
-  private batchUrl: string;
-  private apiKey: string;
-  private config: PostHogExporterConfig;
+  private readonly batchUrl: string;
+  private readonly apiKey: string;
+  private readonly config: PostHogExporterConfig;
 
   constructor(config: PostHogExporterConfig) {
     this.config = config;
-    const host = (config.host || "https://us.i.posthog.com").replace(/\/$/, "");
+    const host = (config.host || "https://us.i.posthog.com").replace(
+      TRAILING_SLASH_REGEX,
+      ""
+    );
     this.batchUrl = `${host}/batch`;
     this.apiKey = config.apiKey;
 

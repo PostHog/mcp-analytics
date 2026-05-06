@@ -3,6 +3,8 @@ import { POSTHOG_MCP_ANALYTICS_SOURCE } from "../constants.js";
 import { writeToLog } from "../logging.js";
 import { traceContext } from "./trace-context.js";
 
+const TRAILING_SLASHES_REGEX = /\/+$/;
+
 export interface OTLPExporterConfig {
   endpoint: string;
   headers?: Record<string, string>;
@@ -10,12 +12,12 @@ export interface OTLPExporterConfig {
 }
 
 export class OTLPExporter implements Exporter {
-  private endpoint: string;
-  private headers: Record<string, string>;
+  private readonly endpoint: string;
+  private readonly headers: Record<string, string>;
 
   constructor(config: OTLPExporterConfig) {
     // Auto-append /v1/traces per OTLP spec if not already present
-    const url = config.endpoint.replace(/\/+$/, "");
+    const url = config.endpoint.replace(TRAILING_SLASHES_REGEX, "");
     this.endpoint = url.endsWith("/v1/traces") ? url : `${url}/v1/traces`;
 
     this.headers = {
@@ -80,7 +82,7 @@ export class OTLPExporter implements Exporter {
     }
   }
 
-  private convertToOTLPSpan(event: Event): any {
+  private convertToOTLPSpan(event: Event): OTLPSpan {
     const startTimeNanos = event.timestamp
       ? BigInt(event.timestamp.getTime()) * BigInt(1_000_000)
       : BigInt(Date.now()) * BigInt(1_000_000);
@@ -153,4 +155,24 @@ export class OTLPExporter implements Exporter {
       },
     };
   }
+}
+
+interface OTLPAttribute {
+  key: string;
+  value: {
+    stringValue: string;
+  };
+}
+
+interface OTLPSpan {
+  attributes: OTLPAttribute[];
+  endTimeUnixNano: string;
+  kind: 2;
+  name: string;
+  spanId: string;
+  startTimeUnixNano: string;
+  status: {
+    code: 1 | 2;
+  };
+  traceId: string;
 }
