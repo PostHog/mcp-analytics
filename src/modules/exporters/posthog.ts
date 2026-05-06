@@ -1,17 +1,15 @@
 import { createHash } from "node:crypto";
 import KSUID from "../../thirdparty/ksuid/index.js";
-import type { Event, Exporter } from "../../types.js";
+import type { Event } from "../../types.js";
 import {
   POSTHOG_MCP_ANALYTICS_SOURCE,
   PostHogMCPAnalyticsProperty,
 } from "../constants.js";
 import { MCPAnalyticsEventType } from "../event-types.js";
-import { writeToLog } from "../logging.js";
 
 const PREFIXED_KSUID_REGEX = /^[a-z]+_/;
 const MCP_EVENT_PREFIX_REGEX = /^mcp:/;
 const SLASH_REGEX = /\//g;
-const TRAILING_SLASH_REGEX = /\/$/;
 
 /**
  * Generates a deterministic UUIDv7 from a prefixed KSUID (e.g. ses_xxx).
@@ -72,21 +70,6 @@ function getTimestamp(event: Event): string {
   return event.timestamp
     ? event.timestamp.toISOString()
     : new Date().toISOString();
-}
-
-export interface PostHogExporterConfig {
-  apiKey: string; // PostHog project API key (e.g. phc_...)
-  /**
-   * Emits `$ai_span` events for tool calls alongside regular capture events,
-   * integrating with PostHog's AI observability views. Each tool call is its own
-   * trace (`$ai_trace_id`), grouped into sessions via `$ai_session_id`.
-   * Customer-defined `eventTags` are spread directly onto `$ai_span` properties
-   * and can override any default, including reserved `$ai_*` fields.
-   * @default false
-   */
-  enableAITracing?: boolean;
-  host?: string; // Default: "https://us.i.posthog.com" (supports self-hosted & EU region)
-  type: "posthog";
 }
 
 export interface PostHogCaptureEvent {
@@ -335,56 +318,4 @@ function mapEventType(eventType: string): string {
     mapping[eventType] ||
     `mcp_${eventType.replace(MCP_EVENT_PREFIX_REGEX, "").replace(SLASH_REGEX, "_")}`
   );
-}
-
-export class PostHogExporter implements Exporter {
-  private readonly batchUrl: string;
-  private readonly apiKey: string;
-  private readonly config: PostHogExporterConfig;
-
-  constructor(config: PostHogExporterConfig) {
-    this.config = config;
-    const host = (config.host || "https://us.i.posthog.com").replace(
-      TRAILING_SLASH_REGEX,
-      ""
-    );
-    this.batchUrl = `${host}/batch`;
-    this.apiKey = config.apiKey;
-
-    writeToLog(`PostHogExporter: Initialized with endpoint ${this.batchUrl}`);
-  }
-
-  async export(event: Event): Promise<void> {
-    try {
-      const batch = buildPostHogCaptureEvents(event, {
-        enableAITracing: this.config.enableAITracing,
-      });
-
-      writeToLog(
-        `PostHogExporter: Sending ${batch.length} event(s) for ${event.id}`
-      );
-
-      const response = await fetch(this.batchUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          api_key: this.apiKey,
-          batch,
-        }),
-      });
-
-      if (response.ok) {
-        writeToLog(`PostHog export success - Event: ${event.id}`);
-      } else {
-        const errorBody = await response.text();
-        writeToLog(
-          `PostHog export failed - Status: ${response.status}, Body: ${errorBody}`
-        );
-      }
-    } catch (error) {
-      writeToLog(`PostHog export error: ${error}`);
-    }
-  }
 }

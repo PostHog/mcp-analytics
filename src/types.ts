@@ -19,7 +19,6 @@ export interface MCPAnalyticsOptions {
     request: any,
     extra?: CompatibleRequestHandlerExtra
   ) => Record<string, string> | null | Promise<Record<string, string> | null>;
-  exporters?: Record<string, ExporterConfig>;
   host?: string;
   identify?: (
     request: any,
@@ -65,15 +64,6 @@ export type RegisteredTool = {
 );
 
 export type RedactFunction = (text: string) => Promise<string>;
-
-export interface ExporterConfig {
-  type: string;
-  [key: string]: any;
-}
-
-export interface Exporter {
-  export(event: Event): Promise<void>;
-}
 
 export const MCPAnalyticsIDPrefixes = {
   Event: "evt",

@@ -14,7 +14,6 @@ import { writeToLog } from "./logging.js";
 import { redactEvent } from "./redaction.js";
 import { sanitizeEvent } from "./sanitization.js";
 import { getSessionInfo } from "./session.js";
-import type { TelemetryManager } from "./telemetry.js";
 import { truncateEvent } from "./truncation.js";
 
 interface QueuedEvent {
@@ -32,7 +31,6 @@ class EventQueue {
   private posthogOptions: NonNullable<MCPAnalyticsOptions["posthogOptions"]> =
     {};
   private readonly posthogClients = new Map<string, PostHogCaptureClient>();
-  private telemetryManager?: TelemetryManager;
 
   configure(host: string): void {
     this.host = host;
@@ -50,10 +48,6 @@ class EventQueue {
       this.host = posthogOptions.host;
     }
     this.posthogClients.clear();
-  }
-
-  setTelemetryManager(telemetryManager: TelemetryManager): void {
-    this.telemetryManager = telemetryManager;
   }
 
   add(event: UnredactedEvent, posthogClient?: PostHogCaptureClient): void {
@@ -122,15 +116,6 @@ class EventQueue {
     event: Event,
     posthogClientOverride?: PostHogCaptureClient
   ): void {
-    // Export to telemetry if configured (fire-and-forget)
-    if (this.telemetryManager) {
-      this.telemetryManager.export(event).catch((error) => {
-        writeToLog(
-          `Telemetry export error: ${getMCPCompatibleErrorMessage(error)}`
-        );
-      });
-    }
-
     const posthogClient = this.getPostHogClient(
       event.apiKey,
       posthogClientOverride
@@ -244,10 +229,6 @@ try {
   }
 } catch {
   // process.once not available in this environment - graceful shutdown handlers not registered
-}
-
-export function setTelemetryManager(telemetryManager: TelemetryManager): void {
-  eventQueue.setTelemetryManager(telemetryManager);
 }
 
 export function publishEvent(

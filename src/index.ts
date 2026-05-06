@@ -8,7 +8,6 @@ import {
 import {
   eventQueue,
   publishEvent as publishEventToQueue,
-  setTelemetryManager,
 } from "./modules/event-queue.js";
 import { MCPAnalyticsEventType } from "./modules/event-types.js";
 import {
@@ -21,7 +20,6 @@ import {
   getSessionInfo,
   newSessionId,
 } from "./modules/session.js";
-import { TelemetryManager } from "./modules/telemetry.js";
 import { setupMCPAnalyticsTools } from "./modules/tools.js";
 import { setupToolCallTracing } from "./modules/tracing.js";
 import { setupTracking } from "./modules/tracing-v2.js";
@@ -41,7 +39,7 @@ import type {
  *
  * @param server - The MCP server instance to track. Must be a compatible MCP server implementation.
  * @param options - Configuration to customize tracking behavior.
- * @param options.apiKey - PostHog project API key (`phc_...`). Optional when using an injected `posthogClient` or telemetry-only mode.
+ * @param options.apiKey - PostHog project API key (`phc_...`). Optional when using an injected `posthogClient`.
  * @param options.host - Custom PostHog ingestion host. Defaults to `https://us.i.posthog.com`.
  * @param options.reportMissing - Adds a "get_more_tools" tool that allows LLMs to automatically report missing functionality. Defaults to false.
  * @param options.enableTracing - Enables tracking of tool calls and usage patterns.
@@ -52,10 +50,6 @@ import type {
  * @param options.eventProperties - Callback invoked on every auto-captured event to attach flexible JSON metadata (device info, feature flags, nested context). No constraints beyond standard JSON types. If the callback throws or returns null, properties are omitted. Receives the same `(request, extra)` arguments as `identify`.
  * @param options.posthogClient - Optional existing posthog-node compatible client. If provided, MCP analytics events are captured with that client instead of creating a new one.
  * @param options.posthogOptions - Optional posthog-node options used when the SDK creates its own client.
- * @param options.exporters - Configure telemetry exporters to send events to external systems. Available exporters:
- *   - `otlp`: OpenTelemetry Protocol exporter (see {@link ../modules/exporters/otlp.OTLPExporter})
- *   - `datadog`: Datadog APM exporter (see {@link ../modules/exporters/datadog.DatadogExporter})
- *   - `sentry`: Sentry Monitoring exporter (see {@link ../modules/exporters/sentry.SentryExporter})
  *
  * @returns The tracked server instance.
  *
@@ -137,31 +131,6 @@ import type {
  *
  * @example
  * ```typescript
- * // Telemetry-only mode (no PostHog MCP analytics account required)
- * mcpAnalytics.track(mcpServer, {
- *   exporters: {
- *     otlp: {
- *       type: "otlp",
- *       endpoint: "http://localhost:4318/v1/traces"
- *     }
- *   }
- * });
- * ```
- *
- * @example
- * ```typescript
- * // Dual mode - send to both PostHog MCP analytics and telemetry exporters
- * mcpAnalytics.track(mcpServer, {
- *   apiKey: "phc_abc123xyz",
- *   exporters: {
- *     datadog: {
- *       type: "datadog",
- *       apiKey: process.env.DD_API_KEY,
- *       site: "datadoghq.com"
- *     }
- *   }
- * });
- * ```
  */
 function track<TServer>(
   server: TServer,
@@ -182,11 +151,9 @@ function track<TServer>(
       return validatedServer as TServer;
     }
 
-    configureTelemetry(options);
-
-    if (!(options.apiKey || options.exporters || options.posthogClient)) {
+    if (!(options.apiKey || options.posthogClient)) {
       writeToLog(
-        "Warning: No PostHog API key, PostHog client, or exporters configured. Events will not be sent anywhere."
+        "Warning: No PostHog API key or PostHog client configured. Events will not be sent anywhere."
       );
     }
 
@@ -218,18 +185,6 @@ function configureIngestion(options: MCPAnalyticsOptions): void {
   if (host) {
     eventQueue.configure(host);
   }
-}
-
-function configureTelemetry(options: MCPAnalyticsOptions): void {
-  if (!options.exporters) {
-    return;
-  }
-
-  const telemetryManager = new TelemetryManager(options.exporters);
-  setTelemetryManager(telemetryManager);
-  writeToLog(
-    `Initialized telemetry with ${Object.keys(options.exporters).length} exporters`
-  );
 }
 
 function buildTrackingData(
@@ -475,8 +430,6 @@ function publishResolvedCustomEvent(
 
 export type {
   CustomEventData,
-  Exporter,
-  ExporterConfig,
   MCPAnalyticsContextOptions,
   MCPAnalyticsOptions,
   RedactFunction,
