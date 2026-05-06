@@ -142,9 +142,9 @@ describe("Context Parameters", () => {
       // Enable tracking on the server
       track(server, {
         apiKey: "test-project",
-        enableReportMissing: true,
+        reportMissing: true,
         enableTracing: true,
-        enableToolCallContext: true,
+        context: true,
       });
 
       // Call a tool with context
@@ -188,7 +188,7 @@ describe("Context Parameters", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, { apiKey: "test-project", enableToolCallContext: true });
+      track(server, { apiKey: "test-project", context: true });
 
       // Call complete_todo with context
       // First add a todo
@@ -247,7 +247,7 @@ describe("Context Parameters", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, { apiKey: "test-project", enableToolCallContext: true });
+      track(server, { apiKey: "test-project", context: true });
 
       // Call list_todos without context - should succeed but have no userIntent
       // Note: Context is advertised as required in JSON Schema (for client/LLM),
@@ -309,7 +309,7 @@ describe("Context Parameters", () => {
 
     it("should inject context into tool schemas when listing tools", async () => {
       // Enable tracking
-      track(server, { apiKey: "test-project", enableToolCallContext: true });
+      track(server, { apiKey: "test-project", context: true });
 
       // Get the tools list
       const toolsResponse = await client.request(
@@ -345,8 +345,8 @@ describe("Context Parameters", () => {
     });
 
     it("should use default context description when no custom description is provided", async () => {
-      // Enable tracking WITHOUT customContextDescription
-      track(server, { apiKey: "test-project", enableToolCallContext: true });
+      // Enable tracking WITHOUT custom context description
+      track(server, { apiKey: "test-project", context: true });
 
       // Get the tools list
       const toolsResponse = await client.request(

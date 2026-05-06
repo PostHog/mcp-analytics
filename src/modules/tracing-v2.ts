@@ -6,6 +6,7 @@ import type {
   RegisteredTool,
   UnredactedEvent,
 } from "../types.js";
+import { isContextEnabled } from "./context-parameters.js";
 import { publishEvent } from "./event-queue.js";
 import { MCPAnalyticsEventType } from "./event-types.js";
 import { captureException } from "./exceptions.js";
@@ -372,7 +373,7 @@ async function initializeToolCallEvent(
     await applyResolvedMetadata(event, data, request, extra);
 
     if (
-      data.options.enableToolCallContext &&
+      isContextEnabled(data.options.context) &&
       request.params?.arguments?.context
     ) {
       event.userIntent = request.params.arguments.context;

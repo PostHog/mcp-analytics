@@ -35,8 +35,7 @@ describe("Custom Context Description", () => {
     // Enable tracking with custom context description
     track(server, {
       apiKey: "test-project",
-      enableToolCallContext: true,
-      customContextDescription: customDescription,
+      context: { description: customDescription },
     });
 
     // Get the tools list
@@ -69,8 +68,7 @@ describe("Custom Context Description", () => {
     // Enable tracking with custom context description
     track(server, {
       apiKey: "test-project",
-      enableToolCallContext: true,
-      customContextDescription: customDescription,
+      context: { description: customDescription },
     });
 
     // Get the tools list
@@ -100,8 +98,7 @@ describe("Custom Context Description", () => {
     // Enable tracking with custom context description
     track(server, {
       apiKey: "test-project",
-      enableToolCallContext: true,
-      customContextDescription: customDescription,
+      context: { description: customDescription },
     });
 
     // Get the tools list
@@ -137,9 +134,8 @@ describe("Custom Context Description", () => {
     // Enable tracking with custom context description
     track(server, {
       apiKey: "test-project",
-      enableToolCallContext: true,
+      context: { description: customDescription },
       enableTracing: true,
-      customContextDescription: customDescription,
     });
 
     // Call a tool with context
@@ -177,9 +173,9 @@ describe("Custom Context Description", () => {
     await eventCapture.stop();
   });
 
-  it("should use default description when customContextDescription is not provided", async () => {
+  it("should use default description when custom context description is not provided", async () => {
     // Enable tracking WITHOUT custom context description
-    track(server, { apiKey: "test-project", enableToolCallContext: true });
+    track(server, { apiKey: "test-project", context: true });
 
     // Get the tools list
     const toolsResponse = await client.request(
@@ -210,9 +206,8 @@ describe("Custom Context Description", () => {
     // Enable tracking with custom context description
     track(server, {
       apiKey: "test-project",
-      enableToolCallContext: true,
+      context: { description: customDescription },
       enableTracing: true,
-      customContextDescription: customDescription,
     });
 
     // Verify tools list has custom description
@@ -308,8 +303,7 @@ describe("Custom Context Description", () => {
     // Enable tracking with long custom context description
     track(server, {
       apiKey: "test-project",
-      enableToolCallContext: true,
-      customContextDescription: customDescription,
+      context: { description: customDescription },
     });
 
     // Get the tools list
@@ -336,8 +330,7 @@ describe("Custom Context Description", () => {
     // Enable tracking with special characters in description
     track(server, {
       apiKey: "test-project",
-      enableToolCallContext: true,
-      customContextDescription: customDescription,
+      context: { description: customDescription },
     });
 
     // Get the tools list

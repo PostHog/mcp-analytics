@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
 import KSUID from "../../thirdparty/ksuid/index.js";
 import type { Event, Exporter } from "../../types.js";
-import { POSTHOG_MCP_ANALYTICS_SOURCE } from "../constants.js";
+import {
+  POSTHOG_MCP_ANALYTICS_SOURCE,
+  PostHogMCPAnalyticsProperty,
+} from "../constants.js";
 import { MCPAnalyticsEventType } from "../event-types.js";
 import { writeToLog } from "../logging.js";
 
@@ -124,8 +127,8 @@ function buildCaptureEvent(event: Event): PostHogCaptureEvent {
   const timestamp = getTimestamp(event);
 
   const properties: Record<string, unknown> = {
-    $session_id: toUUIDv7(event.sessionId),
-    source: POSTHOG_MCP_ANALYTICS_SOURCE,
+    [PostHogMCPAnalyticsProperty.SessionId]: toUUIDv7(event.sessionId),
+    [PostHogMCPAnalyticsProperty.Source]: POSTHOG_MCP_ANALYTICS_SOURCE,
   };
 
   addCommonEventProperties(event, properties);
@@ -145,38 +148,39 @@ function addCommonEventProperties(
   properties: Record<string, unknown>
 ): void {
   if (event.resourceName) {
-    properties.resource_name = event.resourceName;
+    properties[PostHogMCPAnalyticsProperty.ResourceName] = event.resourceName;
     if (event.eventType === MCPAnalyticsEventType.mcpToolsCall) {
-      properties.tool_name = event.resourceName;
+      properties[PostHogMCPAnalyticsProperty.ToolName] = event.resourceName;
     }
   }
   if (event.duration !== undefined) {
-    properties.duration_ms = event.duration;
+    properties[PostHogMCPAnalyticsProperty.DurationMs] = event.duration;
   }
   if (event.serverName) {
-    properties.server_name = event.serverName;
+    properties[PostHogMCPAnalyticsProperty.ServerName] = event.serverName;
   }
   if (event.serverVersion) {
-    properties.server_version = event.serverVersion;
+    properties[PostHogMCPAnalyticsProperty.ServerVersion] = event.serverVersion;
   }
   if (event.clientName) {
-    properties.client_name = event.clientName;
+    properties[PostHogMCPAnalyticsProperty.ClientName] = event.clientName;
   }
   if (event.clientVersion) {
-    properties.client_version = event.clientVersion;
+    properties[PostHogMCPAnalyticsProperty.ClientVersion] = event.clientVersion;
   }
   if (event.userIntent) {
-    properties.user_intent = event.userIntent;
+    properties[PostHogMCPAnalyticsProperty.UserIntent] = event.userIntent;
+    properties[PostHogMCPAnalyticsProperty.MCPContext] = event.userIntent;
   }
   if (event.isError !== undefined) {
-    properties.is_error = event.isError;
+    properties[PostHogMCPAnalyticsProperty.IsError] = event.isError;
   }
 
   if (event.parameters !== undefined) {
-    properties.parameters = event.parameters;
+    properties[PostHogMCPAnalyticsProperty.Parameters] = event.parameters;
   }
   if (event.response !== undefined) {
-    properties.response = event.response;
+    properties[PostHogMCPAnalyticsProperty.Response] = event.response;
   }
 
   const $set: Record<string, unknown> = {};
@@ -214,7 +218,7 @@ function buildExceptionEvent(event: Event): PostHogCaptureEvent {
 
   const properties: Record<string, unknown> = {
     $exception_source: "backend",
-    $session_id: toUUIDv7(event.sessionId),
+    [PostHogMCPAnalyticsProperty.SessionId]: toUUIDv7(event.sessionId),
   };
 
   if (event.error) {
@@ -230,22 +234,22 @@ function buildExceptionEvent(event: Event): PostHogCaptureEvent {
   }
 
   if (event.resourceName) {
-    properties.resource_name = event.resourceName;
+    properties[PostHogMCPAnalyticsProperty.ResourceName] = event.resourceName;
     if (event.eventType === MCPAnalyticsEventType.mcpToolsCall) {
-      properties.tool_name = event.resourceName;
+      properties[PostHogMCPAnalyticsProperty.ToolName] = event.resourceName;
     }
   }
   if (event.serverName) {
-    properties.server_name = event.serverName;
+    properties[PostHogMCPAnalyticsProperty.ServerName] = event.serverName;
   }
   if (event.serverVersion) {
-    properties.server_version = event.serverVersion;
+    properties[PostHogMCPAnalyticsProperty.ServerVersion] = event.serverVersion;
   }
   if (event.clientName) {
-    properties.client_name = event.clientName;
+    properties[PostHogMCPAnalyticsProperty.ClientName] = event.clientName;
   }
   if (event.clientVersion) {
-    properties.client_version = event.clientVersion;
+    properties[PostHogMCPAnalyticsProperty.ClientVersion] = event.clientVersion;
   }
 
   return {
@@ -262,32 +266,37 @@ function buildAISpanEvent(event: Event): PostHogCaptureEvent {
   const timestamp = getTimestamp(event);
 
   const properties: Record<string, unknown> = {
-    $ai_session_id: `posthog_mcp_analytics_${event.sessionId}`,
-    $ai_trace_id: toUUIDv7(event.sessionId),
-    $ai_span_id: toUUIDv7(event.id),
-    $ai_span_name: event.resourceName || "unknown_tool",
-    $ai_is_error: event.isError,
-    $session_id: toUUIDv7(event.sessionId),
-    source: POSTHOG_MCP_ANALYTICS_SOURCE,
+    [PostHogMCPAnalyticsProperty.AiSessionId]: `posthog_mcp_analytics_${event.sessionId}`,
+    [PostHogMCPAnalyticsProperty.AiTraceId]: toUUIDv7(event.sessionId),
+    [PostHogMCPAnalyticsProperty.AiSpanId]: toUUIDv7(event.id),
+    [PostHogMCPAnalyticsProperty.AiSpanName]:
+      event.resourceName || "unknown_tool",
+    [PostHogMCPAnalyticsProperty.AiIsError]: event.isError,
+    [PostHogMCPAnalyticsProperty.SessionId]: toUUIDv7(event.sessionId),
+    [PostHogMCPAnalyticsProperty.Source]: POSTHOG_MCP_ANALYTICS_SOURCE,
   };
 
   if (event.duration !== undefined) {
-    properties.$ai_latency = event.duration / 1000;
+    properties[PostHogMCPAnalyticsProperty.AiLatency] = event.duration / 1000;
   }
   if (event.isError && event.error) {
     properties.$ai_error = event.error;
   }
   if (event.parameters !== undefined) {
-    properties.$ai_input_state = event.parameters;
+    properties[PostHogMCPAnalyticsProperty.AiInputState] = event.parameters;
   }
   if (event.response !== undefined) {
-    properties.$ai_output_state = event.response;
+    properties[PostHogMCPAnalyticsProperty.AiOutputState] = event.response;
   }
   if (event.serverName) {
-    properties.server_name = event.serverName;
+    properties[PostHogMCPAnalyticsProperty.ServerName] = event.serverName;
   }
   if (event.clientName) {
-    properties.client_name = event.clientName;
+    properties[PostHogMCPAnalyticsProperty.ClientName] = event.clientName;
+  }
+  if (event.userIntent) {
+    properties[PostHogMCPAnalyticsProperty.UserIntent] = event.userIntent;
+    properties[PostHogMCPAnalyticsProperty.MCPContext] = event.userIntent;
   }
 
   if (event.tags) {

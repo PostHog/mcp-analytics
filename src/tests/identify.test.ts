@@ -204,7 +204,7 @@ describe("Identify Feature", () => {
       track(server, {
         apiKey: "test-project",
         enableTracing: true,
-        enableToolCallContext: true,
+        context: true,
         identify: async (request, extra) => {
           identifyCalled = true;
           expect(request).toBeDefined();

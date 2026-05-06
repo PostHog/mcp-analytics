@@ -6,11 +6,16 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import type {
   HighLevelMCPServerLike,
+  MCPAnalyticsOptions,
   MCPServerLike,
   UnredactedEvent,
 } from "../types.js";
 import { getMCPCompatibleErrorMessage } from "./compatibility.js";
-import { addContextParameterToTools } from "./context-parameters.js";
+import {
+  addContextParameterToTools,
+  getContextDescription,
+  isContextEnabled,
+} from "./context-parameters.js";
 import { publishEvent } from "./event-queue.js";
 import { MCPAnalyticsEventType } from "./event-types.js";
 import { captureException } from "./exceptions.js";
@@ -166,14 +171,14 @@ async function getTracedToolsList(
     )) as ListToolsResult;
     let tools = originalResponse.tools || [];
 
-    if (data?.options.enableToolCallContext) {
+    if (data && isContextEnabled(data.options.context)) {
       tools = addContextParameterToTools(
         tools,
-        data.options.customContextDescription
+        getContextDescription(data.options.context)
       );
     }
 
-    if (data?.options.enableReportMissing) {
+    if (data?.options.reportMissing) {
       const alreadyPresent = tools.some(
         (tool) => tool?.name === GET_MORE_TOOLS_NAME
       );
@@ -354,7 +359,7 @@ async function handleToolCallRequest(
   try {
     await handleIdentify(server, data, request, extra);
     await applyResolvedMetadata(event, data, request, extra);
-    setToolCallContext(event, data.options.enableToolCallContext, request);
+    setToolCallContext(event, data.options.context, request);
 
     const result = await executeToolCall(
       server,
@@ -422,10 +427,12 @@ async function applyResolvedMetadata(
 
 function setToolCallContext(
   event: UnredactedEvent,
-  enableToolCallContext: boolean | undefined,
+  context: MCPAnalyticsOptions["context"],
   request: MCPRequest
 ): void {
-  if (!(enableToolCallContext && request.params?.name !== "get_more_tools")) {
+  if (
+    !(isContextEnabled(context) && request.params?.name !== "get_more_tools")
+  ) {
     return;
   }
 

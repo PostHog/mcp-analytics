@@ -4,7 +4,11 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import type { MCPServerLike, UnredactedEvent } from "../types.js";
 import { getMCPCompatibleErrorMessage } from "./compatibility.js";
-import { addContextParameterToTools } from "./context-parameters.js";
+import {
+  addContextParameterToTools,
+  getContextDescription,
+  isContextEnabled,
+} from "./context-parameters.js";
 import { publishEvent } from "./event-queue.js";
 import { MCPAnalyticsEventType } from "./event-types.js";
 import { getServerTrackingData } from "./internal.js";
@@ -114,16 +118,16 @@ export function setupMCPAnalyticsTools(server: MCPServerLike): void {
         return { tools };
       }
 
-      // Add context parameter to all existing tools if enableToolCallContext is true
-      if (data.options.enableToolCallContext) {
+      // Add context parameter to all existing tools when context capture is enabled
+      if (isContextEnabled(data.options.context)) {
         tools = addContextParameterToTools(
           tools,
-          data.options.customContextDescription
+          getContextDescription(data.options.context)
         );
       }
 
       // Add report_missing tool if enabled
-      if (data.options.enableReportMissing) {
+      if (data.options.reportMissing) {
         const alreadyPresent = tools.some(
           (tool) => tool?.name === GET_MORE_TOOLS_NAME
         );

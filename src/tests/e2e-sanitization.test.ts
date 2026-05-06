@@ -20,7 +20,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
       const { track } = await import("../index.js");
       await track(server, {
         apiKey: "test-sanitization",
-        enableToolCallContext: false,
+        context: false,
         enableTracing: true,
       });
 
@@ -89,7 +89,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
       const { track } = await import("../index.js");
       await track(server, {
         apiKey: "test-sanitization-audio",
-        enableToolCallContext: false,
+        context: false,
         enableTracing: true,
       });
 
@@ -148,7 +148,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
       const { track } = await import("../index.js");
       await track(server, {
         apiKey: "test-sanitization-base64",
-        enableToolCallContext: false,
+        context: false,
         enableTracing: true,
       });
 
@@ -215,7 +215,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
       const { track } = await import("../index.js");
       await track(server, {
         apiKey: "test-sanitization-mixed",
-        enableToolCallContext: false,
+        context: false,
         enableTracing: true,
       });
 

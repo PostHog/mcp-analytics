@@ -20,9 +20,12 @@ const server = new Server({ name: "my-mcp-server", version: "1.0.0" });
 
 track(server, {
   apiKey: process.env.POSTHOG_API_KEY,
+  context: true,
   host: "https://us.i.posthog.com",
 });
 ```
+
+With `context: true`, the SDK adds a required `context` argument to every tool call, strips it before invoking your handler, and captures it as `mcp_context` and `user_intent` on PostHog events.
 
 The SDK sends events through `posthog-node`, so it uses the same PostHog ingestion client, batching, retry, flush, and shutdown behavior as the existing Node SDK.
 

@@ -143,7 +143,7 @@ describe("Basic Server Test", () => {
       // Call track first with a project ID
       await track(server, {
         apiKey: "test-project",
-        enableToolCallContext: true,
+        context: true,
         enableTracing: true,
       });
 
@@ -220,7 +220,7 @@ describe("Basic Server Test", () => {
       // Call track first with a project ID
       await track(server, {
         apiKey: "test-project",
-        enableToolCallContext: true,
+        context: true,
         enableTracing: true,
       });
 
@@ -296,7 +296,7 @@ describe("Basic Server Test", () => {
       // Call track with tracing enabled
       await track(server, {
         apiKey: "test-dedup-project",
-        enableToolCallContext: true,
+        context: true,
         enableTracing: true,
       });
 
@@ -470,7 +470,7 @@ describe("Basic Server Test", () => {
       // NOW call track - after tools are already defined
       await track(server, {
         apiKey: "test-project",
-        enableToolCallContext: true,
+        context: true,
         enableTracing: true,
       });
 

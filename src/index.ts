@@ -43,10 +43,9 @@ import type {
  * @param options - Configuration to customize tracking behavior.
  * @param options.apiKey - PostHog project API key (`phc_...`). Optional when using an injected `posthogClient` or telemetry-only mode.
  * @param options.host - Custom PostHog ingestion host. Defaults to `https://us.i.posthog.com`.
- * @param options.enableReportMissing - Adds a "get_more_tools" tool that allows LLMs to automatically report missing functionality.
+ * @param options.reportMissing - Adds a "get_more_tools" tool that allows LLMs to automatically report missing functionality. Defaults to false.
  * @param options.enableTracing - Enables tracking of tool calls and usage patterns.
- * @param options.enableToolCallContext - Injects a "context" parameter to existing tools to capture user intent.
- * @param options.customContextDescription - Custom description for the injected context parameter. Only applies when enableToolCallContext is true. Use this to provide domain-specific guidance to LLMs about what context they should provide.
+ * @param options.context - Enables the required "context" parameter on tools to capture user intent. Pass false to disable, or an object with a custom description.
  * @param options.identify - Async function to identify users and attach custom data to their sessions.
  * @param options.redactSensitiveInformation - Function to redact sensitive data before sending to PostHog MCP analytics.
  * @param options.eventTags - Callback invoked on every auto-captured event (tool calls, tool lists, initialize) to attach string key-value tags. Tags are intended to be indexed and queryable in the PostHog MCP analytics dashboard — use them for structured metadata you'll want to filter or group by (e.g., trace IDs, environments, regions). Tags are validated client-side: keys must be ≤32 chars matching `[a-zA-Z0-9$_.:\- ]`, values must be strings ≤200 chars with no newlines, max 50 entries per event. Invalid entries are silently dropped with a warning logged to `~/posthog-mcp-analytics.log`. If the callback throws or returns null, tags are omitted. Receives the same `(request, extra)` arguments as `identify`.
@@ -101,8 +100,9 @@ import type {
  * // With custom context description
  * mcpAnalytics.track(mcpServer, {
  *   apiKey: "phc_abc123xyz",
- *   enableToolCallContext: true,
- *   customContextDescription: "Explain why you're calling this tool and what business objective it helps achieve"
+ *   context: {
+ *     description: "Explain why you're calling this tool and what business objective it helps achieve"
+ *   }
  * });
  * ```
  *
@@ -243,10 +243,9 @@ function buildTrackingData(
     identifiedSessions: new Map<string, UserIdentity>(),
     sessionInfo: getSessionInfo(lowLevelServer, undefined),
     options: {
-      enableReportMissing: options.enableReportMissing ?? true,
+      reportMissing: options.reportMissing ?? false,
       enableTracing: options.enableTracing ?? true,
-      enableToolCallContext: options.enableToolCallContext ?? true,
-      customContextDescription: options.customContextDescription,
+      context: options.context,
       identify: options.identify,
       redactSensitiveInformation: options.redactSensitiveInformation,
       eventTags: options.eventTags,
@@ -268,7 +267,7 @@ function setupTrackedServer(
     const highLevelServer = validatedServer as HighLevelMCPServerLike;
     setupTracking(highLevelServer);
   } else {
-    if (mcpAnalyticsData.options.enableReportMissing) {
+    if (mcpAnalyticsData.options.reportMissing) {
       try {
         setupMCPAnalyticsTools(lowLevelServer);
       } catch (error) {
@@ -478,6 +477,7 @@ export type {
   CustomEventData,
   Exporter,
   ExporterConfig,
+  MCPAnalyticsContextOptions,
   MCPAnalyticsOptions,
   RedactFunction,
   UserIdentity,
@@ -485,4 +485,5 @@ export type {
 
 export type IdentifyFunction = MCPAnalyticsOptions["identify"];
 
+export { PostHogMCPAnalyticsProperty } from "./modules/constants.js";
 export { track };

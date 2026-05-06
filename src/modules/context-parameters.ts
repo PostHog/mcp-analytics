@@ -1,3 +1,4 @@
+import type { MCPAnalyticsOptions } from "../types.js";
 import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "./constants.js";
 import { writeToLog } from "./logging.js";
 
@@ -17,6 +18,18 @@ export interface ContextInjectableTool {
   [key: string]: unknown;
 }
 
+export function isContextEnabled(
+  context: MCPAnalyticsOptions["context"]
+): boolean {
+  return context !== false;
+}
+
+export function getContextDescription(
+  context: MCPAnalyticsOptions["context"]
+): string | undefined {
+  return typeof context === "object" ? context.description : undefined;
+}
+
 /**
  * Adds a context parameter to a tool's JSON Schema.
  * This function is called AFTER the MCP SDK has converted Zod schemas to JSON Schema,
@@ -29,7 +42,7 @@ export interface ContextInjectableTool {
  */
 export function addContextParameterToTool<TTool extends ContextInjectableTool>(
   tool: TTool,
-  customContextDescription?: string
+  contextDescriptionOverride?: string
 ): TTool {
   // Create a shallow copy of the tool to avoid modifying the original
   const modifiedTool = { ...tool };
@@ -65,7 +78,7 @@ export function addContextParameterToTool<TTool extends ContextInjectableTool>(
   }
 
   const contextDescription =
-    customContextDescription || DEFAULT_CONTEXT_PARAMETER_DESCRIPTION;
+    contextDescriptionOverride || DEFAULT_CONTEXT_PARAMETER_DESCRIPTION;
 
   // Deep copy the inputSchema to avoid mutations
   modifiedTool.inputSchema = JSON.parse(
@@ -105,13 +118,13 @@ export function addContextParameterToTool<TTool extends ContextInjectableTool>(
 
 export function addContextParameterToTools<TTool extends ContextInjectableTool>(
   tools: TTool[],
-  customContextDescription?: string
+  contextDescriptionOverride?: string
 ): TTool[] {
   return tools.map((tool) => {
     // Skip get_more_tools - it has its own special context parameter
     if (tool.name === "get_more_tools") {
       return tool;
     }
-    return addContextParameterToTool(tool, customContextDescription);
+    return addContextParameterToTool(tool, contextDescriptionOverride);
   });
 }

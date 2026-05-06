@@ -9,9 +9,7 @@ export interface PostHogCaptureClient {
 
 export interface MCPAnalyticsOptions {
   apiKey?: string | null;
-  customContextDescription?: string;
-  enableReportMissing?: boolean;
-  enableToolCallContext?: boolean;
+  context?: boolean | MCPAnalyticsContextOptions;
   enableTracing?: boolean;
   eventProperties?: (
     request: any,
@@ -40,6 +38,11 @@ export interface MCPAnalyticsOptions {
     | "waitUntilMaxWaitMs"
   >;
   redactSensitiveInformation?: RedactFunction;
+  reportMissing?: boolean;
+}
+
+export interface MCPAnalyticsContextOptions {
+  description?: string;
 }
 
 export type ToolCallback =

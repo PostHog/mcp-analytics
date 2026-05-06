@@ -32,11 +32,11 @@ describe("Report Missing Tool", () => {
   });
 
   describe("1. Tool Injection Tests", () => {
-    it("should add report_missing to tools list when enableReportMissing is true", async () => {
+    it("should add report_missing to tools list when reportMissing is true", async () => {
       // Enable tracking with report_missing enabled
       track(server, {
         apiKey: "test-project",
-        enableReportMissing: true,
+        reportMissing: true,
         enableTracing: true,
       });
 
@@ -65,11 +65,11 @@ describe("Report Missing Tool", () => {
       expect(reportMissingTool.inputSchema.required).toContain("context");
     });
 
-    it("should NOT add get_more_tools when enableReportMissing is false", async () => {
+    it("should NOT add get_more_tools when reportMissing is false", async () => {
       // Enable tracking with get_more_tools disabled
       track(server, {
         apiKey: "test-project",
-        enableReportMissing: false,
+        reportMissing: false,
         enableTracing: true,
       });
 
@@ -90,12 +90,12 @@ describe("Report Missing Tool", () => {
       expect(reportMissingTool).toBeUndefined();
     });
 
-    it("should add report_missing WITHOUT context injection even when enableToolCallContext is true", async () => {
+    it("should add report_missing WITHOUT context injection even when context is true", async () => {
       // Enable tracking with both features enabled
       track(server, {
         apiKey: "test-project",
-        enableReportMissing: true,
-        enableToolCallContext: true,
+        reportMissing: true,
+        context: true,
         enableTracing: true,
       });
 
@@ -136,7 +136,7 @@ describe("Report Missing Tool", () => {
       // Enable tracking
       track(server, {
         apiKey: "test-project",
-        enableReportMissing: true,
+        reportMissing: true,
         enableTracing: true,
       });
 
@@ -186,7 +186,7 @@ describe("Report Missing Tool", () => {
       // Enable tracking
       track(server, {
         apiKey: "test-project",
-        enableReportMissing: true,
+        reportMissing: true,
         enableTracing: true,
       });
 
@@ -236,7 +236,7 @@ describe("Report Missing Tool", () => {
       // Enable tracking
       track(server, {
         apiKey: "test-project",
-        enableReportMissing: true,
+        reportMissing: true,
         enableTracing: true,
       });
 
@@ -328,7 +328,7 @@ describe("Report Missing Tool", () => {
       // Enable tracking
       track(server, {
         apiKey: "test-project",
-        enableReportMissing: true,
+        reportMissing: true,
         enableTracing: true,
       });
 
@@ -412,7 +412,7 @@ describe("Report Missing Tool", () => {
       // Enable tracking with identify
       track(server, {
         apiKey: "test-project",
-        enableReportMissing: true,
+        reportMissing: true,
         enableTracing: true,
         identify: async () => ({
           userId: testUserId,
@@ -468,7 +468,7 @@ describe("Report Missing Tool", () => {
       // Enable tracking
       track(server, {
         apiKey: "test-project",
-        enableReportMissing: true,
+        reportMissing: true,
         enableTracing: true,
       });
 
@@ -539,7 +539,7 @@ describe("Report Missing Tool", () => {
         const setup1 = await setupTestServerAndClient();
         track(setup1.server, {
           apiKey: "test-project",
-          enableReportMissing: true,
+          reportMissing: true,
           enableTracing: true,
         });
 
@@ -564,7 +564,7 @@ describe("Report Missing Tool", () => {
         const setup2 = await setupTestServerAndClient();
         track(setup2.server, {
           apiKey: "test-project",
-          enableReportMissing: true,
+          reportMissing: true,
           enableTracing: true,
         });
 
@@ -619,7 +619,7 @@ describe("Report Missing Tool", () => {
       // Enable tracking
       track(server, {
         apiKey: "test-project",
-        enableReportMissing: true,
+        reportMissing: true,
         enableTracing: true,
       });
 
