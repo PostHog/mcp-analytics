@@ -5,12 +5,12 @@ import {
   isCompatibleServerType,
   isHighLevelServer,
 } from "./modules/compatibility.js";
-import { MCPAnalyticsEventType } from "./modules/event-types.js";
 import {
   eventQueue,
   publishEvent as publishEventToQueue,
   setTelemetryManager,
-} from "./modules/eventQueue.js";
+} from "./modules/event-queue.js";
+import { MCPAnalyticsEventType } from "./modules/event-types.js";
 import {
   getServerTrackingData,
   setServerTrackingData,
@@ -335,7 +335,7 @@ export async function publishCustomEvent(
       );
     }
   } else if (typeof serverOrSessionId === "string") {
-    if (!apiKey && !eventData.posthogClient) {
+    if (!(apiKey || eventData.posthogClient)) {
       throw new Error(
         "apiKey or posthogClient is required when publishing with a session ID"
       );

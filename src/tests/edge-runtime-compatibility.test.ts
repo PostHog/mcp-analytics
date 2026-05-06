@@ -132,7 +132,7 @@ describe("Edge Runtime Compatibility", () => {
       vi.resetModules();
 
       // Should not throw when importing
-      await expect(import("../modules/eventQueue.js")).resolves.toBeDefined();
+      await expect(import("../modules/event-queue.js")).resolves.toBeDefined();
     });
 
     it("should handle process being undefined", async () => {
@@ -142,7 +142,7 @@ describe("Edge Runtime Compatibility", () => {
       vi.resetModules();
 
       // Should not throw
-      const module = await import("../modules/eventQueue.js");
+      const module = await import("../modules/event-queue.js");
       expect(module.eventQueue).toBeDefined();
 
       // Restore process before other tests run

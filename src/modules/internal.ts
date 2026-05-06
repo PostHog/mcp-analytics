@@ -1,4 +1,3 @@
-import { MCPAnalyticsEventType } from "./event-types.js";
 import type {
   CompatibleRequestHandlerExtra,
   MCPAnalyticsData,
@@ -6,7 +5,8 @@ import type {
   UnredactedEvent,
   UserIdentity,
 } from "../types.js";
-import { publishEvent } from "./eventQueue.js";
+import { publishEvent } from "./event-queue.js";
+import { MCPAnalyticsEventType } from "./event-types.js";
 import { writeToLog } from "./logging.js";
 import { validateTags } from "./validation.js";
 
@@ -16,8 +16,11 @@ import { validateTags } from "./validation.js";
  * This cache persists across server instance restarts.
  */
 class IdentityCache {
-  private cache: Map<string, { identity: UserIdentity; timestamp: number }>;
-  private maxSize: number;
+  private readonly cache: Map<
+    string,
+    { identity: UserIdentity; timestamp: number }
+  >;
+  private readonly maxSize: number;
 
   constructor(maxSize = 1000) {
     this.cache = new Map();
@@ -150,7 +153,7 @@ export function mergeIdentities(
 export async function handleIdentify(
   server: MCPServerLike,
   data: MCPAnalyticsData,
-  request: any,
+  request: unknown,
   extra?: CompatibleRequestHandlerExtra
 ): Promise<void> {
   if (!data.options.identify) {
@@ -160,7 +163,7 @@ export async function handleIdentify(
   const sessionId = data.sessionId;
   const identifyEvent: UnredactedEvent = {
     sessionId,
-    resourceName: request.params?.name || "Unknown",
+    resourceName: getRequestResourceName(request),
     eventType: MCPAnalyticsEventType.identify,
     parameters: {
       request,
@@ -217,7 +220,7 @@ export async function handleIdentify(
  */
 export async function resolveEventTags(
   data: MCPAnalyticsData,
-  request: any,
+  request: unknown,
   extra?: CompatibleRequestHandlerExtra
 ): Promise<Record<string, string> | null> {
   if (!data.options.eventTags) {
@@ -241,9 +244,9 @@ export async function resolveEventTags(
  */
 export async function resolveEventProperties(
   data: MCPAnalyticsData,
-  request: any,
+  request: unknown,
   extra?: CompatibleRequestHandlerExtra
-): Promise<Record<string, any> | null> {
+): Promise<Record<string, unknown> | null> {
   if (!data.options.eventProperties) {
     return null;
   }
@@ -253,4 +256,17 @@ export async function resolveEventProperties(
     writeToLog(`eventProperties callback error: ${e}`);
     return null;
   }
+}
+
+function getRequestResourceName(request: unknown): string {
+  if (!request || typeof request !== "object" || !("params" in request)) {
+    return "Unknown";
+  }
+
+  const params = request.params;
+  if (!params || typeof params !== "object" || !("name" in params)) {
+    return "Unknown";
+  }
+
+  return typeof params.name === "string" ? params.name : "Unknown";
 }

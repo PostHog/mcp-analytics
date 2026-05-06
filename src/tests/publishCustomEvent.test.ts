@@ -6,7 +6,7 @@ import { setupTestHooks } from "./test-utils.js";
 vi.mock("../modules/logging.js");
 vi.mock("../modules/internal.js");
 vi.mock("../modules/session.js");
-vi.mock("../modules/eventQueue.js");
+vi.mock("../modules/event-queue.js");
 vi.mock("../thirdparty/ksuid/index.js");
 
 // Import the function under test
@@ -14,7 +14,7 @@ import { publishCustomEvent } from "../index.js";
 import {
   eventQueue,
   publishEvent as publishEventToQueue,
-} from "../modules/eventQueue.js";
+} from "../modules/event-queue.js";
 import { getServerTrackingData } from "../modules/internal.js";
 // Import mocked modules
 import { writeToLog } from "../modules/logging.js";

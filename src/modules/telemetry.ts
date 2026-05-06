@@ -1,12 +1,21 @@
 import type { Event, Exporter, ExporterConfig } from "../types.js";
-import { DatadogExporter } from "./exporters/datadog.js";
-import { OTLPExporter } from "./exporters/otlp.js";
-import { PostHogExporter } from "./exporters/posthog.js";
-import { SentryExporter } from "./exporters/sentry.js";
+import {
+  DatadogExporter,
+  type DatadogExporterConfig,
+} from "./exporters/datadog.js";
+import { OTLPExporter, type OTLPExporterConfig } from "./exporters/otlp.js";
+import {
+  PostHogExporter,
+  type PostHogExporterConfig,
+} from "./exporters/posthog.js";
+import {
+  SentryExporter,
+  type SentryExporterConfig,
+} from "./exporters/sentry.js";
 import { writeToLog } from "./logging.js";
 
 export class TelemetryManager {
-  private exporters: Map<string, Exporter> = new Map();
+  private readonly exporters: Map<string, Exporter> = new Map();
 
   constructor(exporterConfigs?: Record<string, ExporterConfig>) {
     if (!exporterConfigs) {
@@ -15,7 +24,7 @@ export class TelemetryManager {
 
     for (const [name, config] of Object.entries(exporterConfigs)) {
       try {
-        const exporter = this.createExporter(name, config);
+        const exporter = this.createExporter(config);
         if (exporter) {
           this.exporters.set(name, exporter);
           writeToLog(`Initialized telemetry exporter: ${name}`);
@@ -26,28 +35,25 @@ export class TelemetryManager {
     }
   }
 
-  private createExporter(
-    name: string,
-    config: ExporterConfig
-  ): Exporter | null {
+  private createExporter(config: ExporterConfig): Exporter | null {
     switch (config.type) {
       case "otlp":
-        return new OTLPExporter(config as any);
+        return new OTLPExporter(config as unknown as OTLPExporterConfig);
       case "datadog":
-        return new DatadogExporter(config as any);
+        return new DatadogExporter(config as unknown as DatadogExporterConfig);
       case "sentry":
-        return new SentryExporter(config as any);
+        return new SentryExporter(config as unknown as SentryExporterConfig);
       case "posthog":
-        return new PostHogExporter(config as any);
+        return new PostHogExporter(config as unknown as PostHogExporterConfig);
       default:
         writeToLog(`Unknown exporter type: ${config.type}`);
         return null;
     }
   }
 
-  async export(event: Event): Promise<void> {
+  export(event: Event): Promise<void> {
     if (this.exporters.size === 0) {
-      return;
+      return Promise.resolve();
     }
 
     // Telemetry errors should be logged but not propagated
@@ -58,6 +64,7 @@ export class TelemetryManager {
         writeToLog(`Telemetry export failed for ${name}: ${errorMessage}`);
       });
     }
+    return Promise.resolve();
   }
 
   getExporterCount(): number {

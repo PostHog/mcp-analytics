@@ -7,7 +7,7 @@ import type {
   RegisteredTool,
   UnredactedEvent,
 } from "../types.js";
-import { publishEvent } from "./eventQueue.js";
+import { publishEvent } from "./event-queue.js";
 import { captureException } from "./exceptions.js";
 import {
   getServerTrackingData,

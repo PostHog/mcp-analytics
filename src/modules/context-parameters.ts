@@ -1,4 +1,3 @@
-import type { RegisteredTool } from "../types.js";
 import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "./constants.js";
 import { writeToLog } from "./logging.js";
 
@@ -12,9 +11,11 @@ interface JsonSchema {
   type?: string;
 }
 
-type NamedRegisteredTool = RegisteredTool & {
+export interface ContextInjectableTool {
+  inputSchema?: JsonSchema;
   name?: string;
-};
+  [key: string]: unknown;
+}
 
 /**
  * Adds a context parameter to a tool's JSON Schema.
@@ -26,13 +27,13 @@ type NamedRegisteredTool = RegisteredTool & {
  * - Complex schemas (oneOf/allOf/anyOf) that can't safely have properties added
  * - Schemas with additionalProperties: false
  */
-export function addContextParameterToTool(
-  tool: RegisteredTool,
+export function addContextParameterToTool<TTool extends ContextInjectableTool>(
+  tool: TTool,
   customContextDescription?: string
-): RegisteredTool {
+): TTool {
   // Create a shallow copy of the tool to avoid modifying the original
   const modifiedTool = { ...tool };
-  const toolName = (tool as NamedRegisteredTool).name || "unknown";
+  const toolName = tool.name || "unknown";
   const schema = modifiedTool.inputSchema as JsonSchema | undefined;
 
   // Check if tool already has context parameter - skip to avoid collision
@@ -102,13 +103,13 @@ export function addContextParameterToTool(
   return modifiedTool;
 }
 
-export function addContextParameterToTools(
-  tools: RegisteredTool[],
+export function addContextParameterToTools<TTool extends ContextInjectableTool>(
+  tools: TTool[],
   customContextDescription?: string
-): RegisteredTool[] {
+): TTool[] {
   return tools.map((tool) => {
     // Skip get_more_tools - it has its own special context parameter
-    if ((tool as NamedRegisteredTool).name === "get_more_tools") {
+    if (tool.name === "get_more_tools") {
       return tool;
     }
     return addContextParameterToTool(tool, customContextDescription);

@@ -14,7 +14,7 @@ import { getSessionInfo } from "../modules/session.js";
 import KSUID from "../thirdparty/ksuid/index.js";
 
 // Import the module under test - need to do this after mocking
-const { publishEvent, eventQueue } = await import("../modules/eventQueue.js");
+const { publishEvent, eventQueue } = await import("../modules/event-queue.js");
 
 describe("EventQueue", () => {
   setupTestHooks();

@@ -1,5 +1,5 @@
-import KSUID from "../thirdparty/ksuid/index.js";
 import { PostHog } from "posthog-node";
+import KSUID from "../thirdparty/ksuid/index.js";
 import type {
   Event,
   MCPAnalyticsOptions,
@@ -23,15 +23,15 @@ interface QueuedEvent {
 }
 
 class EventQueue {
-  private queue: QueuedEvent[] = [];
+  private readonly queue: QueuedEvent[] = [];
   private processing = false;
-  private maxQueueSize = 10_000; // Prevent unbounded growth
-  private concurrency = 5; // Max parallel requests
+  private readonly maxQueueSize = 10_000; // Prevent unbounded growth
+  private readonly concurrency = 5; // Max parallel requests
   private activeRequests = 0;
   private host = "https://us.i.posthog.com";
   private posthogOptions: NonNullable<MCPAnalyticsOptions["posthogOptions"]> =
     {};
-  private posthogClients = new Map<string, PostHogCaptureClient>();
+  private readonly posthogClients = new Map<string, PostHogCaptureClient>();
   private telemetryManager?: TelemetryManager;
 
   configure(host: string): void {
@@ -107,19 +107,21 @@ class EventQueue {
 
       event.id = event.id || (await KSUID.withPrefix("evt").random());
       this.activeRequests++;
-      this.sendEvent(event as Event, posthogClient).finally(() => {
+      try {
+        this.sendEvent(event as Event, posthogClient);
+      } finally {
         this.activeRequests--;
         this.process();
-      });
+      }
     }
 
     this.processing = false;
   }
 
-  private async sendEvent(
+  private sendEvent(
     event: Event,
     posthogClientOverride?: PostHogCaptureClient
-  ): Promise<void> {
+  ): void {
     // Export to telemetry if configured (fire-and-forget)
     if (this.telemetryManager) {
       this.telemetryManager.export(event).catch((error) => {
@@ -165,7 +167,7 @@ class EventQueue {
     }
 
     if (!apiKey) {
-      return undefined;
+      return;
     }
 
     const existingClient = this.posthogClients.get(apiKey);
@@ -270,7 +272,7 @@ export function publishEvent(
   const duration =
     eventInput.duration ||
     (eventInput.timestamp
-      ? new Date().getTime() - eventInput.timestamp.getTime()
+      ? Date.now() - eventInput.timestamp.getTime()
       : undefined);
 
   // Build complete Event object with all fields explicit

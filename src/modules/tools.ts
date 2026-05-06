@@ -2,18 +2,20 @@ import {
   ListToolsRequestSchema,
   type ListToolsResult,
 } from "@modelcontextprotocol/sdk/types.js";
-import { MCPAnalyticsEventType } from "./event-types.js";
 import type { MCPServerLike, UnredactedEvent } from "../types.js";
 import { getMCPCompatibleErrorMessage } from "./compatibility.js";
 import { addContextParameterToTools } from "./context-parameters.js";
-import { publishEvent } from "./eventQueue.js";
+import { publishEvent } from "./event-queue.js";
+import { MCPAnalyticsEventType } from "./event-types.js";
 import { getServerTrackingData } from "./internal.js";
 import { writeToLog } from "./logging.js";
 import { getServerSessionId } from "./session.js";
 
 export const GET_MORE_TOOLS_NAME = "get_more_tools" as const;
 
-export function getReportMissingToolDescriptor() {
+type ReportMissingToolDescriptor = ListToolsResult["tools"][number];
+
+export function getReportMissingToolDescriptor(): ReportMissingToolDescriptor {
   return {
     name: GET_MORE_TOOLS_NAME,
     description:
@@ -29,7 +31,7 @@ export function getReportMissingToolDescriptor() {
       },
       required: ["context"],
     },
-  } as const;
+  };
 }
 
 export function handleReportMissing(args: { context: string }) {
@@ -62,7 +64,7 @@ export function setupMCPAnalyticsTools(server: MCPServerLike): void {
   // Override tools list to include get_more_tools and add context parameter
   try {
     server.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
-      let tools: any[] = [];
+      let tools: ListToolsResult["tools"] = [];
       const data = getServerTrackingData(server);
       const event: UnredactedEvent = {
         sessionId: getServerSessionId(server, extra),
@@ -88,9 +90,7 @@ export function setupMCPAnalyticsTools(server: MCPServerLike): void {
         event.error = { message: getMCPCompatibleErrorMessage(error) };
         event.isError = true;
         event.duration =
-          (event.timestamp &&
-            new Date().getTime() - event.timestamp.getTime()) ||
-          0;
+          (event.timestamp && Date.now() - event.timestamp.getTime()) || 0;
         publishEvent(server, event);
         throw error;
       }
@@ -109,9 +109,7 @@ export function setupMCPAnalyticsTools(server: MCPServerLike): void {
         event.error = { message: "No tools were sent to MCP client." };
         event.isError = true;
         event.duration =
-          (event.timestamp &&
-            new Date().getTime() - event.timestamp.getTime()) ||
-          0;
+          (event.timestamp && Date.now() - event.timestamp.getTime()) || 0;
         publishEvent(server, event);
         return { tools };
       }
@@ -127,7 +125,7 @@ export function setupMCPAnalyticsTools(server: MCPServerLike): void {
       // Add report_missing tool if enabled
       if (data.options.enableReportMissing) {
         const alreadyPresent = tools.some(
-          (t: any) => t?.name === GET_MORE_TOOLS_NAME
+          (tool) => tool?.name === GET_MORE_TOOLS_NAME
         );
         if (!alreadyPresent) {
           tools.push(getReportMissingToolDescriptor());
@@ -137,8 +135,7 @@ export function setupMCPAnalyticsTools(server: MCPServerLike): void {
       event.response = { tools };
       event.isError = false;
       event.duration =
-        (event.timestamp && new Date().getTime() - event.timestamp.getTime()) ||
-        0;
+        (event.timestamp && Date.now() - event.timestamp.getTime()) || 0;
       publishEvent(server, event);
       return { tools };
     });
