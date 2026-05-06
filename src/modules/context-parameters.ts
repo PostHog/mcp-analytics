@@ -1,6 +1,20 @@
-import type { RegisteredTool } from "../types";
-import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "./constants";
+import type { RegisteredTool } from "../types.js";
+import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "./constants.js";
 import { writeToLog } from "./logging.js";
+
+interface JsonSchema {
+  additionalProperties?: boolean;
+  allOf?: unknown;
+  anyOf?: unknown;
+  oneOf?: unknown;
+  properties?: Record<string, unknown>;
+  required?: string[];
+  type?: string;
+}
+
+type NamedRegisteredTool = RegisteredTool & {
+  name?: string;
+};
 
 /**
  * Adds a context parameter to a tool's JSON Schema.
@@ -18,8 +32,8 @@ export function addContextParameterToTool(
 ): RegisteredTool {
   // Create a shallow copy of the tool to avoid modifying the original
   const modifiedTool = { ...tool };
-  const toolName = (tool as any).name || "unknown";
-  const schema = modifiedTool.inputSchema as Record<string, any> | undefined;
+  const toolName = (tool as NamedRegisteredTool).name || "unknown";
+  const schema = modifiedTool.inputSchema as JsonSchema | undefined;
 
   // Check if tool already has context parameter - skip to avoid collision
   if (schema?.properties?.context) {
@@ -55,32 +69,34 @@ export function addContextParameterToTool(
   // Deep copy the inputSchema to avoid mutations
   modifiedTool.inputSchema = JSON.parse(
     JSON.stringify(modifiedTool.inputSchema)
-  );
+  ) as JsonSchema;
+
+  const inputSchema = modifiedTool.inputSchema as JsonSchema;
 
   // Ensure properties object exists
-  if (!modifiedTool.inputSchema.properties) {
-    modifiedTool.inputSchema.properties = {};
+  if (!inputSchema.properties) {
+    inputSchema.properties = {};
   }
 
   // Handle additionalProperties: false - must remove this constraint since we're adding context
   // The MCP SDK adds this constraint when converting Zod schemas to JSON Schema
-  if (modifiedTool.inputSchema.additionalProperties === false) {
-    delete modifiedTool.inputSchema.additionalProperties;
+  if (inputSchema.additionalProperties === false) {
+    inputSchema.additionalProperties = undefined;
   }
 
   // Add context property
-  modifiedTool.inputSchema.properties.context = {
+  inputSchema.properties.context = {
     type: "string",
     description: contextDescription,
   };
 
   // Add context to required array
-  if (Array.isArray(modifiedTool.inputSchema.required)) {
-    if (!modifiedTool.inputSchema.required.includes("context")) {
-      modifiedTool.inputSchema.required.push("context");
+  if (Array.isArray(inputSchema.required)) {
+    if (!inputSchema.required.includes("context")) {
+      inputSchema.required.push("context");
     }
   } else {
-    modifiedTool.inputSchema.required = ["context"];
+    inputSchema.required = ["context"];
   }
 
   return modifiedTool;
@@ -92,7 +108,7 @@ export function addContextParameterToTools(
 ): RegisteredTool[] {
   return tools.map((tool) => {
     // Skip get_more_tools - it has its own special context parameter
-    if ((tool as any).name === "get_more_tools") {
+    if ((tool as NamedRegisteredTool).name === "get_more_tools") {
       return tool;
     }
     return addContextParameterToTool(tool, customContextDescription);
