@@ -32,11 +32,11 @@ const PROTECTED_FIELDS = new Set([
  * @returns A new object with all strings redacted
  */
 async function redactStringsInObject(
-  obj: any,
+  obj: unknown,
   redactFn: RedactFunction,
   path = "",
   isProtected = false
-): Promise<any> {
+): Promise<unknown> {
   if (obj === null || obj === undefined) {
     return obj;
   }
@@ -66,7 +66,7 @@ async function redactStringsInObject(
 
   // Handle objects
   if (typeof obj === "object") {
-    const redactedObj: any = {};
+    const redactedObj: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(obj)) {
       // Skip functions and undefined values
@@ -103,7 +103,7 @@ async function redactStringsInObject(
  * @param redactFn - The customer's redaction function
  * @returns A new event object with all strings redacted
  */
-export async function redactEvent(
+export function redactEvent(
   event: UnredactedEvent,
   redactFn: RedactFunction
 ): Promise<Event> {

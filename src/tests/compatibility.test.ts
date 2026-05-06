@@ -13,6 +13,14 @@ vi.mock("../modules/logging", () => ({
 // Import after mocking
 import { writeToLog } from "../modules/logging";
 
+const COMPATIBILITY_PATTERN = /compatibility/i;
+const GET_CLIENT_VERSION_PATTERN = /getClientVersion/;
+const MCP_NAME_PATTERN = /Model Context Protocol|MCP/;
+const REQUEST_HANDLERS_PATTERN = /_requestHandlers/;
+const SERVER_INFO_PATTERN = /_serverInfo/;
+const SERVER_OBJECT_ERROR_PATTERN = /Server must be an object/;
+const SET_REQUEST_HANDLER_PATTERN = /setRequestHandler/;
+
 describe("Compatibility Module", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -34,35 +42,35 @@ describe("Compatibility Module", () => {
 
     it("should throw error and log warning for null server", () => {
       expect(() => isCompatibleServerType(null)).toThrowError(
-        /Server must be an object/
+        SERVER_OBJECT_ERROR_PATTERN
       );
       expect(writeToLog).toHaveBeenCalled();
     });
 
     it("should throw error and log warning for undefined server", () => {
       expect(() => isCompatibleServerType(undefined)).toThrowError(
-        /Server must be an object/
+        SERVER_OBJECT_ERROR_PATTERN
       );
       expect(writeToLog).toHaveBeenCalled();
     });
 
     it("should throw error and log warning for non-object server", () => {
       expect(() => isCompatibleServerType("not an object")).toThrowError(
-        /Server must be an object/
+        SERVER_OBJECT_ERROR_PATTERN
       );
       expect(writeToLog).toHaveBeenCalledTimes(1);
 
       vi.clearAllMocks();
 
       expect(() => isCompatibleServerType(42)).toThrowError(
-        /Server must be an object/
+        SERVER_OBJECT_ERROR_PATTERN
       );
       expect(writeToLog).toHaveBeenCalledTimes(1);
 
       vi.clearAllMocks();
 
       expect(() => isCompatibleServerType(true)).toThrowError(
-        /Server must be an object/
+        SERVER_OBJECT_ERROR_PATTERN
       );
       expect(writeToLog).toHaveBeenCalledTimes(1);
     });
@@ -75,7 +83,7 @@ describe("Compatibility Module", () => {
       };
 
       expect(() => isCompatibleServerType(server)).toThrowError(
-        /setRequestHandler/
+        SET_REQUEST_HANDLER_PATTERN
       );
       expect(writeToLog).toHaveBeenCalled();
     });
@@ -89,7 +97,7 @@ describe("Compatibility Module", () => {
       };
 
       expect(() => isCompatibleServerType(server)).toThrowError(
-        /setRequestHandler/
+        SET_REQUEST_HANDLER_PATTERN
       );
       expect(writeToLog).toHaveBeenCalled();
     });
@@ -102,7 +110,7 @@ describe("Compatibility Module", () => {
       };
 
       expect(() => isCompatibleServerType(server)).toThrowError(
-        /_requestHandlers/
+        REQUEST_HANDLERS_PATTERN
       );
       expect(writeToLog).toHaveBeenCalled();
     });
@@ -116,7 +124,7 @@ describe("Compatibility Module", () => {
       };
 
       expect(() => isCompatibleServerType(server)).toThrowError(
-        /_requestHandlers/
+        REQUEST_HANDLERS_PATTERN
       );
       expect(writeToLog).toHaveBeenCalled();
     });
@@ -130,7 +138,7 @@ describe("Compatibility Module", () => {
       };
 
       expect(() => isCompatibleServerType(server)).toThrowError(
-        /_requestHandlers/
+        REQUEST_HANDLERS_PATTERN
       );
       expect(writeToLog).toHaveBeenCalled();
     });
@@ -143,7 +151,7 @@ describe("Compatibility Module", () => {
       };
 
       expect(() => isCompatibleServerType(server)).toThrowError(
-        /getClientVersion/
+        GET_CLIENT_VERSION_PATTERN
       );
       expect(writeToLog).toHaveBeenCalled();
     });
@@ -157,7 +165,7 @@ describe("Compatibility Module", () => {
       };
 
       expect(() => isCompatibleServerType(server)).toThrowError(
-        /getClientVersion/
+        GET_CLIENT_VERSION_PATTERN
       );
       expect(writeToLog).toHaveBeenCalled();
     });
@@ -169,7 +177,9 @@ describe("Compatibility Module", () => {
         getClientVersion: vi.fn(),
       };
 
-      expect(() => isCompatibleServerType(server)).toThrowError(/_serverInfo/);
+      expect(() => isCompatibleServerType(server)).toThrowError(
+        SERVER_INFO_PATTERN
+      );
       expect(writeToLog).toHaveBeenCalled();
     });
 
@@ -181,7 +191,9 @@ describe("Compatibility Module", () => {
         _serverInfo: "not an object",
       };
 
-      expect(() => isCompatibleServerType(server)).toThrowError(/_serverInfo/);
+      expect(() => isCompatibleServerType(server)).toThrowError(
+        SERVER_INFO_PATTERN
+      );
       expect(writeToLog).toHaveBeenCalled();
     });
 
@@ -193,7 +205,9 @@ describe("Compatibility Module", () => {
         _serverInfo: {},
       };
 
-      expect(() => isCompatibleServerType(server)).toThrowError(/_serverInfo/);
+      expect(() => isCompatibleServerType(server)).toThrowError(
+        SERVER_INFO_PATTERN
+      );
       expect(writeToLog).toHaveBeenCalled();
     });
   });
@@ -309,7 +323,7 @@ describe("Compatibility Module", () => {
       };
 
       expect(() => isCompatibleServerType(mcpServerWrapper)).toThrowError(
-        /setRequestHandler/
+        SET_REQUEST_HANDLER_PATTERN
       );
       expect(writeToLog).toHaveBeenCalled();
     });
@@ -353,7 +367,7 @@ describe("Compatibility Module", () => {
             getClientVersion: vi.fn(),
             _serverInfo: { name: "TestServer" },
           },
-          expectedPattern: /_requestHandlers/,
+          expectedPattern: REQUEST_HANDLERS_PATTERN,
         },
         {
           name: "missing getClientVersion",
@@ -362,7 +376,7 @@ describe("Compatibility Module", () => {
             _requestHandlers: new Map(),
             _serverInfo: { name: "TestServer" },
           },
-          expectedPattern: /getClientVersion/,
+          expectedPattern: GET_CLIENT_VERSION_PATTERN,
         },
         {
           name: "missing _serverInfo",
@@ -371,11 +385,11 @@ describe("Compatibility Module", () => {
             _requestHandlers: new Map(),
             getClientVersion: vi.fn(),
           },
-          expectedPattern: /_serverInfo/,
+          expectedPattern: SERVER_INFO_PATTERN,
         },
       ];
 
-      testCases.forEach((testCase) => {
+      for (const testCase of testCases) {
         vi.clearAllMocks();
         const mcpServerWrapper = {
           server: testCase.server,
@@ -387,7 +401,7 @@ describe("Compatibility Module", () => {
           testCase.expectedPattern
         );
         expect(writeToLog).toHaveBeenCalled();
-      });
+      }
     });
   });
 
@@ -399,8 +413,8 @@ describe("Compatibility Module", () => {
       expect(writeToLog).toHaveBeenCalledTimes(1);
       // Check that it contains key compatibility info rather than exact message
       const [[message]] = (writeToLog as any).mock.calls;
-      expect(message).toMatch(/compatibility/i);
-      expect(message).toMatch(/Model Context Protocol|MCP/);
+      expect(message).toMatch(COMPATIBILITY_PATTERN);
+      expect(message).toMatch(MCP_NAME_PATTERN);
     });
   });
 
@@ -417,7 +431,7 @@ describe("Compatibility Module", () => {
         );
         McpServer = ImportedMcpServer;
         hasCompatibleVersion = true;
-      } catch (error) {
+      } catch {
         // McpServer not available in this version
         hasCompatibleVersion = false;
       }

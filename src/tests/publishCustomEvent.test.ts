@@ -7,7 +7,6 @@ vi.mock("../modules/logging.js");
 vi.mock("../modules/internal.js");
 vi.mock("../modules/session.js");
 vi.mock("../modules/event-queue.js");
-vi.mock("../thirdparty/ksuid/index.js");
 
 // Import the function under test
 import { publishCustomEvent } from "../index.js";
@@ -19,23 +18,14 @@ import { getServerTrackingData } from "../modules/internal.js";
 // Import mocked modules
 import { writeToLog } from "../modules/logging.js";
 import { deriveSessionIdFromMCPSession } from "../modules/session.js";
-import KSUID from "../thirdparty/ksuid/index.js";
 
 describe("publishCustomEvent", () => {
   setupTestHooks();
 
-  let mockKSUID: any;
   let mockEventQueue: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Mock KSUID
-    mockKSUID = {
-      random: vi.fn().mockResolvedValue("evt_test123"),
-      randomSync: vi.fn().mockReturnValue("ses_test123"),
-    };
-    (KSUID.withPrefix as any) = vi.fn().mockReturnValue(mockKSUID);
 
     // Mock logging
     (writeToLog as any).mockImplementation(() => {});
@@ -62,7 +52,6 @@ describe("publishCustomEvent", () => {
 
   describe("with tracked server", () => {
     let mockServer: MCPServerLike;
-    const apiKey = "phc_test123";
 
     beforeEach(() => {
       mockServer = {} as any;

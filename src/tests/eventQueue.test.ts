@@ -5,21 +5,20 @@ import { setupTestHooks } from "./test-utils.js";
 vi.mock("../modules/logging.js");
 vi.mock("../modules/internal.js");
 vi.mock("../modules/session.js");
-vi.mock("../thirdparty/ksuid/index.js");
+vi.mock("../modules/ids.js", () => ({
+  newPrefixedId: vi.fn(() => "evt_test123"),
+}));
 
 // Import mocked modules
 import { getServerTrackingData } from "../modules/internal.js";
 import { writeToLog } from "../modules/logging.js";
 import { getSessionInfo } from "../modules/session.js";
-import KSUID from "../thirdparty/ksuid/index.js";
 
 // Import the module under test - need to do this after mocking
 const { publishEvent, eventQueue } = await import("../modules/event-queue.js");
 
 describe("EventQueue", () => {
   setupTestHooks();
-
-  let mockKSUID: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -30,12 +29,6 @@ describe("EventQueue", () => {
         ok: true,
       })
     );
-
-    // Mock KSUID
-    mockKSUID = {
-      random: vi.fn().mockResolvedValue("evt_test123"),
-    };
-    (KSUID.withPrefix as any) = vi.fn().mockReturnValue(mockKSUID);
 
     // Mock logging
     (writeToLog as any).mockImplementation(() => {});

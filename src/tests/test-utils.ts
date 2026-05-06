@@ -1,4 +1,4 @@
-import { existsSync, unlinkSync } from "fs";
+import { existsSync, unlinkSync } from "node:fs";
 import { afterEach, beforeEach } from "vitest";
 import type { Event } from "../types.js";
 

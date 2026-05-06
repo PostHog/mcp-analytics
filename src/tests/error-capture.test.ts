@@ -1,8 +1,8 @@
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { track } from "../index.js";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import {
   resetTodos,
   setupTestServerAndClient,
@@ -150,10 +150,7 @@ describe("Error Capture Integration Tests", () => {
       // Add a tool that throws a TypeError
       server.tool("type_error_tool", "Throws TypeError", {}, async () => {
         const obj: any = null;
-        obj.property; // This will throw TypeError
-        return {
-          content: [{ type: "text", text: "unreachable" }],
-        };
+        return obj.property; // This will throw TypeError
       });
 
       // Track the server
@@ -203,7 +200,7 @@ describe("Error Capture Integration Tests", () => {
     try {
       // Add a tool that throws a string
       server.tool("throw_string", "Throws string", {}, async () => {
-        throw "This is a string error";
+        await Promise.reject("This is a string error");
       });
 
       // Track the server
@@ -293,6 +290,7 @@ describe("Error Capture Integration Tests", () => {
 
       // At least one frame should be from user code
       expect(hasInAppFrame).toBe(true);
+      expect(typeof hasLibraryFrame).toBe("boolean");
     } finally {
       await cleanup();
     }
@@ -412,7 +410,7 @@ describe("Error Capture Integration Tests", () => {
       const events = eventCapture.findEventsByResourceName("add_todo");
       expect(events.length).toBeGreaterThan(0);
 
-      const successEvent = events[events.length - 1];
+      const successEvent = events.at(-1);
       expect(successEvent.isError).toBeUndefined();
       expect(successEvent.error).toBeUndefined();
     } finally {

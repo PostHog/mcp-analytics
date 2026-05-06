@@ -1,6 +1,7 @@
 import type {
   CompatibleRequestHandlerExtra,
   MCPAnalyticsData,
+  MCPRequestLike,
   MCPServerLike,
   UnredactedEvent,
   UserIdentity,
@@ -153,7 +154,7 @@ export function mergeIdentities(
 export async function handleIdentify(
   server: MCPServerLike,
   data: MCPAnalyticsData,
-  request: unknown,
+  request: MCPRequestLike,
   extra?: CompatibleRequestHandlerExtra
 ): Promise<void> {
   if (!data.options.identify) {
@@ -220,7 +221,7 @@ export async function handleIdentify(
  */
 export async function resolveEventTags(
   data: MCPAnalyticsData,
-  request: unknown,
+  request: MCPRequestLike,
   extra?: CompatibleRequestHandlerExtra
 ): Promise<Record<string, string> | null> {
   if (!data.options.eventTags) {
@@ -244,7 +245,7 @@ export async function resolveEventTags(
  */
 export async function resolveEventProperties(
   data: MCPAnalyticsData,
-  request: unknown,
+  request: MCPRequestLike,
   extra?: CompatibleRequestHandlerExtra
 ): Promise<Record<string, unknown> | null> {
   if (!data.options.eventProperties) {

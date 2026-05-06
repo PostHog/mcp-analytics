@@ -1,4 +1,4 @@
-import { createRequire } from "module";
+import { createRequire } from "node:module";
 
 // Lazy-loaded module references for Node.js file logging
 // These are loaded dynamically to support edge environments (Cloudflare Workers, etc.)
@@ -21,9 +21,9 @@ function tryInitSync(): void {
     // Use createRequire for ESM compatibility
     // Works in Node.js ESM/CJS, fails gracefully in Workers/edge environments
     const require = createRequire(import.meta.url);
-    const fs = require("fs");
-    const os = require("os");
-    const path = require("path");
+    const fs = require("node:fs");
+    const os = require("node:os");
+    const path = require("node:path");
 
     const home = os.homedir?.();
     if (home) {
@@ -48,7 +48,6 @@ export function writeToLog(message: string): void {
   const logEntry = `[${timestamp}] ${message}`;
 
   if (useConsoleFallback) {
-    console.log(`[posthog-mcp-analytics] ${logEntry}`);
     return;
   }
 
@@ -59,9 +58,9 @@ export function writeToLog(message: string): void {
 
   try {
     if (fsModule.existsSync(logFilePath)) {
-      fsModule.appendFileSync(logFilePath, logEntry + "\n");
+      fsModule.appendFileSync(logFilePath, `${logEntry}\n`);
     } else {
-      fsModule.writeFileSync(logFilePath, logEntry + "\n");
+      fsModule.writeFileSync(logFilePath, `${logEntry}\n`);
     }
   } catch {
     // Silently fail to avoid breaking the server

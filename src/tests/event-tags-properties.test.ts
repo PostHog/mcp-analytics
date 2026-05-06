@@ -1,7 +1,7 @@
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { publishCustomEvent, track } from "../index";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import type { HighLevelMCPServerLike } from "../types";
 import { EventCapture } from "./test-utils";
 import {

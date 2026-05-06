@@ -2,10 +2,10 @@ import {
   CallToolResultSchema,
   ListToolsResultSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { track } from "../index";
 import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "../modules/constants";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { EventCapture } from "./test-utils";
 import {
   resetTodos,
@@ -118,12 +118,12 @@ describe("Custom Context Description", () => {
 
     expect(toolsToCheck.length).toBe(3);
 
-    toolsToCheck.forEach((tool: any) => {
+    for (const tool of toolsToCheck) {
       expect(tool.inputSchema.properties.context).toBeDefined();
       expect(tool.inputSchema.properties.context.description).toBe(
         customDescription
       );
-    });
+    }
   });
 
   it("should capture tool calls with custom description configured", async () => {

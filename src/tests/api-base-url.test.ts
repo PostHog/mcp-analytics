@@ -17,7 +17,6 @@ describe("MCPAnalyticsOptions host", () => {
 });
 
 vi.mock("../modules/logging.js");
-vi.mock("../thirdparty/ksuid/index.js");
 
 // Import the module under test after mocking
 const { eventQueue } = await import("../modules/event-queue.js");

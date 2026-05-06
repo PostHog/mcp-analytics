@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { track } from "../index";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { getServerTrackingData } from "../modules/internal";
 import type { HighLevelMCPServerLike, UserIdentity } from "../types";
 import { EventCapture } from "./test-utils";
@@ -480,10 +480,10 @@ describe("Identify Feature", () => {
       );
 
       expect(toolCallEvents.length).toBe(2);
-      toolCallEvents.forEach((event) => {
+      for (const event of toolCallEvents) {
         expect(event.sessionId).toBeDefined();
         expect(event.sessionId).not.toBe("");
-      });
+      }
 
       // Verify no identify events were published
       const identifyEvent = events.find(
@@ -610,7 +610,7 @@ describe("Identify Feature", () => {
       track(server, {
         apiKey: "test-project",
         enableTracing: true,
-        identify: async (request, extra) => {
+        identify: async (_request, _extra) => {
           // Simulate async operation (e.g., database lookup, API call)
           await new Promise((resolve) => setTimeout(resolve, 100));
           asyncOperationCompleted = true;

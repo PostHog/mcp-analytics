@@ -373,11 +373,9 @@ async function initializeToolCallEvent(
     event.sessionId = data.sessionId;
     await applyResolvedMetadata(event, data, request, extra);
 
-    if (
-      isContextEnabled(data.options.context) &&
-      request.params?.arguments?.context
-    ) {
-      event.userIntent = request.params.arguments.context;
+    const contextArgument = getContextArgument(request);
+    if (isContextEnabled(data.options.context) && contextArgument) {
+      event.userIntent = contextArgument;
     }
 
     return { event, shouldPublishEvent: true };
@@ -412,11 +410,12 @@ async function executeReportMissingTool(
   startTime: Date
 ): Promise<unknown> {
   try {
+    const context = getContextArgument(request) || "";
     const result = await handleReportMissing({
-      context: request?.params?.arguments?.context,
+      context,
     });
     publishSuccessfulToolEvent(server, tracing, result, startTime, {
-      userIntent: request?.params?.arguments?.context,
+      userIntent: context,
     });
     return result;
   } catch (error) {
@@ -448,6 +447,11 @@ async function executeOriginalTool(
     publishFailedToolEvent(server, tracing, error, startTime);
     throw error;
   }
+}
+
+function getContextArgument(request: MCPRequest): string | undefined {
+  const context = request.params?.arguments?.context;
+  return typeof context === "string" ? context : undefined;
 }
 
 function publishSuccessfulToolEvent(

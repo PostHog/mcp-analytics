@@ -1,5 +1,4 @@
 import { PostHog } from "posthog-node";
-import KSUID from "../thirdparty/ksuid/index.js";
 import type {
   Event,
   MCPAnalyticsOptions,
@@ -8,9 +7,10 @@ import type {
   UnredactedEvent,
 } from "../types.js";
 import { getMCPCompatibleErrorMessage } from "./compatibility.js";
-import { buildPostHogCaptureEvents } from "./posthog-events.js";
+import { newPrefixedId } from "./ids.js";
 import { getServerTrackingData } from "./internal.js";
 import { writeToLog } from "./logging.js";
+import { buildPostHogCaptureEvents } from "./posthog-events.js";
 import { redactEvent } from "./redaction.js";
 import { sanitizeEvent } from "./sanitization.js";
 import { getSessionInfo } from "./session.js";
@@ -104,7 +104,7 @@ class EventQueue {
         continue;
       }
 
-      event.id = event.id || (await KSUID.withPrefix("evt").random());
+      event.id = event.id || newPrefixedId("evt");
       this.activeRequests++;
       try {
         this.sendEvent(event as Event, posthogClient, enableAITracing);

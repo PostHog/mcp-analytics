@@ -34,7 +34,7 @@ describe("normalize - non-serializable values", () => {
 
   it("should convert symbols", () => {
     expect(normalize(Symbol("test"))).toBe("[Symbol(test)]");
-    expect(normalize(Symbol())).toBe("[Symbol()]");
+    expect(normalize(Symbol.for(""))).toBe("[Symbol()]");
   });
 
   it("should convert undefined to string marker", () => {
@@ -492,7 +492,7 @@ describe("truncateEvent - integration with sanitization pipeline", () => {
     const event = makeEvent({
       userIntent: "x".repeat(3000),
       parameters: {
-        imageData: "A".repeat(12_000) + "=", // large base64 — sanitization will redact this
+        imageData: `${"A".repeat(12_000)}=`, // large base64 — sanitization will redact this
         query: "hello",
         nested: { deep: { value: "y".repeat(40_000) } },
       },

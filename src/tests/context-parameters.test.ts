@@ -2,11 +2,11 @@ import {
   CallToolResultSchema,
   ListToolsResultSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { track } from "../index";
 import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "../modules/constants";
 import { addContextParameterToTools } from "../modules/context-parameters";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { EventCapture } from "./test-utils";
 import {
   resetTodos,
@@ -335,13 +335,13 @@ describe("Context Parameters", () => {
 
       // Verify the original tools have context parameter in their schema
       expect(originalModifiedTools).toHaveLength(3);
-      originalModifiedTools.forEach((tool: any) => {
+      for (const tool of originalModifiedTools) {
         expect(tool.inputSchema.properties.context).toBeDefined();
         expect(tool.inputSchema.properties.context.type).toBe("string");
         expect(tool.inputSchema.properties.context.description).toBe(
           DEFAULT_CONTEXT_PARAMETER_DESCRIPTION
         );
-      });
+      }
     });
 
     it("should use default context description when no custom description is provided", async () => {
@@ -366,12 +366,12 @@ describe("Context Parameters", () => {
       expect(toolsToCheck.length).toBe(3);
 
       // Verify all tools use the default description
-      toolsToCheck.forEach((tool: any) => {
+      for (const tool of toolsToCheck) {
         expect(tool.inputSchema.properties.context).toBeDefined();
         expect(tool.inputSchema.properties.context.description).toBe(
           DEFAULT_CONTEXT_PARAMETER_DESCRIPTION
         );
-      });
+      }
     });
 
     it("should remove context parameter before calling tool callback", async () => {

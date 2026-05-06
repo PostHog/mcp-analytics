@@ -12,16 +12,16 @@ import {
   setupTestServerAndClient,
 } from "./test-utils/client-server-factory";
 
+const SESSION_ID_PATTERN = /^ses_/;
+
 describe("Session ID Management", () => {
   let server: HighLevelMCPServerLike;
-  let client: any;
   let cleanup: () => Promise<void>;
 
   beforeEach(async () => {
     resetTodos();
     const setup = await setupTestServerAndClient();
     server = setup.server;
-    client = setup.client;
     cleanup = setup.cleanup;
   });
 
@@ -29,7 +29,7 @@ describe("Session ID Management", () => {
     await cleanup();
   });
 
-  describe("Deterministic KSUID Derivation", () => {
+  describe("Deterministic MCP session ID derivation", () => {
     it("should generate deterministic session IDs from the same MCP sessionId", () => {
       const mcpSessionId = "test-session-123";
       const apiKey = "proj_abc";
@@ -38,7 +38,7 @@ describe("Session ID Management", () => {
       const sessionId2 = deriveSessionIdFromMCPSession(mcpSessionId, apiKey);
 
       expect(sessionId1).toBe(sessionId2);
-      expect(sessionId1).toMatch(/^ses_/);
+      expect(sessionId1).toMatch(SESSION_ID_PATTERN);
     });
 
     it("should generate different session IDs for different MCP sessionIds", () => {
@@ -48,8 +48,8 @@ describe("Session ID Management", () => {
       const sessionId2 = deriveSessionIdFromMCPSession("session-2", apiKey);
 
       expect(sessionId1).not.toBe(sessionId2);
-      expect(sessionId1).toMatch(/^ses_/);
-      expect(sessionId2).toMatch(/^ses_/);
+      expect(sessionId1).toMatch(SESSION_ID_PATTERN);
+      expect(sessionId2).toMatch(SESSION_ID_PATTERN);
     });
 
     it("should generate different session IDs for different apiKeys", () => {
@@ -65,8 +65,8 @@ describe("Session ID Management", () => {
       );
 
       expect(sessionId1).not.toBe(sessionId2);
-      expect(sessionId1).toMatch(/^ses_/);
-      expect(sessionId2).toMatch(/^ses_/);
+      expect(sessionId1).toMatch(SESSION_ID_PATTERN);
+      expect(sessionId2).toMatch(SESSION_ID_PATTERN);
     });
 
     it("should handle missing apiKey gracefully", () => {
@@ -78,7 +78,7 @@ describe("Session ID Management", () => {
 
       expect(sessionId1).toBe(sessionId2);
       expect(sessionId1).toBe(sessionId3);
-      expect(sessionId1).toMatch(/^ses_/);
+      expect(sessionId1).toMatch(SESSION_ID_PATTERN);
     });
 
     it("should generate different session IDs when apiKey is present vs absent", () => {
@@ -103,7 +103,7 @@ describe("Session ID Management", () => {
       const apiKey = "test-project-mcp";
       const mcpSessionId = "mcp-session-abc-123";
 
-      track(server, { apiKey: apiKey, enableTracing: true });
+      track(server, { apiKey, enableTracing: true });
 
       // Get the low-level server
       const lowLevelServer = server.server;
@@ -139,7 +139,7 @@ describe("Session ID Management", () => {
 
       // Get initial session ID without MCP sessionId
       const sessionId1 = getServerSessionId(lowLevelServer);
-      expect(sessionId1).toMatch(/^ses_/);
+      expect(sessionId1).toMatch(SESSION_ID_PATTERN);
 
       // Verify tracking data shows PostHog MCP analytics source
       const data = getServerTrackingData(lowLevelServer);
@@ -160,13 +160,13 @@ describe("Session ID Management", () => {
       const apiKey = "test-project-switch";
       const mcpSessionId = "mcp-session-appears";
 
-      track(server, { apiKey: apiKey, enableTracing: true });
+      track(server, { apiKey, enableTracing: true });
 
       const lowLevelServer = server.server;
 
       // Start with no MCP sessionId
       const generatedSessionId = getServerSessionId(lowLevelServer);
-      expect(generatedSessionId).toMatch(/^ses_/);
+      expect(generatedSessionId).toMatch(SESSION_ID_PATTERN);
 
       let data = getServerTrackingData(lowLevelServer);
       expect(data?.sessionSource).toBe("generated");
@@ -198,7 +198,7 @@ describe("Session ID Management", () => {
       const apiKey = "test-project-disappear";
       const mcpSessionId = "mcp-session-disappears";
 
-      track(server, { apiKey: apiKey, enableTracing: true });
+      track(server, { apiKey, enableTracing: true });
 
       const lowLevelServer = server.server;
 
@@ -234,7 +234,7 @@ describe("Session ID Management", () => {
       const mcpSessionId1 = "mcp-session-first";
       const mcpSessionId2 = "mcp-session-second";
 
-      track(server, { apiKey: apiKey, enableTracing: true });
+      track(server, { apiKey, enableTracing: true });
 
       const lowLevelServer = server.server;
 
@@ -276,7 +276,7 @@ describe("Session ID Management", () => {
       const apiKey = "test-project-timeout";
       const mcpSessionId = "mcp-session-persistent";
 
-      track(server, { apiKey: apiKey, enableTracing: true });
+      track(server, { apiKey, enableTracing: true });
 
       const lowLevelServer = server.server;
 
@@ -321,7 +321,7 @@ describe("Session ID Management", () => {
 
       // Should be different (timeout occurred)
       expect(sessionId2).not.toBe(sessionId1);
-      expect(sessionId2).toMatch(/^ses_/);
+      expect(sessionId2).toMatch(SESSION_ID_PATTERN);
 
       await eventCapture.stop();
     });
@@ -334,8 +334,11 @@ describe("Session ID Management", () => {
 
       const apiKey = "test-project-events";
       const mcpSessionId = "mcp-session-for-events";
+      expect(deriveSessionIdFromMCPSession(mcpSessionId, apiKey)).toMatch(
+        SESSION_ID_PATTERN
+      );
 
-      track(server, { apiKey: apiKey, enableTracing: true });
+      track(server, { apiKey, enableTracing: true });
 
       // TODO: This test would require mocking the transport to inject sessionId into extra
       // For now, we'll verify the logic with direct function calls above

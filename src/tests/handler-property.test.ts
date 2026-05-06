@@ -23,7 +23,7 @@ describe("MCP SDK callback/handler compatibility", () => {
     }));
 
     const tools = (server as any)._registeredTools;
-    const tool = tools["test_tool"];
+    const tool = tools.test_tool;
     const propName = getToolFunctionPropertyName(tool);
 
     console.log("\n=== MCP SDK Tool Structure ===");
@@ -48,14 +48,14 @@ describe("MCP SDK callback/handler compatibility", () => {
 
     // Get the property name BEFORE track()
     const toolsBefore = (server as any)._registeredTools;
-    const toolBefore = toolsBefore["test_tool"];
+    const toolBefore = toolsBefore.test_tool;
     const originalPropName = getToolFunctionPropertyName(toolBefore);
 
     // Call track() to apply PostHog MCP analytics's tracing
     track(server, { apiKey: "test-project-id" });
 
     const toolsAfter = (server as any)._registeredTools;
-    const toolAfter = toolsAfter["test_tool"];
+    const toolAfter = toolsAfter.test_tool;
     const afterPropName = getToolFunctionPropertyName(toolAfter);
 
     console.log("\n=== After track() ===");
@@ -77,7 +77,7 @@ describe("MCP SDK callback/handler compatibility", () => {
       content: [{ type: "text", text: String(a) }],
     }));
     const expectedPropName = getToolFunctionPropertyName(
-      (server as any)._registeredTools["initial_tool"]
+      (server as any)._registeredTools.initial_tool
     );
 
     // Call track() first
@@ -89,7 +89,7 @@ describe("MCP SDK callback/handler compatibility", () => {
     }));
 
     const tools = (server as any)._registeredTools;
-    const tool = tools["late_tool"];
+    const tool = tools.late_tool;
     const propName = getToolFunctionPropertyName(tool);
 
     console.log("\n=== Tool registered after track() ===");

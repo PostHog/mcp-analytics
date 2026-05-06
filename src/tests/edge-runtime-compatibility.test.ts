@@ -82,7 +82,7 @@ describe("Edge Runtime Compatibility", () => {
       // Create a mock process without cwd
       const mockProcess = { ...originalProcess } as typeof process;
       // @ts-expect-error - intentionally removing cwd for test
-      delete mockProcess.cwd;
+      mockProcess.cwd = undefined;
       globalThis.process = mockProcess;
 
       // captureException should still work
@@ -125,7 +125,7 @@ describe("Edge Runtime Compatibility", () => {
       // Create mock process without once
       const mockProcess = { ...originalProcess } as typeof process;
       // @ts-expect-error - intentionally removing once for test
-      delete mockProcess.once;
+      mockProcess.once = undefined;
       globalThis.process = mockProcess;
 
       // Reset modules to re-run module-level code
@@ -137,7 +137,7 @@ describe("Edge Runtime Compatibility", () => {
 
     it("should handle process being undefined", async () => {
       // @ts-expect-error - intentionally removing process for test
-      delete globalThis.process;
+      globalThis.process = undefined;
 
       vi.resetModules();
 
@@ -258,6 +258,9 @@ describe("Edge Runtime Compatibility", () => {
       ];
 
       const error = new Error("Path test");
+      error.stack = testPaths
+        .map((path, index) => `    at test${index} (${path}:1:1)`)
+        .join("\n");
       const captured = captureException(error);
 
       // Should have parsed the stack without errors

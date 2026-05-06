@@ -5,9 +5,9 @@ import {
   CallToolResultSchema,
   ListToolsResultSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { EventCapture } from "./test-utils";
 import {
   resetTodos,
@@ -17,7 +17,7 @@ import {
 describe("Basic Server Test", () => {
   it("should be able to call tools without tracking", async () => {
     resetTodos();
-    const { server, client, cleanup } = await setupTestServerAndClient();
+    const { client, cleanup } = await setupTestServerAndClient();
 
     try {
       // List tools first to ensure they're available
@@ -81,7 +81,7 @@ describe("Basic Server Test", () => {
       );
       McpServer = ImportedMcpServer;
       hasCompatibleVersion = true;
-    } catch (error) {
+    } catch {
       // McpServer not available in this version
       hasCompatibleVersion = false;
     }
@@ -434,6 +434,8 @@ describe("Basic Server Test", () => {
             }
             result = a / b;
             break;
+          default:
+            throw new Error(`Unsupported operation: ${operation}`);
         }
         return {
           content: [{ type: "text", text: String(result) }],

@@ -1,6 +1,4 @@
-import { createHash } from "crypto";
 import packageJson from "../../package.json" with { type: "json" };
-import KSUID from "../thirdparty/ksuid/index.js";
 import type {
   CompatibleRequestHandlerExtra,
   MCPAnalyticsData,
@@ -9,41 +7,27 @@ import type {
   SessionInfo,
 } from "../types.js";
 import { INACTIVITY_TIMEOUT_IN_MINUTES } from "./constants.js";
+import { deterministicPrefixedId, newPrefixedId } from "./ids.js";
 import { getServerTrackingData, setServerTrackingData } from "./internal.js";
 
 export function newSessionId(): string {
-  return KSUID.withPrefix("ses").randomSync();
+  return newPrefixedId("ses");
 }
 
 /**
- * Creates a deterministic KSUID session ID from an MCP sessionId and optional API key.
+ * Creates a deterministic SDK session ID from an MCP sessionId and optional API key.
  * The same inputs will always produce the same session ID, enabling correlation across server restarts.
  *
  * @param mcpSessionId - The session ID from the MCP protocol
  * @param apiKey - Optional PostHog project API key to include in the hash
- * @returns A KSUID with "ses" prefix derived deterministically from the inputs
+ * @returns An SDK session ID with "ses" prefix derived deterministically from the inputs
  */
 export function deriveSessionIdFromMCPSession(
   mcpSessionId: string,
   apiKey?: string
 ): string {
-  // Create input string for hashing
   const input = apiKey ? `${mcpSessionId}:${apiKey}` : mcpSessionId;
-
-  // Hash the input with SHA-256
-  const hash = createHash("sha256").update(input).digest();
-
-  // Extract timestamp from first 4 bytes of hash (for deterministic but reasonable timestamp)
-  // We'll use a fixed epoch (2024-01-01) plus the hash value to get a deterministic but valid timestamp
-  const EPOCH_2024 = new Date("2024-01-01T00:00:00Z").getTime();
-  const timestampOffset = hash.readUInt32BE(0) % (365 * 24 * 60 * 60 * 1000); // Max 1 year offset
-  const timestamp = EPOCH_2024 + timestampOffset;
-
-  // Use the remaining 16 bytes of hash as the KSUID payload
-  const payload = hash.subarray(4, 20);
-
-  // Create deterministic KSUID with prefix
-  return KSUID.withPrefix("ses").fromParts(timestamp, payload);
+  return deterministicPrefixedId("ses", input);
 }
 
 /**
@@ -68,7 +52,7 @@ export function getServerSessionId(
 
   // If MCP sessionId is provided
   if (mcpSessionId) {
-    // Derive deterministic KSUID from MCP sessionId
+    // Derive deterministic SDK session ID from MCP sessionId
     data.sessionId = deriveSessionIdFromMCPSession(
       mcpSessionId,
       data.apiKey || undefined
@@ -76,7 +60,7 @@ export function getServerSessionId(
     data.lastMcpSessionId = mcpSessionId;
     data.sessionSource = "mcp";
     setServerTrackingData(server, data);
-    // If MCP sessionId hasn't changed, continue using the existing derived KSUID
+    // If MCP sessionId hasn't changed, continue using the existing derived ID
     setLastActivity(server);
     return data.sessionId;
   }

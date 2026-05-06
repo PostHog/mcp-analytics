@@ -1,7 +1,7 @@
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { EventCapture } from "./test-utils";
 import {
   resetTodos,
@@ -167,7 +167,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
       );
 
       // Create a large base64 string (>10KB to trigger the size gate)
-      const largeBase64 = "A".repeat(12_000) + "=";
+      const largeBase64 = `${"A".repeat(12_000)}=`;
 
       await client.request(
         {

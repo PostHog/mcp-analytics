@@ -1,17 +1,10 @@
-import { validate as uuidValidate, version as uuidVersion } from "uuid";
 import { describe, expect, it } from "vitest";
 import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import {
   buildPostHogCaptureEvents,
   type PostHogCaptureEvent,
 } from "../modules/posthog-events.js";
-import KSUID from "../thirdparty/ksuid/index.js";
 import type { Event } from "../types.js";
-
-function expectUUIDv7(value: string): void {
-  expect(uuidValidate(value)).toBe(true);
-  expect(uuidVersion(value)).toBe(7);
-}
 
 function makeEvent(overrides: Partial<Event> = {}): Event {
   return {
@@ -47,7 +40,7 @@ describe("buildPostHogCaptureEvents", () => {
     expect(event.distinct_id).toBe("ses_session456");
     expect(event.timestamp).toBe("2025-01-15T10:00:00.000Z");
 
-    expectUUIDv7(event.properties.$session_id as string);
+    expect(event.properties.$session_id).toBe("ses_session456");
     expect(event.properties.$mcp_tool_name).toBe("get_weather");
     expect(event.properties.$mcp_resource_name).toBe("get_weather");
     expect(event.properties.$mcp_duration_ms).toBe(150);
@@ -103,7 +96,7 @@ describe("buildPostHogCaptureEvents", () => {
       "TimeoutError: Connection timeout\n    at fetch (/app/index.js:10:5)"
     );
     expect(exceptionEvent.properties.$exception_source).toBe("backend");
-    expectUUIDv7(exceptionEvent.properties.$session_id as string);
+    expect(exceptionEvent.properties.$session_id).toBe("ses_session456");
     expect(exceptionEvent.properties.$mcp_resource_name).toBe("get_weather");
     expect(exceptionEvent.properties.$mcp_tool_name).toBe("get_weather");
     expect(exceptionEvent.properties.$mcp_server_name).toBe("weather-server");
@@ -275,7 +268,7 @@ describe("buildPostHogCaptureEvents", () => {
     expect(span?.properties.$ai_is_error).toBe(false);
     expect(span?.properties.$ai_input_state).toEqual({ city: "London" });
     expect(span?.properties.$ai_output_state).toEqual({ temp: 15 });
-    expectUUIDv7(span?.properties.$session_id as string);
+    expect(span?.properties.$session_id).toBe("ses_session456");
     expect(span?.properties.$mcp_source).toBe("posthog_mcp_analytics");
     expect(span?.properties.$mcp_server_name).toBe("weather-server");
     expect(span?.properties.$mcp_client_name).toBe("claude-desktop");
@@ -286,10 +279,10 @@ describe("buildPostHogCaptureEvents", () => {
     expect(regular?.properties.$ai_span_id).toBe(span?.properties.$ai_span_id);
   });
 
-  it("generates deterministic UUIDs for $ai_span trace and span IDs", () => {
-    const sesId = KSUID.withPrefix("ses").randomSync();
-    const evtA = KSUID.withPrefix("evt").randomSync();
-    const evtB = KSUID.withPrefix("evt").randomSync();
+  it("uses SDK event and session IDs directly for AI trace and span IDs", () => {
+    const sesId = "ses_trace123";
+    const evtA = "evt_a123";
+    const evtB = "evt_b123";
 
     const spanA = findEvent(
       buildPostHogCaptureEvents(makeEvent({ id: evtA, sessionId: sesId }), {
@@ -324,8 +317,8 @@ describe("buildPostHogCaptureEvents", () => {
     expect(spanA?.properties.$ai_trace_id).not.toBe(
       spanA?.properties.$ai_span_id
     );
-    expectUUIDv7(spanA?.properties.$ai_trace_id as string);
-    expectUUIDv7(spanA?.properties.$ai_span_id as string);
+    expect(spanA?.properties.$ai_trace_id).toBe(sesId);
+    expect(spanA?.properties.$ai_span_id).toBe(evtA);
   });
 
   it("does not emit $ai_span when enableAITracing is false or unset", () => {

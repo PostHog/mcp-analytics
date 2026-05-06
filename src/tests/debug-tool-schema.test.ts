@@ -24,26 +24,23 @@ describe("Debug Tool Schema Structure", () => {
     const toolsBefore = server._registeredTools;
     console.log("Tools registered:", Object.keys(toolsBefore));
 
-    if (toolsBefore["add"]) {
+    if (toolsBefore.add) {
       console.log("Tool 'add' structure:");
-      console.log("  - Has inputSchema?", !!toolsBefore["add"].inputSchema);
-      console.log(
-        "  - inputSchema type:",
-        typeof toolsBefore["add"].inputSchema
-      );
+      console.log("  - Has inputSchema?", !!toolsBefore.add.inputSchema);
+      console.log("  - inputSchema type:", typeof toolsBefore.add.inputSchema);
       console.log(
         "  - inputSchema value:",
-        JSON.stringify(toolsBefore["add"].inputSchema, null, 2)
+        JSON.stringify(toolsBefore.add.inputSchema, null, 2)
       );
 
-      if (toolsBefore["add"].inputSchema) {
+      if (toolsBefore.add.inputSchema) {
         console.log(
           "  - Has properties?",
-          !!toolsBefore["add"].inputSchema.properties
+          !!toolsBefore.add.inputSchema.properties
         );
         console.log(
           "  - Properties type:",
-          typeof toolsBefore["add"].inputSchema.properties
+          typeof toolsBefore.add.inputSchema.properties
         );
       }
     }
@@ -60,27 +57,24 @@ describe("Debug Tool Schema Structure", () => {
     const toolsAfter = server._registeredTools;
     console.log("Tools registered:", Object.keys(toolsAfter));
 
-    if (toolsAfter["add"]) {
+    if (toolsAfter.add) {
       console.log("Tool 'add' structure:");
-      console.log("  - Has inputSchema?", !!toolsAfter["add"].inputSchema);
-      console.log(
-        "  - inputSchema type:",
-        typeof toolsAfter["add"].inputSchema
-      );
+      console.log("  - Has inputSchema?", !!toolsAfter.add.inputSchema);
+      console.log("  - inputSchema type:", typeof toolsAfter.add.inputSchema);
       console.log(
         "  - inputSchema value:",
-        JSON.stringify(toolsAfter["add"].inputSchema, null, 2)
+        JSON.stringify(toolsAfter.add.inputSchema, null, 2)
       );
 
-      if (toolsAfter["add"].inputSchema) {
+      if (toolsAfter.add.inputSchema) {
         console.log(
           "  - Has properties?",
-          !!toolsAfter["add"].inputSchema.properties
+          !!toolsAfter.add.inputSchema.properties
         );
         console.log(
           "  - Has context in properties?",
-          toolsAfter["add"].inputSchema.properties &&
-            !!toolsAfter["add"].inputSchema.properties.context
+          toolsAfter.add.inputSchema.properties &&
+            !!toolsAfter.add.inputSchema.properties.context
         );
       }
     }
@@ -104,18 +98,18 @@ describe("Debug Tool Schema Structure", () => {
     console.log("\n=== Tool with description ===");
     const tools = server._registeredTools;
 
-    if (tools["add_with_desc"]) {
+    if (tools.add_with_desc) {
       console.log("Tool 'add_with_desc' structure:");
-      console.log("  - Has description?", !!tools["add_with_desc"].description);
-      console.log("  - Description:", tools["add_with_desc"].description);
-      console.log("  - Has inputSchema?", !!tools["add_with_desc"].inputSchema);
+      console.log("  - Has description?", !!tools.add_with_desc.description);
+      console.log("  - Description:", tools.add_with_desc.description);
+      console.log("  - Has inputSchema?", !!tools.add_with_desc.inputSchema);
       console.log(
         "  - inputSchema type:",
-        typeof tools["add_with_desc"].inputSchema
+        typeof tools.add_with_desc.inputSchema
       );
       console.log(
         "  - inputSchema value:",
-        JSON.stringify(tools["add_with_desc"].inputSchema, null, 2)
+        JSON.stringify(tools.add_with_desc.inputSchema, null, 2)
       );
     }
 

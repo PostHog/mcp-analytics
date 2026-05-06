@@ -202,10 +202,10 @@ describe("captureException", () => {
 
       expect(result.frames).toBeDefined();
       // All frames should be library code and should NOT have context_line
-      result.frames!.forEach((frame) => {
+      for (const frame of result.frames!) {
         expect(frame.in_app).toBe(false);
         expect(frame.context_line).toBeUndefined();
-      });
+      }
     });
 
     it("should handle missing files gracefully when extracting context_line", () => {
@@ -361,7 +361,7 @@ describe("captureException", () => {
   describe("edge cases", () => {
     it("should handle errors without stack traces", () => {
       const error = new Error("No stack");
-      delete error.stack;
+      error.stack = undefined;
 
       const result = captureException(error);
 
@@ -372,7 +372,8 @@ describe("captureException", () => {
     });
 
     it("should handle errors with empty messages", () => {
-      const error = new Error("");
+      const error = new Error("placeholder");
+      Object.defineProperty(error, "message", { value: "" });
 
       const result = captureException(error);
 

@@ -67,7 +67,6 @@
     "@changesets/cli": "^2.29.8",
     "@modelcontextprotocol/sdk": "~1.24.2",
     "@types/node": "^22.15.21",
-    "@types/uuid": "^11.0.0",
     "@typescript/native-preview": "beta",
     "@vitest/coverage-v8": "^4.0.14",
     "@vitest/ui": "^4.0.14",
@@ -75,7 +74,6 @@
     "tsdown": "^0.21.10",
     "typescript": "npm:@typescript/typescript6@^6.0.0",
     "ultracite": "7.6.3",
-    "uuid": "^13.0.0",
     "vitest": "^4.0.14",
     "zod": "^3.25 || ^4.0"
   },

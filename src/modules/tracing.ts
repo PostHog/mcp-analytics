@@ -381,8 +381,9 @@ async function executeToolCall(
   event: UnredactedEvent
 ): Promise<unknown> {
   if (request.params?.name === "get_more_tools") {
-    event.userIntent = String(request.params.arguments.context);
-    return handleReportMissing(request.params.arguments.context);
+    const context = getContextArgument(request) || "";
+    event.userIntent = context;
+    return handleReportMissing({ context });
   }
 
   if (originalCallToolHandler) {
@@ -425,13 +426,15 @@ function setToolCallContext(
     return;
   }
 
-  const hasContext =
-    request.params?.arguments &&
-    typeof request.params.arguments === "object" &&
-    "context" in request.params.arguments;
-  if (hasContext) {
-    event.userIntent = request.params.arguments.context;
+  const contextArgument = getContextArgument(request);
+  if (contextArgument) {
+    event.userIntent = contextArgument;
   }
+}
+
+function getContextArgument(request: MCPRequest): string | undefined {
+  const context = request.params?.arguments?.context;
+  return typeof context === "string" ? context : undefined;
 }
 
 function getEventDuration(event: UnredactedEvent): number {

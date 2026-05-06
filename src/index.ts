@@ -10,6 +10,7 @@ import {
   publishEvent as publishEventToQueue,
 } from "./modules/event-queue.js";
 import { MCPAnalyticsEventType } from "./modules/event-types.js";
+import { captureException } from "./modules/exceptions.js";
 import {
   getServerTrackingData,
   setServerTrackingData,
@@ -324,7 +325,7 @@ function publishCustomEventSync(
     userIntent: eventData?.message,
     duration: eventData?.duration,
     isError: eventData?.isError,
-    error: eventData?.error,
+    error: resolveCustomEventError(eventData?.error),
   };
 
   // Wire up customer-defined metadata
@@ -342,6 +343,22 @@ function publishCustomEventSync(
   writeToLog(
     `Published custom event for session ${target.sessionId} with type '${MCPAnalyticsEventType.custom}'`
   );
+}
+
+function resolveCustomEventError(error: unknown): UnredactedEvent["error"] {
+  if (error === undefined || error === null) {
+    return error;
+  }
+
+  if (
+    typeof error === "object" &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error as UnredactedEvent["error"];
+  }
+
+  return captureException(error);
 }
 
 interface CustomEventTarget {
@@ -440,5 +457,6 @@ export type {
 
 export type IdentifyFunction = MCPAnalyticsOptions["identify"];
 
+// biome-ignore lint/performance/noBarrelFile: the package entrypoint intentionally defines the public SDK API.
 export { PostHogMCPAnalyticsProperty } from "./modules/constants.js";
 export { track };

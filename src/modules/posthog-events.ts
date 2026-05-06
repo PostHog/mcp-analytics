@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-import KSUID from "../thirdparty/ksuid/index.js";
 import type { Event } from "../types.js";
 import {
   POSTHOG_MCP_ANALYTICS_SOURCE,
@@ -7,60 +5,8 @@ import {
 } from "./constants.js";
 import { MCPAnalyticsEventType } from "./event-types.js";
 
-const PREFIXED_KSUID_REGEX = /^[a-z]+_/;
 const MCP_EVENT_PREFIX_REGEX = /^mcp:/;
 const SLASH_REGEX = /\//g;
-
-/**
- * Generates a deterministic UUIDv7 from a prefixed KSUID (e.g. ses_xxx).
- * Uses the KSUID's embedded timestamp for the UUIDv7 timestamp portion
- * and a SHA-256 hash of the full ID for the random bits.
- */
-export function toUUIDv7(prefixedId: string): string {
-  // Strip prefix (ses_, evt_, etc.) and parse KSUID
-  const ksuidStr = prefixedId.replace(PREFIXED_KSUID_REGEX, "");
-  let timestampMs: number;
-  try {
-    const ksuid = KSUID.parse(ksuidStr);
-    timestampMs = ksuid.date.getTime();
-  } catch {
-    // Fallback: if KSUID parsing fails, use current time
-    timestampMs = Date.now();
-  }
-
-  // Hash the full ID for deterministic random bits
-  const hash = createHash("sha256").update(prefixedId).digest();
-
-  const buf = Buffer.alloc(16);
-
-  // Bytes 0-5: 48-bit Unix timestamp in milliseconds
-  buf.writeUIntBE(timestampMs, 0, 6);
-
-  // Byte 6: version 7 (0111) + high 4 bits of rand_a from hash
-  buf[6] = 0x70 + (hash[0] % 16);
-  // Byte 7: low 8 bits of rand_a from hash
-  buf[7] = hash[1];
-
-  // Byte 8: variant 10 + high 6 bits of rand_b from hash
-  buf[8] = 0x80 + (hash[2] % 64);
-  // Bytes 9-15: remaining rand_b from hash
-  buf[9] = hash[3];
-  buf[10] = hash[4];
-  buf[11] = hash[5];
-  buf[12] = hash[6];
-  buf[13] = hash[7];
-  buf[14] = hash[8];
-  buf[15] = hash[9];
-
-  const hex = buf.toString("hex");
-  return [
-    hex.slice(0, 8),
-    hex.slice(8, 12),
-    hex.slice(12, 16),
-    hex.slice(16, 20),
-    hex.slice(20, 32),
-  ].join("-");
-}
 
 function getDistinctId(event: Event): string {
   return event.identifyActorGivenId || event.sessionId || "anonymous";
@@ -110,7 +56,7 @@ function buildCaptureEvent(
   const timestamp = getTimestamp(event);
 
   const properties: Record<string, unknown> = {
-    [PostHogMCPAnalyticsProperty.SessionId]: toUUIDv7(event.sessionId),
+    [PostHogMCPAnalyticsProperty.SessionId]: event.sessionId,
     [PostHogMCPAnalyticsProperty.Source]: POSTHOG_MCP_ANALYTICS_SOURCE,
   };
 
@@ -138,11 +84,11 @@ function shouldBuildAISpan(
 }
 
 function getAITraceId(event: Event): string {
-  return toUUIDv7(event.sessionId);
+  return event.sessionId;
 }
 
 function getAISpanId(event: Event): string {
-  return toUUIDv7(event.id);
+  return event.id;
 }
 
 function addTraceReferenceProperties(
@@ -232,7 +178,7 @@ function buildExceptionEvent(event: Event): PostHogCaptureEvent {
 
   const properties: Record<string, unknown> = {
     $exception_source: "backend",
-    [PostHogMCPAnalyticsProperty.SessionId]: toUUIDv7(event.sessionId),
+    [PostHogMCPAnalyticsProperty.SessionId]: event.sessionId,
   };
 
   if (event.error) {
@@ -286,7 +232,7 @@ function buildAISpanEvent(event: Event): PostHogCaptureEvent {
     [PostHogMCPAnalyticsProperty.AiSpanName]:
       event.resourceName || "unknown_tool",
     [PostHogMCPAnalyticsProperty.AiIsError]: event.isError,
-    [PostHogMCPAnalyticsProperty.SessionId]: toUUIDv7(event.sessionId),
+    [PostHogMCPAnalyticsProperty.SessionId]: event.sessionId,
     [PostHogMCPAnalyticsProperty.Source]: POSTHOG_MCP_ANALYTICS_SOURCE,
   };
 

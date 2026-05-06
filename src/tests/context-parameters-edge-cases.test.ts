@@ -3,11 +3,16 @@ import {
   addContextParameterToTool,
   addContextParameterToTools,
 } from "../modules/context-parameters";
-import * as logging from "../modules/logging";
+import { writeToLog } from "../modules/logging";
+
+vi.mock("../modules/logging", () => ({
+  writeToLog: vi.fn(),
+}));
 
 describe("Context Parameters Edge Cases", () => {
   beforeEach(() => {
-    vi.spyOn(logging, "writeToLog").mockImplementation(() => {});
+    vi.mocked(writeToLog).mockClear();
+    vi.mocked(writeToLog).mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -31,7 +36,7 @@ describe("Context Parameters Edge Cases", () => {
       expect(result.inputSchema.properties.context.description).toBe(
         "existing"
       );
-      expect(logging.writeToLog).toHaveBeenCalledWith(
+      expect(writeToLog).toHaveBeenCalledWith(
         expect.stringContaining("already has 'context' parameter")
       );
     });
@@ -47,7 +52,7 @@ describe("Context Parameters Edge Cases", () => {
 
       addContextParameterToTool(tool);
 
-      expect(logging.writeToLog).toHaveBeenCalledWith(
+      expect(writeToLog).toHaveBeenCalledWith(
         expect.stringContaining("my-special-tool")
       );
     });
@@ -69,7 +74,7 @@ describe("Context Parameters Edge Cases", () => {
 
       // Should not add properties to oneOf schema
       expect(result.inputSchema.properties).toBeUndefined();
-      expect(logging.writeToLog).toHaveBeenCalledWith(
+      expect(writeToLog).toHaveBeenCalledWith(
         expect.stringContaining("complex schema")
       );
     });
@@ -88,7 +93,7 @@ describe("Context Parameters Edge Cases", () => {
       const result = addContextParameterToTool(tool);
 
       expect(result.inputSchema.properties).toBeUndefined();
-      expect(logging.writeToLog).toHaveBeenCalledWith(
+      expect(writeToLog).toHaveBeenCalledWith(
         expect.stringContaining("complex schema")
       );
     });
@@ -102,7 +107,7 @@ describe("Context Parameters Edge Cases", () => {
       const result = addContextParameterToTool(tool);
 
       expect(result.inputSchema.properties).toBeUndefined();
-      expect(logging.writeToLog).toHaveBeenCalledWith(
+      expect(writeToLog).toHaveBeenCalledWith(
         expect.stringContaining("complex schema")
       );
     });
@@ -226,7 +231,7 @@ describe("Context Parameters Edge Cases", () => {
       expect(result[3].inputSchema.additionalProperties).toBeUndefined();
 
       // Should have logged warnings for complex and collision tools only
-      expect(logging.writeToLog).toHaveBeenCalledTimes(2);
+      expect(writeToLog).toHaveBeenCalledTimes(2);
     });
   });
 });
