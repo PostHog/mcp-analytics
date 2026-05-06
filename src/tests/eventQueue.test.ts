@@ -217,10 +217,10 @@ describe("EventQueue", () => {
       );
       expect(capture.mock.calls[0][0].properties).toEqual(
         expect.objectContaining({
-          resource_name: "create_insight",
-          source: "posthog_mcp_analytics",
-          tool_name: "create_insight",
-          user_intent: "Create a trend insight for weekly active users",
+          $mcp_resource_name: "create_insight",
+          $mcp_source: "posthog_mcp_analytics",
+          $mcp_tool_name: "create_insight",
+          $mcp_user_intent: "Create a trend insight for weekly active users",
         })
       );
       expect(capture.mock.calls[0][0].properties).not.toHaveProperty(

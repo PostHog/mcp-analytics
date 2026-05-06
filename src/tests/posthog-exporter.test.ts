@@ -1,6 +1,6 @@
-import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { validate as uuidValidate, version as uuidVersion } from "uuid";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { PostHogExporter } from "../modules/exporters/posthog.js";
 import KSUID from "../thirdparty/ksuid/index.js";
 import type { Event } from "../types.js";
@@ -72,15 +72,15 @@ describe("PostHogExporter", () => {
 
     // Verify properties
     expectUUIDv7(event.properties.$session_id);
-    expect(event.properties.tool_name).toBe("get_weather");
-    expect(event.properties.resource_name).toBe("get_weather");
-    expect(event.properties.duration_ms).toBe(150);
-    expect(event.properties.server_name).toBe("weather-server");
-    expect(event.properties.server_version).toBe("1.0.0");
-    expect(event.properties.client_name).toBe("claude-desktop");
-    expect(event.properties.client_version).toBe("2.0.0");
+    expect(event.properties.$mcp_tool_name).toBe("get_weather");
+    expect(event.properties.$mcp_resource_name).toBe("get_weather");
+    expect(event.properties.$mcp_duration_ms).toBe(150);
+    expect(event.properties.$mcp_server_name).toBe("weather-server");
+    expect(event.properties.$mcp_server_version).toBe("1.0.0");
+    expect(event.properties.$mcp_client_name).toBe("claude-desktop");
+    expect(event.properties.$mcp_client_version).toBe("2.0.0");
     expect(event.properties).not.toHaveProperty("project_id");
-    expect(event.properties.is_error).toBe(false);
+    expect(event.properties.$mcp_is_error).toBe(false);
   });
 
   it("should use custom host when provided", async () => {
@@ -158,7 +158,7 @@ describe("PostHogExporter", () => {
 
     // First event: regular capture
     expect(body.batch[0].event).toBe("mcp_tool_call");
-    expect(body.batch[0].properties.is_error).toBe(true);
+    expect(body.batch[0].properties.$mcp_is_error).toBe(true);
 
     // Second event: $exception
     const exceptionEvent = body.batch[1];
@@ -173,9 +173,9 @@ describe("PostHogExporter", () => {
     );
     expect(exceptionEvent.properties.$exception_source).toBe("backend");
     expectUUIDv7(exceptionEvent.properties.$session_id);
-    expect(exceptionEvent.properties.resource_name).toBe("get_weather");
-    expect(exceptionEvent.properties.tool_name).toBe("get_weather");
-    expect(exceptionEvent.properties.server_name).toBe("weather-server");
+    expect(exceptionEvent.properties.$mcp_resource_name).toBe("get_weather");
+    expect(exceptionEvent.properties.$mcp_tool_name).toBe("get_weather");
+    expect(exceptionEvent.properties.$mcp_server_name).toBe("weather-server");
   });
 
   it("should not send $exception event when isError is false", async () => {
@@ -270,8 +270,11 @@ describe("PostHogExporter", () => {
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
     const props = body.batch[0].properties;
 
-    expect(props.parameters).toEqual({ city: "London", units: "celsius" });
-    expect(props.response).toEqual({ temperature: 15, condition: "cloudy" });
+    expect(props.$mcp_parameters).toEqual({ city: "London", units: "celsius" });
+    expect(props.$mcp_response).toEqual({
+      temperature: 15,
+      condition: "cloudy",
+    });
   });
 
   it("should pass through string parameters and response as-is", async () => {
@@ -290,17 +293,17 @@ describe("PostHogExporter", () => {
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
     const props = body.batch[0].properties;
 
-    expect(props.parameters).toBe("raw input");
-    expect(props.response).toBe("raw output");
+    expect(props.$mcp_parameters).toBe("raw input");
+    expect(props.$mcp_response).toBe("raw output");
   });
 
-  it("should only set tool_name for tools/call events", async () => {
+  it("should only set $mcp_tool_name for tools/call events", async () => {
     const exporter = new PostHogExporter({
       type: "posthog",
       apiKey: "phc_test_key",
     });
 
-    // tools/call should have tool_name
+    // tools/call should have $mcp_tool_name
     await exporter.export(
       makeEvent({
         eventType: MCPAnalyticsEventType.mcpToolsCall,
@@ -308,10 +311,10 @@ describe("PostHogExporter", () => {
       })
     );
     let body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-    expect(body.batch[0].properties.tool_name).toBe("get_weather");
-    expect(body.batch[0].properties.resource_name).toBe("get_weather");
+    expect(body.batch[0].properties.$mcp_tool_name).toBe("get_weather");
+    expect(body.batch[0].properties.$mcp_resource_name).toBe("get_weather");
 
-    // resources/read should NOT have tool_name
+    // resources/read should NOT have $mcp_tool_name
     fetchSpy.mockClear();
     await exporter.export(
       makeEvent({
@@ -320,8 +323,8 @@ describe("PostHogExporter", () => {
       })
     );
     body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-    expect(body.batch[0].properties.tool_name).toBeUndefined();
-    expect(body.batch[0].properties.resource_name).toBe("my_resource");
+    expect(body.batch[0].properties.$mcp_tool_name).toBeUndefined();
+    expect(body.batch[0].properties.$mcp_resource_name).toBe("my_resource");
   });
 
   it("should map event types to PostHog event names", async () => {
@@ -397,7 +400,7 @@ describe("PostHogExporter", () => {
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
     const props = body.batch[0].properties;
     // Only PostHog MCP analytics-set properties should exist, no customer tags/properties
-    expect(props.source).toBe("posthog_mcp_analytics");
+    expect(props.$mcp_source).toBe("posthog_mcp_analytics");
     expect(props.env).toBeUndefined();
     expect(props.device).toBeUndefined();
   });
@@ -413,7 +416,7 @@ describe("PostHogExporter", () => {
     );
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-    expect(body.batch[0].properties.user_intent).toBe(
+    expect(body.batch[0].properties.$mcp_user_intent).toBe(
       "Check the weather in London"
     );
   });
@@ -460,9 +463,9 @@ describe("PostHogExporter", () => {
     expect(span.properties.$ai_input_state).toEqual({ city: "London" });
     expect(span.properties.$ai_output_state).toEqual({ temp: 15 });
     expectUUIDv7(span.properties.$session_id);
-    expect(span.properties.source).toBe("posthog_mcp_analytics");
-    expect(span.properties.server_name).toBe("weather-server");
-    expect(span.properties.client_name).toBe("claude-desktop");
+    expect(span.properties.$mcp_source).toBe("posthog_mcp_analytics");
+    expect(span.properties.$mcp_server_name).toBe("weather-server");
+    expect(span.properties.$mcp_client_name).toBe("claude-desktop");
   });
 
   it("should generate deterministic UUIDs for $ai_span trace and span IDs", async () => {
