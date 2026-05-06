@@ -1,12 +1,12 @@
-import { Event, Exporter } from "../../types.js";
+import type { Event, Exporter } from "../../types.js";
+import { MCPCAT_SOURCE } from "../constants.js";
 import { writeToLog } from "../logging.js";
 import { traceContext } from "./trace-context.js";
-import { MCPCAT_SOURCE } from "../constants.js";
 
 export interface OTLPExporterConfig {
-  type: "otlp";
   endpoint: string;
   headers?: Record<string, string>;
+  type: "otlp";
 }
 
 export class OTLPExporter implements Exporter {
@@ -70,7 +70,7 @@ export class OTLPExporter implements Exporter {
 
       if (!response.ok) {
         throw new Error(
-          `OTLP export failed: ${response.status} ${response.statusText}`,
+          `OTLP export failed: ${response.status} ${response.statusText}`
         );
       }
 

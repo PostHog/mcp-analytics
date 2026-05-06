@@ -1,34 +1,34 @@
-import { CallToolResult } from "@modelcontextprotocol/sdk/types";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 export interface MCPCatOptions {
-  enableReportMissing?: boolean;
-  enableTracing?: boolean;
-  enableToolCallContext?: boolean;
-  customContextDescription?: string;
-  identify?: (
-    request: any,
-    extra?: CompatibleRequestHandlerExtra,
-  ) => Promise<UserIdentity | null>;
-  redactSensitiveInformation?: RedactFunction;
-  exporters?: Record<string, ExporterConfig>;
   apiBaseUrl?: string;
-  eventTags?: (
-    request: any,
-    extra?: CompatibleRequestHandlerExtra,
-  ) => Record<string, string> | null | Promise<Record<string, string> | null>;
+  customContextDescription?: string;
+  enableReportMissing?: boolean;
+  enableToolCallContext?: boolean;
+  enableTracing?: boolean;
   eventProperties?: (
     request: any,
-    extra?: CompatibleRequestHandlerExtra,
+    extra?: CompatibleRequestHandlerExtra
   ) => Record<string, any> | null | Promise<Record<string, any> | null>;
+  eventTags?: (
+    request: any,
+    extra?: CompatibleRequestHandlerExtra
+  ) => Record<string, string> | null | Promise<Record<string, string> | null>;
+  exporters?: Record<string, ExporterConfig>;
+  identify?: (
+    request: any,
+    extra?: CompatibleRequestHandlerExtra
+  ) => Promise<UserIdentity | null>;
+  redactSensitiveInformation?: RedactFunction;
 }
 
 export type ToolCallback =
   | ((
       args: any,
-      extra: CompatibleRequestHandlerExtra,
+      extra: CompatibleRequestHandlerExtra
     ) => CallToolResult | Promise<CallToolResult>)
   | ((
-      extra: CompatibleRequestHandlerExtra,
+      extra: CompatibleRequestHandlerExtra
     ) => CallToolResult | Promise<CallToolResult>);
 
 // RegisteredTool type that supports both MCP SDK 1.23- (callback) and 1.24+ (handler)
@@ -58,48 +58,47 @@ export enum MCPCatIDPrefixes {
 }
 
 export interface Event {
-  // Core identification
-  id: string;
-  sessionId: string;
-  projectId?: string; // Optional for telemetry-only mode
+  // Legacy fields for MCPCat API compatibility
+  actorId?: string; // Maps to identifyActorGivenId in some contexts
+  clientName?: string;
+  clientVersion?: string;
+  duration?: number;
+  error?: ErrorData;
+  eventId?: string; // Custom event ID
 
   // Event metadata
   eventType: string; // Changed from enum to string for flexibility
-  timestamp: Date;
-  duration?: number;
-
-  // Session context (from SessionInfo)
-  ipAddress?: string;
-  sdkLanguage?: string;
-  mcpcatVersion?: string;
-  serverName?: string;
-  serverVersion?: string;
-  clientName?: string;
-  clientVersion?: string;
+  // Core identification
+  id: string;
+  identifyActorData?: object;
 
   // Actor/identity information
   identifyActorGivenId?: string;
   identifyActorName?: string;
-  identifyActorData?: object;
+  identifyData?: object; // Legacy name for identifyActorData
 
-  // Event-specific data
-  resourceName?: string; // Tool/resource name
-  parameters?: any;
-  response?: any;
-  userIntent?: string;
+  // Session context (from SessionInfo)
+  ipAddress?: string;
 
   // Error tracking
   isError?: boolean;
-  error?: ErrorData;
+  mcpcatVersion?: string;
+  parameters?: any;
+  projectId?: string; // Optional for telemetry-only mode
+  properties?: Record<string, any> | null;
+
+  // Event-specific data
+  resourceName?: string; // Tool/resource name
+  response?: any;
+  sdkLanguage?: string;
+  serverName?: string;
+  serverVersion?: string;
+  sessionId: string;
 
   // Customer-defined metadata
   tags?: Record<string, string> | null;
-  properties?: Record<string, any> | null;
-
-  // Legacy fields for MCPCat API compatibility
-  actorId?: string; // Maps to identifyActorGivenId in some contexts
-  eventId?: string; // Custom event ID
-  identifyData?: object; // Legacy name for identifyActorData
+  timestamp: Date;
+  userIntent?: string;
 }
 
 export interface UnredactedEvent extends Partial<Event> {
@@ -108,8 +107,8 @@ export interface UnredactedEvent extends Partial<Event> {
 
 // Use our own minimal interface for what we actually need
 export interface CompatibleRequestHandlerExtra {
-  sessionId?: string;
   headers?: Record<string, string | string[]>;
+  sessionId?: string;
   [key: string]: any;
 }
 
@@ -120,6 +119,14 @@ export interface ServerClientInfoLike {
 
 export interface HighLevelMCPServerLike {
   _registeredTools: { [name: string]: RegisteredTool };
+  registerTool?(
+    name: string,
+    config: {
+      description?: string;
+      inputSchema?: any;
+    },
+    handler: ToolCallback
+  ): void;
   server: MCPServerLike;
   // Tool registration methods - simplified signatures without Zod dependency
   tool?(name: string, cb: ToolCallback): void;
@@ -129,100 +136,92 @@ export interface HighLevelMCPServerLike {
     name: string,
     description: string,
     paramsSchema: any,
-    cb: ToolCallback,
-  ): void;
-  registerTool?(
-    name: string,
-    config: {
-      description?: string;
-      inputSchema?: any;
-    },
-    handler: ToolCallback,
+    cb: ToolCallback
   ): void;
 }
 
 export interface MCPServerLike {
-  setRequestHandler(
-    schema: any,
-    handler: (
-      request: any,
-      extra?: CompatibleRequestHandlerExtra,
-    ) => Promise<any>,
-  ): void;
   _requestHandlers: Map<
     string,
     (request: any, extra?: CompatibleRequestHandlerExtra) => Promise<any>
   >;
   _serverInfo?: ServerClientInfoLike;
   getClientVersion(): ServerClientInfoLike | undefined;
+  setRequestHandler(
+    schema: any,
+    handler: (
+      request: any,
+      extra?: CompatibleRequestHandlerExtra
+    ) => Promise<any>
+  ): void;
 }
 
 export interface UserIdentity {
+  userData?: Record<string, any>; // Additional user data
   userId: string; // Unique identifier for the user
   userName?: string; // Optional user name
-  userData?: Record<string, any>; // Additional user data
 }
 
 export interface SessionInfo {
-  ipAddress?: string;
-  sdkLanguage?: string;
-  mcpcatVersion?: string;
-  serverName?: string;
-  serverVersion?: string;
   clientName?: string;
   clientVersion?: string;
+  identifyActorData?: object;
   identifyActorGivenId?: string; // Actor ID for mcpcat:identify events
   identifyActorName?: string; // Actor name for mcpcat:identify events
-  identifyActorData?: object;
+  ipAddress?: string;
+  mcpcatVersion?: string;
+  sdkLanguage?: string;
+  serverName?: string;
+  serverVersion?: string;
 }
 
 export interface MCPCatData {
+  identifiedSessions: Map<string, UserIdentity>;
+  lastActivity: Date; // Last activity timestamp
+  lastMcpSessionId?: string; // Track the last MCP sessionId we saw
+  options: MCPCatOptions;
   projectId: string; // Project ID for MCPCat
   sessionId: string; // Unique identifier for the session (KSUID with ses prefix)
-  lastActivity: Date; // Last activity timestamp
-  identifiedSessions: Map<string, UserIdentity>;
   sessionInfo: SessionInfo;
-  options: MCPCatOptions;
-  lastMcpSessionId?: string; // Track the last MCP sessionId we saw
   sessionSource: "mcp" | "mcpcat"; // Track whether session ID came from MCP protocol or MCPCat generation
 }
 
 // Error tracking types
 export interface StackFrame {
+  abs_path?: string;
+  colno?: number;
+  context_line?: string; // The line of code where the error occurred
   filename: string;
   function: string; // Function name or "<anonymous>"
-  lineno?: number;
-  colno?: number;
   in_app: boolean;
-  abs_path?: string;
-  context_line?: string; // The line of code where the error occurred
+  lineno?: number;
 }
 
 export interface ChainedErrorData {
-  message: string;
-  type?: string;
-  stack?: string;
   frames?: StackFrame[];
+  message: string;
+  stack?: string;
+  type?: string;
 }
 
 export interface ErrorData {
-  message: string;
-  type?: string; // Error class name (e.g., "TypeError", "Error")
-  stack?: string; // Full stack trace string
-  frames?: StackFrame[]; // Parsed stack frames
   chained_errors?: ChainedErrorData[];
+  frames?: StackFrame[]; // Parsed stack frames
+  message: string;
   platform?: string; // Platform identifier (e.g., "javascript", "node")
+  stack?: string; // Full stack trace string
+  type?: string; // Error class name (e.g., "TypeError", "Error")
 }
 
 // Custom event types for publishCustomEvent function
 export interface CustomEventData {
-  resourceName?: string;
-  parameters?: any;
-  response?: any;
-  message?: string;
   duration?: number;
-  isError?: boolean;
   error?: any;
-  tags?: Record<string, string>;
+  isError?: boolean;
+  message?: string;
+  parameters?: any;
   properties?: Record<string, any>;
+  resourceName?: string;
+  response?: any;
+  tags?: Record<string, string>;
 }

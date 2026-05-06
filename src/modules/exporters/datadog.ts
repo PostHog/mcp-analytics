@@ -1,27 +1,23 @@
-import { Event, Exporter } from "../../types.js";
+import type { Event, Exporter } from "../../types.js";
+import { MCPCAT_SOURCE } from "../constants.js";
 import { writeToLog } from "../logging.js";
 import { traceContext } from "./trace-context.js";
-import { MCPCAT_SOURCE } from "../constants.js";
 
 export interface DatadogExporterConfig {
-  type: "datadog";
   apiKey: string; // Required - Datadog API key
-  site: string; // Required - 'datadoghq.com', 'datadoghq.eu', etc.
-  service: string; // Required - MCP server name
   env?: string; // Optional - environment
+  service: string; // Required - MCP server name
+  site: string; // Required - 'datadoghq.com', 'datadoghq.eu', etc.
+  type: "datadog";
 }
 
 interface DatadogLog {
-  message: string;
-  service: string;
-  ddsource: string;
-  ddtags: string;
-  timestamp: number;
-  status?: string;
   dd?: {
     trace_id: string;
     span_id: string;
   };
+  ddsource: string;
+  ddtags: string;
   error?: {
     message: string;
   };
@@ -43,13 +39,17 @@ interface DatadogLog {
     tags?: Record<string, string> | null;
     properties?: Record<string, any> | null;
   };
+  message: string;
+  service: string;
+  status?: string;
+  timestamp: number;
 }
 
 interface DatadogMetric {
   metric: string;
-  type: "count" | "gauge" | "rate";
   points: Array<[number, number]>;
   tags?: string[];
+  type: "count" | "gauge" | "rate";
 }
 
 export class DatadogExporter implements Exporter {
@@ -76,7 +76,7 @@ export class DatadogExporter implements Exporter {
     // Debug: Log the metrics payload
     writeToLog(`DatadogExporter: Metrics URL: ${this.metricsUrl}`);
     writeToLog(
-      `DatadogExporter: Metrics payload: ${JSON.stringify({ series: metrics })}`,
+      `DatadogExporter: Metrics payload: ${JSON.stringify({ series: metrics })}`
     );
 
     // Send logs with response checking
@@ -89,13 +89,13 @@ export class DatadogExporter implements Exporter {
       body: JSON.stringify([log]),
     })
       .then(async (response) => {
-        if (!response.ok) {
+        if (response.ok) {
+          writeToLog(`Datadog logs success - Status: ${response.status}`);
+        } else {
           const errorBody = await response.text();
           writeToLog(
-            `Datadog logs failed - Status: ${response.status}, Body: ${errorBody}`,
+            `Datadog logs failed - Status: ${response.status}, Body: ${errorBody}`
           );
-        } else {
-          writeToLog(`Datadog logs success - Status: ${response.status}`);
         }
         return response;
       })
@@ -113,15 +113,15 @@ export class DatadogExporter implements Exporter {
       body: JSON.stringify({ series: metrics }),
     })
       .then(async (response) => {
-        if (!response.ok) {
-          const errorBody = await response.text();
-          writeToLog(
-            `Datadog metrics failed - Status: ${response.status}, Body: ${errorBody}`,
-          );
-        } else {
+        if (response.ok) {
           const responseBody = await response.text();
           writeToLog(
-            `Datadog metrics success - Status: ${response.status}, Body: ${responseBody}`,
+            `Datadog metrics success - Status: ${response.status}, Body: ${responseBody}`
+          );
+        } else {
+          const errorBody = await response.text();
+          writeToLog(
+            `Datadog metrics failed - Status: ${response.status}, Body: ${errorBody}`
           );
         }
         return response;
@@ -138,11 +138,18 @@ export class DatadogExporter implements Exporter {
     const tags: string[] = [];
 
     // Add basic tags
-    if (this.config.env) tags.push(`env:${this.config.env}`);
-    if (event.eventType)
+    if (this.config.env) {
+      tags.push(`env:${this.config.env}`);
+    }
+    if (event.eventType) {
       tags.push(`event_type:${event.eventType.replace(/\//g, ".")}`);
-    if (event.resourceName) tags.push(`resource:${event.resourceName}`);
-    if (event.isError) tags.push("error:true");
+    }
+    if (event.resourceName) {
+      tags.push(`resource:${event.resourceName}`);
+    }
+    if (event.isError) {
+      tags.push("error:true");
+    }
 
     tags.push(`source:${MCPCAT_SOURCE}`);
 
@@ -202,15 +209,20 @@ export class DatadogExporter implements Exporter {
   private eventToMetrics(event: Event): DatadogMetric[] {
     const metrics: DatadogMetric[] = [];
     const timestamp = Math.floor(
-      (event.timestamp?.getTime() || Date.now()) / 1000,
+      (event.timestamp?.getTime() || Date.now()) / 1000
     );
     const tags: string[] = [`service:${this.config.service}`];
 
     // Add optional tags
-    if (this.config.env) tags.push(`env:${this.config.env}`);
-    if (event.eventType)
+    if (this.config.env) {
+      tags.push(`env:${this.config.env}`);
+    }
+    if (event.eventType) {
       tags.push(`event_type:${event.eventType.replace(/\//g, ".")}`);
-    if (event.resourceName) tags.push(`resource:${event.resourceName}`);
+    }
+    if (event.resourceName) {
+      tags.push(`resource:${event.resourceName}`);
+    }
 
     // Event count metric
     metrics.push({

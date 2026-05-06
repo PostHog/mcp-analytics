@@ -1,15 +1,17 @@
-import { Event, Exporter, ExporterConfig } from "../types.js";
-import { writeToLog } from "./logging.js";
-import { OTLPExporter } from "./exporters/otlp.js";
+import type { Event, Exporter, ExporterConfig } from "../types.js";
 import { DatadogExporter } from "./exporters/datadog.js";
-import { SentryExporter } from "./exporters/sentry.js";
+import { OTLPExporter } from "./exporters/otlp.js";
 import { PostHogExporter } from "./exporters/posthog.js";
+import { SentryExporter } from "./exporters/sentry.js";
+import { writeToLog } from "./logging.js";
 
 export class TelemetryManager {
   private exporters: Map<string, Exporter> = new Map();
 
   constructor(exporterConfigs?: Record<string, ExporterConfig>) {
-    if (!exporterConfigs) return;
+    if (!exporterConfigs) {
+      return;
+    }
 
     for (const [name, config] of Object.entries(exporterConfigs)) {
       try {
@@ -26,7 +28,7 @@ export class TelemetryManager {
 
   private createExporter(
     name: string,
-    config: ExporterConfig,
+    config: ExporterConfig
   ): Exporter | null {
     switch (config.type) {
       case "otlp":
@@ -44,7 +46,9 @@ export class TelemetryManager {
   }
 
   async export(event: Event): Promise<void> {
-    if (this.exporters.size === 0) return;
+    if (this.exporters.size === 0) {
+      return;
+    }
 
     // Telemetry errors should be logged but not propagated
     for (const [name, exporter] of this.exporters) {

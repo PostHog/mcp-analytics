@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { describe, expect, it } from "vitest";
 import { isCompatibleServerType } from "../modules/compatibility.js";
 
 describe("MCP Version Compatibility", () => {
@@ -12,7 +12,7 @@ describe("MCP Version Compatibility", () => {
       },
       {
         capabilities: {},
-      },
+      }
     );
 
     // Test compatibility using isCompatibleServerType

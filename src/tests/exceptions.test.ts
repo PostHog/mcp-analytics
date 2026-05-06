@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { captureException } from "../modules/exceptions.js";
 
 describe("captureException", () => {
@@ -186,7 +186,7 @@ describe("captureException", () => {
 
       // At least one in_app frame should have context_line
       const hasContextLine = inAppFrames.some(
-        (frame) => frame.context_line !== undefined,
+        (frame) => frame.context_line !== undefined
       );
       expect(hasContextLine).toBe(true);
     });
@@ -416,7 +416,7 @@ describe("captureException", () => {
         // Should find /src/ boundary and normalize to that
         expect(result.frames![0].filename).toBe("src/index.ts");
         expect(result.frames![0].abs_path).toBe(
-          "/Users/john/project/src/index.ts",
+          "/Users/john/project/src/index.ts"
         );
       });
 
@@ -430,7 +430,7 @@ describe("captureException", () => {
         // Should find /src/ boundary and normalize to that
         expect(result.frames![0].filename).toBe("src/server.ts");
         expect(result.frames![0].abs_path).toBe(
-          "/home/ubuntu/app/src/server.ts",
+          "/home/ubuntu/app/src/server.ts"
         );
       });
 
@@ -444,7 +444,7 @@ describe("captureException", () => {
         // Should find /src/ boundary and normalize to that
         expect(result.frames![0].filename).toBe("src/index.ts");
         expect(result.frames![0].abs_path).toBe(
-          "C:\\Users\\Jane\\projects\\myapp\\src\\index.ts",
+          "C:\\Users\\Jane\\projects\\myapp\\src\\index.ts"
         );
       });
     });
@@ -458,10 +458,10 @@ describe("captureException", () => {
         const result = captureException(error);
 
         expect(result.frames![0].filename).toBe(
-          "node_modules/express/lib/router.js",
+          "node_modules/express/lib/router.js"
         );
         expect(result.frames![0].abs_path).toBe(
-          "/Users/john/project/node_modules/express/lib/router.js",
+          "/Users/john/project/node_modules/express/lib/router.js"
         );
         expect(result.frames![0].in_app).toBe(false);
       });
@@ -474,10 +474,10 @@ describe("captureException", () => {
         const result = captureException(error);
 
         expect(result.frames![0].filename).toBe(
-          "node_modules/@scope/package/dist/index.js",
+          "node_modules/@scope/package/dist/index.js"
         );
         expect(result.frames![0].abs_path).toBe(
-          "/app/node_modules/@scope/package/dist/index.js",
+          "/app/node_modules/@scope/package/dist/index.js"
         );
       });
 
@@ -501,7 +501,7 @@ describe("captureException", () => {
 
         expect(result.frames![0].filename).toBe("node_modules/lodash/index.js");
         expect(result.frames![0].abs_path).toBe(
-          "C:\\projects\\app\\node_modules\\lodash\\index.js",
+          "C:\\projects\\app\\node_modules\\lodash\\index.js"
         );
       });
     });
@@ -516,7 +516,7 @@ describe("captureException", () => {
 
         expect(result.frames![0].filename).toBe("src/api/users.ts");
         expect(result.frames![0].abs_path).toBe(
-          "/var/www/myapp/src/api/users.ts",
+          "/var/www/myapp/src/api/users.ts"
         );
       });
 
@@ -696,7 +696,7 @@ describe("captureException", () => {
 
         // Library code - should normalize node_modules
         expect(result.frames![1].filename).toBe(
-          "node_modules/express/lib/router.js",
+          "node_modules/express/lib/router.js"
         );
         expect(result.frames![1].in_app).toBe(false);
 
@@ -715,7 +715,7 @@ describe("captureException", () => {
 
         expect(result.frames![0].filename).toBe("dist/api/users.ts");
         expect(result.frames![1].filename).toBe(
-          "node_modules/validator/lib/index.js",
+          "node_modules/validator/lib/index.js"
         );
       });
 
@@ -729,7 +729,7 @@ describe("captureException", () => {
 
         expect(result.frames![0].filename).toBe("src/lambda/handler.ts");
         expect(result.frames![1].filename).toBe(
-          "node_modules/aws-sdk/lib/service.js",
+          "node_modules/aws-sdk/lib/service.js"
         );
       });
     });
@@ -745,7 +745,7 @@ describe("captureException", () => {
         // Should strip file:// and then normalize the path
         expect(result.frames![0].filename).toBe("src/index.ts");
         expect(result.frames![0].abs_path).toBe(
-          "file:///Users/john/project/src/index.ts",
+          "file:///Users/john/project/src/index.ts"
         );
       });
 
@@ -759,7 +759,7 @@ describe("captureException", () => {
         // Should strip file:// and then normalize the Windows path
         expect(result.frames![0].filename).toBe("src/index.ts");
         expect(result.frames![0].abs_path).toBe(
-          "file:///C:/Users/Jane/project/src/index.ts",
+          "file:///C:/Users/Jane/project/src/index.ts"
         );
       });
 
@@ -772,7 +772,7 @@ describe("captureException", () => {
 
         // Should normalize to node_modules path
         expect(result.frames![0].filename).toBe(
-          "node_modules/express/lib/router.js",
+          "node_modules/express/lib/router.js"
         );
         expect(result.frames![0].in_app).toBe(false);
       });
@@ -810,7 +810,7 @@ describe("captureException", () => {
 
         // Should still strip leading slash, but can't normalize further
         expect(result.frames![0].filename).toBe(
-          "random/path/without/markers/file.ts",
+          "random/path/without/markers/file.ts"
         );
       });
 
@@ -838,7 +838,7 @@ describe("captureException", () => {
 
         // abs_path should be unchanged
         expect(result.frames![0].abs_path).toBe(
-          "/Users/john/long/path/to/project/src/index.ts",
+          "/Users/john/long/path/to/project/src/index.ts"
         );
       });
 

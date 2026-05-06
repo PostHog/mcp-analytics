@@ -1,14 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { sanitizeEvent } from "../modules/sanitization.js";
-import { Event } from "../types.js";
+import type { Event } from "../types.js";
 
-function makeLargeBase64(sizeInChars = 12000): string {
+function makeLargeBase64(sizeInChars = 12_000): string {
   return "A".repeat(sizeInChars - 1) + "=";
 }
 
-function makeLargeNonBase64(sizeInChars = 12000): string {
+function makeLargeNonBase64(sizeInChars = 12_000): string {
   return "Hello, world! This is NOT base64. ".repeat(
-    Math.ceil(sizeInChars / 34),
+    Math.ceil(sizeInChars / 34)
   );
 }
 
@@ -158,7 +158,7 @@ describe("sanitizeEvent - response content blocks", () => {
     const result = sanitizeEvent(event);
 
     expect(result.response.structuredContent.data).toBe(
-      "[binary data redacted - not supported by MCPcat]",
+      "[binary data redacted - not supported by MCPcat]"
     );
     expect(result.response.structuredContent.label).toBe("some label");
   });
@@ -209,7 +209,7 @@ describe("sanitizeEvent - parameter scanning", () => {
     const result = sanitizeEvent(event);
 
     expect(result.parameters.imageData).toBe(
-      "[binary data redacted - not supported by MCPcat]",
+      "[binary data redacted - not supported by MCPcat]"
     );
   });
 
@@ -241,7 +241,7 @@ describe("sanitizeEvent - parameter scanning", () => {
     const result = sanitizeEvent(event);
 
     expect(result.parameters.level1.level2.level3.data).toBe(
-      "[binary data redacted - not supported by MCPcat]",
+      "[binary data redacted - not supported by MCPcat]"
     );
   });
 
@@ -264,7 +264,7 @@ describe("sanitizeEvent - parameter scanning", () => {
     expect(result.parameters.active).toBe(true);
     expect(result.parameters.name).toBe("short string");
     expect(result.parameters.binaryData).toBe(
-      "[binary data redacted - not supported by MCPcat]",
+      "[binary data redacted - not supported by MCPcat]"
     );
     expect(result.parameters.tags).toEqual(["a", "b", "c"]);
   });
@@ -282,14 +282,14 @@ describe("sanitizeEvent - parameter scanning", () => {
 
     expect(result.parameters.items[0]).toBe("small string");
     expect(result.parameters.items[1]).toBe(
-      "[binary data redacted - not supported by MCPcat]",
+      "[binary data redacted - not supported by MCPcat]"
     );
     expect(result.parameters.items[2]).toBe("another small");
   });
 
   it("should redact base64 string at exactly SIZE_GATE boundary (10240 chars)", () => {
-    const exactBoundary = makeLargeBase64(10240);
-    const belowBoundary = makeLargeBase64(10239);
+    const exactBoundary = makeLargeBase64(10_240);
+    const belowBoundary = makeLargeBase64(10_239);
 
     const event = makeEvent({
       parameters: {
@@ -301,7 +301,7 @@ describe("sanitizeEvent - parameter scanning", () => {
     const result = sanitizeEvent(event);
 
     expect(result.parameters.atGate).toBe(
-      "[binary data redacted - not supported by MCPcat]",
+      "[binary data redacted - not supported by MCPcat]"
     );
     expect(result.parameters.belowGate).toBe(belowBoundary);
   });
@@ -337,7 +337,7 @@ describe("sanitizeEvent - integration", () => {
     const result = sanitizeEvent(event);
 
     expect(result.parameters.imageData).toBe(
-      "[binary data redacted - not supported by MCPcat]",
+      "[binary data redacted - not supported by MCPcat]"
     );
     expect(result.parameters.query).toBe("hello");
 
@@ -375,7 +375,7 @@ describe("sanitizeEvent - integration", () => {
 
     // Result should be different
     expect(result.parameters.imageData).toBe(
-      "[binary data redacted - not supported by MCPcat]",
+      "[binary data redacted - not supported by MCPcat]"
     );
     expect(result.response.content[0].type).toBe("text");
   });

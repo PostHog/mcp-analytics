@@ -1,4 +1,4 @@
-import { RegisteredTool } from "../types";
+import type { RegisteredTool } from "../types";
 import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "./constants";
 import { writeToLog } from "./logging.js";
 
@@ -14,7 +14,7 @@ import { writeToLog } from "./logging.js";
  */
 export function addContextParameterToTool(
   tool: RegisteredTool,
-  customContextDescription?: string,
+  customContextDescription?: string
 ): RegisteredTool {
   // Create a shallow copy of the tool to avoid modifying the original
   const modifiedTool = { ...tool };
@@ -24,7 +24,7 @@ export function addContextParameterToTool(
   // Check if tool already has context parameter - skip to avoid collision
   if (schema?.properties?.context) {
     writeToLog(
-      `WARN: Tool "${toolName}" already has 'context' parameter. Skipping context injection.`,
+      `WARN: Tool "${toolName}" already has 'context' parameter. Skipping context injection.`
     );
     return modifiedTool;
   }
@@ -32,7 +32,7 @@ export function addContextParameterToTool(
   // Skip complex schemas that can't safely have properties added at root level
   if (schema?.oneOf || schema?.allOf || schema?.anyOf) {
     writeToLog(
-      `WARN: Tool "${toolName}" has complex schema (oneOf/allOf/anyOf). Skipping context injection.`,
+      `WARN: Tool "${toolName}" has complex schema (oneOf/allOf/anyOf). Skipping context injection.`
     );
     return modifiedTool;
   }
@@ -54,7 +54,7 @@ export function addContextParameterToTool(
 
   // Deep copy the inputSchema to avoid mutations
   modifiedTool.inputSchema = JSON.parse(
-    JSON.stringify(modifiedTool.inputSchema),
+    JSON.stringify(modifiedTool.inputSchema)
   );
 
   // Ensure properties object exists
@@ -88,7 +88,7 @@ export function addContextParameterToTool(
 
 export function addContextParameterToTools(
   tools: RegisteredTool[],
-  customContextDescription?: string,
+  customContextDescription?: string
 ): RegisteredTool[] {
   return tools.map((tool) => {
     // Skip get_more_tools - it has its own special context parameter

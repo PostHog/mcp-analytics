@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { normalize, truncateEvent } from "../modules/truncation.js";
+import { describe, expect, it } from "vitest";
 import { sanitizeEvent } from "../modules/sanitization.js";
-import { Event, StackFrame } from "../types.js";
+import { normalize, truncateEvent } from "../modules/truncation.js";
+import type { Event, StackFrame } from "../types.js";
 
 describe("normalize - string truncation", () => {
   it("should leave short strings unchanged", () => {
@@ -9,15 +9,15 @@ describe("normalize - string truncation", () => {
   });
 
   it("should truncate strings exceeding maxStringLength with '...'", () => {
-    const long = "a".repeat(33000);
+    const long = "a".repeat(33_000);
     const result = normalize(long) as string;
-    expect(result.length).toBe(32768 + 3); // 32KB + "..."
+    expect(result.length).toBe(32_768 + 3); // 32KB + "..."
     expect(result.endsWith("...")).toBe(true);
     expect(result.startsWith("a".repeat(100))).toBe(true);
   });
 
   it("should leave strings at exactly maxStringLength unchanged", () => {
-    const exact = "a".repeat(32768);
+    const exact = "a".repeat(32_768);
     expect(normalize(exact)).toBe(exact);
   });
 });
@@ -46,12 +46,12 @@ describe("normalize - non-serializable values", () => {
   });
 
   it("should convert NaN to string marker", () => {
-    expect(normalize(NaN)).toBe("[NaN]");
+    expect(normalize(Number.NaN)).toBe("[NaN]");
   });
 
   it("should convert Infinity to string marker", () => {
-    expect(normalize(Infinity)).toBe("[Infinity]");
-    expect(normalize(-Infinity)).toBe("[-Infinity]");
+    expect(normalize(Number.POSITIVE_INFINITY)).toBe("[Infinity]");
+    expect(normalize(Number.NEGATIVE_INFINITY)).toBe("[-Infinity]");
   });
 
   it("should convert Date to ISO string", () => {
@@ -309,13 +309,13 @@ describe("truncateEvent - response content text truncation", () => {
     const event = makeEvent({
       response: {
         content: [
-          { type: "text", text: "x".repeat(40000) },
+          { type: "text", text: "x".repeat(40_000) },
           { type: "text", text: "short" },
         ],
       },
     });
     const result = truncateEvent(event);
-    expect(result.response.content[0].text.length).toBe(32768 + 3);
+    expect(result.response.content[0].text.length).toBe(32_768 + 3);
     expect(result.response.content[0].text.endsWith("...")).toBe(true);
     expect(result.response.content[1].text).toBe("short");
   });
@@ -329,7 +329,7 @@ describe("truncateEvent - size targeting", () => {
     });
     const result = truncateEvent(event);
     expect(
-      new TextEncoder().encode(JSON.stringify(result)).length,
+      new TextEncoder().encode(JSON.stringify(result)).length
     ).toBeLessThan(102_400);
     expect((result.parameters as any).query).toBe("hello");
   });
@@ -339,7 +339,7 @@ describe("truncateEvent - size targeting", () => {
     const bigNested: any = {};
     let current = bigNested;
     for (let i = 0; i < 8; i++) {
-      current.data = "x".repeat(15000); // 15KB per level = ~120KB total
+      current.data = "x".repeat(15_000); // 15KB per level = ~120KB total
       current.next = {};
       current = current.next;
     }
@@ -371,7 +371,7 @@ describe("truncateEvent - size targeting", () => {
     }
     const event = makeEvent({
       parameters: wide,
-      response: { data: "r".repeat(30000) },
+      response: { data: "r".repeat(30_000) },
     });
     const result = truncateEvent(event);
 
@@ -398,7 +398,7 @@ describe("truncateEvent - size targeting", () => {
     expect(result.timestamp instanceof Date).toBe(true);
     expect((result.timestamp as Date).toISOString()).toBe(ts.toISOString());
     expect(
-      new TextEncoder().encode(JSON.stringify(result)).length,
+      new TextEncoder().encode(JSON.stringify(result)).length
     ).toBeLessThanOrEqual(102_400);
   });
 });
@@ -408,7 +408,7 @@ describe("truncateEvent - non-mutation", () => {
     const longIntent = "x".repeat(3000);
     const event = makeEvent({
       userIntent: longIntent,
-      parameters: { deep: { nested: { data: "y".repeat(40000) } } },
+      parameters: { deep: { nested: { data: "y".repeat(40_000) } } },
       error: {
         message: "e".repeat(3000),
         frames: Array.from({ length: 80 }, (_, i) => ({
@@ -492,13 +492,13 @@ describe("truncateEvent - integration with sanitization pipeline", () => {
     const event = makeEvent({
       userIntent: "x".repeat(3000),
       parameters: {
-        imageData: "A".repeat(12000) + "=", // large base64 — sanitization will redact this
+        imageData: "A".repeat(12_000) + "=", // large base64 — sanitization will redact this
         query: "hello",
-        nested: { deep: { value: "y".repeat(40000) } },
+        nested: { deep: { value: "y".repeat(40_000) } },
       },
       response: {
         content: [
-          { type: "text", text: "z".repeat(40000) },
+          { type: "text", text: "z".repeat(40_000) },
           { type: "image", data: "base64img", mimeType: "image/png" },
         ],
       },
@@ -510,7 +510,7 @@ describe("truncateEvent - integration with sanitization pipeline", () => {
 
     // Sanitization should have redacted the base64 and image
     expect((result.parameters as any).imageData).toBe(
-      "[binary data redacted - not supported by MCPcat]",
+      "[binary data redacted - not supported by MCPcat]"
     );
     expect(result.response.content[1]).toEqual({
       type: "text",
@@ -520,7 +520,7 @@ describe("truncateEvent - integration with sanitization pipeline", () => {
     // Truncation should have capped the remaining fields
     expect(result.userIntent!.length).toBe(2048 + 3);
     expect(result.response.content[0].text.length).toBeLessThanOrEqual(
-      32768 + 3,
+      32_768 + 3
     );
     expect((result.parameters as any).query).toBe("hello");
   });

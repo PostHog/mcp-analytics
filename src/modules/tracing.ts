@@ -2,30 +2,30 @@ import {
   CallToolRequestSchema,
   InitializeRequestSchema,
   ListToolsRequestSchema,
-  ListToolsResult,
+  type ListToolsResult,
 } from "@modelcontextprotocol/sdk/types.js";
-import {
+import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import type {
   HighLevelMCPServerLike,
   MCPServerLike,
   UnredactedEvent,
 } from "../types.js";
-import { writeToLog } from "./logging.js";
-import { handleReportMissing } from "./tools.js";
+import { getMCPCompatibleErrorMessage } from "./compatibility.js";
+import { addContextParameterToTools } from "./context-parameters.js";
+import { publishEvent } from "./eventQueue.js";
+import { captureException } from "./exceptions.js";
 import {
   getServerTrackingData,
   handleIdentify,
-  resolveEventTags,
   resolveEventProperties,
+  resolveEventTags,
 } from "./internal.js";
+import { writeToLog } from "./logging.js";
 import { getServerSessionId } from "./session.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
-import { publishEvent } from "./eventQueue.js";
-import { getMCPCompatibleErrorMessage } from "./compatibility.js";
-import { captureException } from "./exceptions.js";
-import { addContextParameterToTools } from "./context-parameters.js";
 import {
   GET_MORE_TOOLS_NAME,
   getReportMissingToolDescriptor,
+  handleReportMissing,
 } from "./tools.js";
 
 function isToolResultError(result: any): boolean {
@@ -36,7 +36,7 @@ function isToolResultError(result: any): boolean {
 const listToolsTracingSetup = new WeakMap<MCPServerLike, boolean>();
 
 export function setupListToolsTracing(
-  highLevelServer: HighLevelMCPServerLike,
+  highLevelServer: HighLevelMCPServerLike
 ): void {
   const server = highLevelServer.server;
 
@@ -63,11 +63,11 @@ export function setupListToolsTracing(
     server.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
       let tools: any[] = [];
       const data = getServerTrackingData(server);
-      let event: UnredactedEvent = {
+      const event: UnredactedEvent = {
         sessionId: getServerSessionId(server, extra),
         parameters: {
-          request: request,
-          extra: extra,
+          request,
+          extra,
         },
         eventType: PublishEventRequestEventTypeEnum.mcpToolsList,
         timestamp: new Date(),
@@ -75,18 +75,22 @@ export function setupListToolsTracing(
       };
       if (data) {
         const resolvedTags = await resolveEventTags(data, request, extra);
-        if (resolvedTags) event.tags = resolvedTags;
+        if (resolvedTags) {
+          event.tags = resolvedTags;
+        }
         const resolvedProperties = await resolveEventProperties(
           data,
           request,
-          extra,
+          extra
         );
-        if (resolvedProperties) event.properties = resolvedProperties;
+        if (resolvedProperties) {
+          event.properties = resolvedProperties;
+        }
       }
       try {
         const originalResponse = (await originalListToolsHandler(
           request,
-          extra,
+          extra
         )) as ListToolsResult;
         tools = originalResponse.tools || [];
 
@@ -94,21 +98,23 @@ export function setupListToolsTracing(
         if (data?.options.enableToolCallContext) {
           tools = addContextParameterToTools(
             tools,
-            data.options.customContextDescription,
+            data.options.customContextDescription
           );
         }
 
         // Add get_more_tools tool when enabled
         if (data?.options.enableReportMissing) {
           const alreadyPresent = tools.some(
-            (t: any) => t?.name === GET_MORE_TOOLS_NAME,
+            (t: any) => t?.name === GET_MORE_TOOLS_NAME
           );
-          if (!alreadyPresent) tools.push(getReportMissingToolDescriptor());
+          if (!alreadyPresent) {
+            tools.push(getReportMissingToolDescriptor());
+          }
         }
       } catch (error) {
         // If original handler fails, start with empty tools
         writeToLog(
-          `Warning: Original list tools handler failed, this suggests an error MCPCat did not cause - ${error}`,
+          `Warning: Original list tools handler failed, this suggests an error MCPCat did not cause - ${error}`
         );
         event.error = { message: getMCPCompatibleErrorMessage(error) };
         event.isError = true;
@@ -122,14 +128,14 @@ export function setupListToolsTracing(
 
       if (!data) {
         writeToLog(
-          "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls.",
+          "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
         );
         return { tools };
       }
 
       if (tools.length === 0) {
         writeToLog(
-          "Warning: No tools found in the original list. This is likely due to the tools not being registered before MCPCat.track().",
+          "Warning: No tools found in the original list. This is likely due to the tools not being registered before MCPCat.track()."
         );
         event.error = { message: "No tools were sent to MCP client." };
         event.isError = true;
@@ -158,7 +164,7 @@ export function setupListToolsTracing(
 }
 
 export function setupInitializeTracing(
-  highLevelServer: HighLevelMCPServerLike,
+  highLevelServer: HighLevelMCPServerLike
 ): void {
   const server = highLevelServer.server;
   const handlers = server._requestHandlers;
@@ -171,7 +177,7 @@ export function setupInitializeTracing(
         const data = getServerTrackingData(server);
         if (!data) {
           writeToLog(
-            "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls.",
+            "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
           );
           return await originalInitializeHandler(request, extra);
         }
@@ -181,32 +187,36 @@ export function setupInitializeTracing(
         // Try to identify the session
         await handleIdentify(server, data, request, extra);
 
-        let event: UnredactedEvent = {
-          sessionId: sessionId,
+        const event: UnredactedEvent = {
+          sessionId,
           resourceName: request.params?.name || "Unknown Tool Name",
           eventType: PublishEventRequestEventTypeEnum.mcpInitialize,
           parameters: {
-            request: request,
-            extra: extra,
+            request,
+            extra,
           },
           timestamp: new Date(),
           redactionFn: data.options.redactSensitiveInformation,
         };
 
         const resolvedTags = await resolveEventTags(data, request, extra);
-        if (resolvedTags) event.tags = resolvedTags;
+        if (resolvedTags) {
+          event.tags = resolvedTags;
+        }
         const resolvedProperties = await resolveEventProperties(
           data,
           request,
-          extra,
+          extra
         );
-        if (resolvedProperties) event.properties = resolvedProperties;
+        if (resolvedProperties) {
+          event.properties = resolvedProperties;
+        }
 
         const result = await originalInitializeHandler(request, extra);
         event.response = result;
         publishEvent(server, event);
         return result;
-      },
+      }
     );
   }
 }
@@ -225,7 +235,7 @@ export function setupToolCallTracing(server: MCPServerLike): void {
           const data = getServerTrackingData(server);
           if (!data) {
             writeToLog(
-              "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls.",
+              "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
             );
             return await originalInitializeHandler(request, extra);
           }
@@ -235,32 +245,36 @@ export function setupToolCallTracing(server: MCPServerLike): void {
           // Try to identify the session
           await handleIdentify(server, data, request, extra);
 
-          let event: UnredactedEvent = {
-            sessionId: sessionId,
+          const event: UnredactedEvent = {
+            sessionId,
             resourceName: request.params?.name || "Unknown Tool Name",
             eventType: PublishEventRequestEventTypeEnum.mcpInitialize,
             parameters: {
-              request: request,
-              extra: extra,
+              request,
+              extra,
             },
             timestamp: new Date(),
             redactionFn: data.options.redactSensitiveInformation,
           };
 
           const resolvedTags = await resolveEventTags(data, request, extra);
-          if (resolvedTags) event.tags = resolvedTags;
+          if (resolvedTags) {
+            event.tags = resolvedTags;
+          }
           const resolvedProperties = await resolveEventProperties(
             data,
             request,
-            extra,
+            extra
           );
-          if (resolvedProperties) event.properties = resolvedProperties;
+          if (resolvedProperties) {
+            event.properties = resolvedProperties;
+          }
 
           const result = await originalInitializeHandler(request, extra);
           event.response = result;
           publishEvent(server, event);
           return result;
-        },
+        }
       );
     }
 
@@ -268,18 +282,18 @@ export function setupToolCallTracing(server: MCPServerLike): void {
       const data = getServerTrackingData(server);
       if (!data) {
         writeToLog(
-          "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls.",
+          "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
         );
         return await originalCallToolHandler?.(request, extra);
       }
 
       const sessionId = getServerSessionId(server, extra);
-      let event: UnredactedEvent = {
-        sessionId: sessionId,
+      const event: UnredactedEvent = {
+        sessionId,
         resourceName: request.params?.name || "Unknown Tool Name",
         parameters: {
-          request: request,
-          extra: extra,
+          request,
+          extra,
         },
         eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
         timestamp: new Date(),
@@ -291,13 +305,17 @@ export function setupToolCallTracing(server: MCPServerLike): void {
         await handleIdentify(server, data, request, extra);
 
         const resolvedTags = await resolveEventTags(data, request, extra);
-        if (resolvedTags) event.tags = resolvedTags;
+        if (resolvedTags) {
+          event.tags = resolvedTags;
+        }
         const resolvedProperties = await resolveEventProperties(
           data,
           request,
-          extra,
+          extra
         );
-        if (resolvedProperties) event.properties = resolvedProperties;
+        if (resolvedProperties) {
+          event.properties = resolvedProperties;
+        }
 
         // Check for missing context if enableToolCallContext is true and it's not report_missing
         if (

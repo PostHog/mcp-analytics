@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Event, MCPServerLike } from "../types.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Event, MCPServerLike } from "../types.js";
 import { setupTestHooks } from "./test-utils.js";
 
 // Mock external dependencies
@@ -11,8 +11,8 @@ vi.mock("../thirdparty/ksuid/index.js");
 
 // Import mocked modules
 import { Configuration, EventsApi } from "mcpcat-api";
-import { writeToLog } from "../modules/logging.js";
 import { getServerTrackingData } from "../modules/internal.js";
+import { writeToLog } from "../modules/logging.js";
 import { getSessionInfo } from "../modules/session.js";
 import KSUID from "../thirdparty/ksuid/index.js";
 
@@ -106,7 +106,7 @@ describe("EventQueue", () => {
       publishEvent(mockServer, event);
 
       expect(writeToLog).toHaveBeenCalledWith(
-        "Warning: Server tracking data not found. Event will not be published.",
+        "Warning: Server tracking data not found. Event will not be published."
       );
     });
 
@@ -213,7 +213,7 @@ describe("EventQueue", () => {
 
       // Should log the shutdown message
       expect(writeToLog).toHaveBeenCalledWith(
-        "Queue is shutting down, event dropped",
+        "Queue is shutting down, event dropped"
       );
     });
   });

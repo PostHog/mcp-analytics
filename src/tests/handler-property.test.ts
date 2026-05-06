@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { track } from "../index.js";
 
@@ -18,9 +18,9 @@ describe("MCP SDK callback/handler compatibility", () => {
   it("should have either callback or handler property (SDK version dependent)", () => {
     const server = new McpServer({ name: "test", version: "1.0.0" });
 
-    server.tool("test_tool", { a: z.number() }, async ({ a }) => {
-      return { content: [{ type: "text", text: String(a) }] };
-    });
+    server.tool("test_tool", { a: z.number() }, async ({ a }) => ({
+      content: [{ type: "text", text: String(a) }],
+    }));
 
     const tools = (server as any)._registeredTools;
     const tool = tools["test_tool"];
@@ -42,9 +42,9 @@ describe("MCP SDK callback/handler compatibility", () => {
   it("should preserve the original property name after track() is called", () => {
     const server = new McpServer({ name: "test", version: "1.0.0" });
 
-    server.tool("test_tool", { a: z.number() }, async ({ a }) => {
-      return { content: [{ type: "text", text: String(a) }] };
-    });
+    server.tool("test_tool", { a: z.number() }, async ({ a }) => ({
+      content: [{ type: "text", text: String(a) }],
+    }));
 
     // Get the property name BEFORE track()
     const toolsBefore = (server as any)._registeredTools;
@@ -73,20 +73,20 @@ describe("MCP SDK callback/handler compatibility", () => {
     const server = new McpServer({ name: "test", version: "1.0.0" });
 
     // Register a tool first to determine SDK's property name
-    server.tool("initial_tool", { a: z.number() }, async ({ a }) => {
-      return { content: [{ type: "text", text: String(a) }] };
-    });
+    server.tool("initial_tool", { a: z.number() }, async ({ a }) => ({
+      content: [{ type: "text", text: String(a) }],
+    }));
     const expectedPropName = getToolFunctionPropertyName(
-      (server as any)._registeredTools["initial_tool"],
+      (server as any)._registeredTools["initial_tool"]
     );
 
     // Call track() first
     track(server, "test-project-id");
 
     // Then register a tool after track()
-    server.tool("late_tool", { b: z.string() }, async ({ b }) => {
-      return { content: [{ type: "text", text: b }] };
-    });
+    server.tool("late_tool", { b: z.string() }, async ({ b }) => ({
+      content: [{ type: "text", text: b }],
+    }));
 
     const tools = (server as any)._registeredTools;
     const tool = tools["late_tool"];

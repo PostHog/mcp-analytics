@@ -1,6 +1,6 @@
 import { existsSync, unlinkSync } from "fs";
-import { beforeEach, afterEach } from "vitest";
-import { Event } from "../types.js";
+import { afterEach, beforeEach } from "vitest";
+import type { Event } from "../types.js";
 
 export const LOG_FILE = "mcpcat.log";
 

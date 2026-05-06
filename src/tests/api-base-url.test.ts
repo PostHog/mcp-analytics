@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MCPCatOptions } from "../types.js";
 import { setupTestHooks } from "./test-utils.js";
 
@@ -38,7 +38,9 @@ describe("EventQueue.configure()", () => {
       return {};
     });
     (EventsApi as any).mockImplementation(function () {
-      return { publishEvent: vi.fn().mockResolvedValue({}) };
+      return {
+        publishEvent: vi.fn().mockResolvedValue({}),
+      };
     });
   });
 
@@ -71,11 +73,11 @@ import {
   isCompatibleServerType,
   isHighLevelServer,
 } from "../modules/compatibility.js";
-import { getSessionInfo, newSessionId } from "../modules/session.js";
 import {
-  setServerTrackingData,
   getServerTrackingData,
+  setServerTrackingData,
 } from "../modules/internal.js";
+import { getSessionInfo, newSessionId } from "../modules/session.js";
 
 // Import track after all mocks
 const { track } = await import("../index.js");
@@ -102,7 +104,9 @@ describe("track() URL resolution", () => {
       return {};
     });
     (EventsApi as any).mockImplementation(function () {
-      return { publishEvent: vi.fn().mockResolvedValue({}) };
+      return {
+        publishEvent: vi.fn().mockResolvedValue({}),
+      };
     });
 
     // Setup compatibility mocks: return the server as-is (low-level server)
@@ -122,10 +126,10 @@ describe("track() URL resolution", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     // Restore env var
-    if (savedEnv !== undefined) {
-      process.env.MCPCAT_API_URL = savedEnv;
-    } else {
+    if (savedEnv === undefined) {
       delete process.env.MCPCAT_API_URL;
+    } else {
+      process.env.MCPCAT_API_URL = savedEnv;
     }
   });
 
@@ -135,7 +139,7 @@ describe("track() URL resolution", () => {
     });
 
     expect(eventQueue.configure).toHaveBeenCalledWith(
-      "https://custom-api.example.com",
+      "https://custom-api.example.com"
     );
   });
 
@@ -145,7 +149,7 @@ describe("track() URL resolution", () => {
     track(mockServer, "proj_test123", {});
 
     expect(eventQueue.configure).toHaveBeenCalledWith(
-      "https://env-api.example.com",
+      "https://env-api.example.com"
     );
   });
 
@@ -157,7 +161,7 @@ describe("track() URL resolution", () => {
     });
 
     expect(eventQueue.configure).toHaveBeenCalledWith(
-      "https://option-api.example.com",
+      "https://option-api.example.com"
     );
     expect(eventQueue.configure).toHaveBeenCalledTimes(1);
   });

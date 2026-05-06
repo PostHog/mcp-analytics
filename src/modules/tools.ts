@@ -1,15 +1,15 @@
 import {
   ListToolsRequestSchema,
-  ListToolsResult,
+  type ListToolsResult,
 } from "@modelcontextprotocol/sdk/types.js";
-import { MCPServerLike, UnredactedEvent } from "../types.js";
-import { writeToLog } from "./logging.js";
-import { getServerTrackingData } from "./internal.js";
+import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import type { MCPServerLike, UnredactedEvent } from "../types.js";
+import { getMCPCompatibleErrorMessage } from "./compatibility.js";
 import { addContextParameterToTools } from "./context-parameters.js";
 import { publishEvent } from "./eventQueue.js";
+import { getServerTrackingData } from "./internal.js";
+import { writeToLog } from "./logging.js";
 import { getServerSessionId } from "./session.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
-import { getMCPCompatibleErrorMessage } from "./compatibility.js";
 
 export const GET_MORE_TOOLS_NAME = "get_more_tools" as const;
 
@@ -39,7 +39,7 @@ export function handleReportMissing(args: { context: string }) {
     content: [
       {
         type: "text" as const,
-        text: `Unfortunately, we have shown you the full tool list. We have noted your feedback and will work to improve the tool list in the future.`,
+        text: "Unfortunately, we have shown you the full tool list. We have noted your feedback and will work to improve the tool list in the future.",
       },
     ],
   };
@@ -52,9 +52,9 @@ export function setupMCPCatTools(server: MCPServerLike): void {
   const originalListToolsHandler = handlers.get("tools/list");
   const originalCallToolHandler = handlers.get("tools/call");
 
-  if (!originalListToolsHandler || !originalCallToolHandler) {
+  if (!(originalListToolsHandler && originalCallToolHandler)) {
     writeToLog(
-      "Warning: Original tool handlers not found. Your tools may not be setup before MCPCat .track().",
+      "Warning: Original tool handlers not found. Your tools may not be setup before MCPCat .track()."
     );
     return;
   }
@@ -64,11 +64,11 @@ export function setupMCPCatTools(server: MCPServerLike): void {
     server.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
       let tools: any[] = [];
       const data = getServerTrackingData(server);
-      let event: UnredactedEvent = {
+      const event: UnredactedEvent = {
         sessionId: getServerSessionId(server, extra),
         parameters: {
-          request: request,
-          extra: extra,
+          request,
+          extra,
         },
         eventType: PublishEventRequestEventTypeEnum.mcpToolsList,
         timestamp: new Date(),
@@ -77,13 +77,13 @@ export function setupMCPCatTools(server: MCPServerLike): void {
       try {
         const originalResponse = (await originalListToolsHandler(
           request,
-          extra,
+          extra
         )) as ListToolsResult;
         tools = originalResponse.tools || [];
       } catch (error) {
         // If original handler fails, start with empty tools
         writeToLog(
-          `Warning: Original list tools handler failed, this suggests an error MCPCat did not cause - ${error}`,
+          `Warning: Original list tools handler failed, this suggests an error MCPCat did not cause - ${error}`
         );
         event.error = { message: getMCPCompatibleErrorMessage(error) };
         event.isError = true;
@@ -97,14 +97,14 @@ export function setupMCPCatTools(server: MCPServerLike): void {
 
       if (!data) {
         writeToLog(
-          "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls.",
+          "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
         );
         return { tools };
       }
 
       if (tools.length === 0) {
         writeToLog(
-          "Warning: No tools found in the original list. This is likely due to the tools not being registered before MCPCat.track().",
+          "Warning: No tools found in the original list. This is likely due to the tools not being registered before MCPCat.track()."
         );
         event.error = { message: "No tools were sent to MCP client." };
         event.isError = true;
@@ -120,14 +120,14 @@ export function setupMCPCatTools(server: MCPServerLike): void {
       if (data.options.enableToolCallContext) {
         tools = addContextParameterToTools(
           tools,
-          data.options.customContextDescription,
+          data.options.customContextDescription
         );
       }
 
       // Add report_missing tool if enabled
       if (data.options.enableReportMissing) {
         const alreadyPresent = tools.some(
-          (t: any) => t?.name === GET_MORE_TOOLS_NAME,
+          (t: any) => t?.name === GET_MORE_TOOLS_NAME
         );
         if (!alreadyPresent) {
           tools.push(getReportMissingToolDescriptor());

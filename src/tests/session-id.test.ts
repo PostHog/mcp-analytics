@@ -1,16 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  setupTestServerAndClient,
-  resetTodos,
-} from "./test-utils/client-server-factory";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { track } from "../index";
-import { EventCapture } from "./test-utils";
 import { getServerTrackingData } from "../modules/internal";
-import { HighLevelMCPServerLike } from "../types";
 import {
   deriveSessionIdFromMCPSession,
   getServerSessionId,
 } from "../modules/session";
+import type { HighLevelMCPServerLike } from "../types";
+import { EventCapture } from "./test-utils";
+import {
+  resetTodos,
+  setupTestServerAndClient,
+} from "./test-utils/client-server-factory";
 
 describe("Session ID Management", () => {
   let server: HighLevelMCPServerLike;
@@ -57,11 +57,11 @@ describe("Session ID Management", () => {
 
       const sessionId1 = deriveSessionIdFromMCPSession(
         mcpSessionId,
-        "proj_abc",
+        "proj_abc"
       );
       const sessionId2 = deriveSessionIdFromMCPSession(
         mcpSessionId,
-        "proj_xyz",
+        "proj_xyz"
       );
 
       expect(sessionId1).not.toBe(sessionId2);
@@ -86,7 +86,7 @@ describe("Session ID Management", () => {
 
       const sessionIdWithProject = deriveSessionIdFromMCPSession(
         mcpSessionId,
-        "proj_abc",
+        "proj_abc"
       );
       const sessionIdWithoutProject =
         deriveSessionIdFromMCPSession(mcpSessionId);
@@ -119,7 +119,7 @@ describe("Session ID Management", () => {
       // Verify it's deterministically derived
       const expectedSessionId = deriveSessionIdFromMCPSession(
         mcpSessionId,
-        projectId,
+        projectId
       );
       expect(sessionId).toBe(expectedSessionId);
 
@@ -184,7 +184,7 @@ describe("Session ID Management", () => {
       // Verify it switched to MCP-derived ID
       const expectedSessionId = deriveSessionIdFromMCPSession(
         mcpSessionId,
-        projectId,
+        projectId
       );
       expect(mcpDerivedSessionId).toBe(expectedSessionId);
       expect(mcpDerivedSessionId).not.toBe(mcpcatSessionId);
@@ -216,7 +216,7 @@ describe("Session ID Management", () => {
 
       const expectedSessionId = deriveSessionIdFromMCPSession(
         mcpSessionId,
-        projectId,
+        projectId
       );
       expect(mcpDerivedSessionId).toBe(expectedSessionId);
 
@@ -254,7 +254,7 @@ describe("Session ID Management", () => {
 
       const expectedSessionId1 = deriveSessionIdFromMCPSession(
         mcpSessionId1,
-        projectId,
+        projectId
       );
       expect(sessionId1).toBe(expectedSessionId1);
 
@@ -264,7 +264,7 @@ describe("Session ID Management", () => {
 
       const expectedSessionId2 = deriveSessionIdFromMCPSession(
         mcpSessionId2,
-        projectId,
+        projectId
       );
       expect(sessionId2).toBe(expectedSessionId2);
       expect(sessionId2).not.toBe(sessionId1);

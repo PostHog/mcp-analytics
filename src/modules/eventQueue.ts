@@ -1,25 +1,25 @@
 import {
   Configuration,
   EventsApi,
-  PublishEventRequest,
-  PublishEventRequestEventTypeEnum,
+  type PublishEventRequest,
+  type PublishEventRequestEventTypeEnum,
 } from "mcpcat-api";
-import { Event, UnredactedEvent, MCPServerLike } from "../types.js";
-import { writeToLog } from "./logging.js";
+import KSUID from "../thirdparty/ksuid/index.js";
+import type { Event, MCPServerLike, UnredactedEvent } from "../types.js";
+import { getMCPCompatibleErrorMessage } from "./compatibility.js";
 import { getServerTrackingData } from "./internal.js";
-import { getSessionInfo } from "./session.js";
+import { writeToLog } from "./logging.js";
 import { redactEvent } from "./redaction.js";
 import { sanitizeEvent } from "./sanitization.js";
+import { getSessionInfo } from "./session.js";
+import type { TelemetryManager } from "./telemetry.js";
 import { truncateEvent } from "./truncation.js";
-import KSUID from "../thirdparty/ksuid/index.js";
-import { getMCPCompatibleErrorMessage } from "./compatibility.js";
-import { TelemetryManager } from "./telemetry.js";
 
 class EventQueue {
   private queue: UnredactedEvent[] = [];
   private processing = false;
   private maxRetries = 3;
-  private maxQueueSize = 10000; // Prevent unbounded growth
+  private maxQueueSize = 10_000; // Prevent unbounded growth
   private concurrency = 5; // Max parallel requests
   private activeRequests = 0;
   private apiClient: EventsApi;
@@ -51,13 +51,17 @@ class EventQueue {
   }
 
   private async process(): Promise<void> {
-    if (this.processing) return;
+    if (this.processing) {
+      return;
+    }
 
     this.processing = true;
 
     while (this.queue.length > 0 && this.activeRequests < this.concurrency) {
       const event = this.queue.shift();
-      if (!event) continue;
+      if (!event) {
+        continue;
+      }
 
       if (event.redactionFn) {
         try {
@@ -141,7 +145,7 @@ class EventQueue {
     if (this.telemetryManager) {
       this.telemetryManager.export(event).catch((error) => {
         writeToLog(
-          `Telemetry export error: ${getMCPCompatibleErrorMessage(error)}`,
+          `Telemetry export error: ${getMCPCompatibleErrorMessage(error)}`
         );
       });
     }
@@ -154,16 +158,16 @@ class EventQueue {
           publishEventRequest: publishRequest,
         });
         writeToLog(
-          `Successfully sent event ${event.id} | ${event.eventType} | ${event.projectId} | ${event.duration} ms | ${event.identifyActorGivenId || "anonymous"}`,
+          `Successfully sent event ${event.id} | ${event.eventType} | ${event.projectId} | ${event.duration} ms | ${event.identifyActorGivenId || "anonymous"}`
         );
         writeToLog(`Event details: ${JSON.stringify(event)}`);
       } catch (error) {
         writeToLog(
-          `Failed to send event ${event.id}, retrying... [Error: ${getMCPCompatibleErrorMessage(error)}]`,
+          `Failed to send event ${event.id}, retrying... [Error: ${getMCPCompatibleErrorMessage(error)}]`
         );
         if (retries < this.maxRetries) {
           // Exponential backoff: 1s, 2s, 4s
-          await this.delay(Math.pow(2, retries) * 1000);
+          await this.delay(2 ** retries * 1000);
           return this.sendEvent(event, retries + 1);
         }
         throw error;
@@ -204,7 +208,7 @@ class EventQueue {
 
     if (this.queue.length > 0) {
       writeToLog(
-        `Shutting down with ${this.queue.length} events still in queue`,
+        `Shutting down with ${this.queue.length} events still in queue`
       );
     }
   }
@@ -230,12 +234,12 @@ export function setTelemetryManager(telemetryManager: TelemetryManager): void {
 
 export function publishEvent(
   server: MCPServerLike,
-  eventInput: UnredactedEvent,
+  eventInput: UnredactedEvent
 ): void {
   const data = getServerTrackingData(server);
   if (!data) {
     writeToLog(
-      "Warning: Server tracking data not found. Event will not be published.",
+      "Warning: Server tracking data not found. Event will not be published."
     );
     return;
   }
@@ -263,7 +267,7 @@ export function publishEvent(
     // Event metadata
     eventType: eventInput.eventType || "",
     timestamp: eventInput.timestamp || new Date(),
-    duration: duration,
+    duration,
 
     // Session context from sessionInfo
     ipAddress: sessionInfo.ipAddress,

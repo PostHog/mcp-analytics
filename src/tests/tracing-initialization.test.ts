@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  setupTestServerAndClient,
-  resetTodos,
-} from "./test-utils/client-server-factory.js";
-import { track } from "../index.js";
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { track } from "../index.js";
+import {
+  resetTodos,
+  setupTestServerAndClient,
+} from "./test-utils/client-server-factory.js";
 import { EventCapture } from "./test-utils.js";
 
 describe("Tracing Initialization Tests", () => {
@@ -52,7 +52,7 @@ describe("Tracing Initialization Tests", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for event to be published
@@ -73,7 +73,7 @@ describe("Tracing Initialization Tests", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for any events to be published
@@ -117,7 +117,7 @@ describe("Tracing Initialization Tests", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for event to be published
@@ -135,7 +135,7 @@ describe("Tracing Initialization Tests", () => {
       expect(events[0].resourceName).toBe("add_todo");
       expect(events[0].isError).toBeUndefined();
       expect(events[0].userIntent).toBe(
-        "Testing handler-level event publishing",
+        "Testing handler-level event publishing"
       );
 
       // Verify event has the expected structure

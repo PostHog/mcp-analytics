@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { PostHogExporter } from "../modules/exporters/posthog.js";
-import { Event } from "../types.js";
 import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
 import { validate as uuidValidate, version as uuidVersion } from "uuid";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PostHogExporter } from "../modules/exporters/posthog.js";
 import KSUID from "../thirdparty/ksuid/index.js";
+import type { Event } from "../types.js";
 
 function expectUUIDv7(value: string) {
   expect(uuidValidate(value)).toBe(true);
@@ -148,7 +148,7 @@ describe("PostHogExporter", () => {
           stack:
             "TimeoutError: Connection timeout\n    at fetch (/app/index.js:10:5)",
         },
-      }),
+      })
     );
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -165,11 +165,11 @@ describe("PostHogExporter", () => {
     expect(exceptionEvent.event).toBe("$exception");
     expect(exceptionEvent.distinct_id).toBe("ses_session456");
     expect(exceptionEvent.properties.$exception_message).toBe(
-      "Connection timeout",
+      "Connection timeout"
     );
     expect(exceptionEvent.properties.$exception_type).toBe("TimeoutError");
     expect(exceptionEvent.properties.$exception_stacktrace).toBe(
-      "TimeoutError: Connection timeout\n    at fetch (/app/index.js:10:5)",
+      "TimeoutError: Connection timeout\n    at fetch (/app/index.js:10:5)"
     );
     expect(exceptionEvent.properties.$exception_source).toBe("backend");
     expectUUIDv7(exceptionEvent.properties.$session_id);
@@ -229,7 +229,7 @@ describe("PostHogExporter", () => {
         identifyActorGivenId: "user_abc",
         identifyActorName: "Alice",
         identifyActorData: { email: "alice@example.com", plan: "pro" },
-      }),
+      })
     );
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -264,7 +264,7 @@ describe("PostHogExporter", () => {
       makeEvent({
         parameters: { city: "London", units: "celsius" },
         response: { temperature: 15, condition: "cloudy" },
-      }),
+      })
     );
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -284,7 +284,7 @@ describe("PostHogExporter", () => {
       makeEvent({
         parameters: "raw input",
         response: "raw output",
-      }),
+      })
     );
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -305,7 +305,7 @@ describe("PostHogExporter", () => {
       makeEvent({
         eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
         resourceName: "get_weather",
-      }),
+      })
     );
     let body = JSON.parse(fetchSpy.mock.calls[0][1].body);
     expect(body.batch[0].properties.tool_name).toBe("get_weather");
@@ -317,7 +317,7 @@ describe("PostHogExporter", () => {
       makeEvent({
         eventType: PublishEventRequestEventTypeEnum.mcpResourcesRead,
         resourceName: "my_resource",
-      }),
+      })
     );
     body = JSON.parse(fetchSpy.mock.calls[0][1].body);
     expect(body.batch[0].properties.tool_name).toBeUndefined();
@@ -359,7 +359,7 @@ describe("PostHogExporter", () => {
     await exporter.export(
       makeEvent({
         tags: { env: "production", trace_id: "abc-123" },
-      }),
+      })
     );
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -377,7 +377,7 @@ describe("PostHogExporter", () => {
     await exporter.export(
       makeEvent({
         properties: { device: "mobile", feature_flags: ["dark_mode"] },
-      }),
+      })
     );
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -409,12 +409,12 @@ describe("PostHogExporter", () => {
     });
 
     await exporter.export(
-      makeEvent({ userIntent: "Check the weather in London" }),
+      makeEvent({ userIntent: "Check the weather in London" })
     );
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
     expect(body.batch[0].properties.user_intent).toBe(
-      "Check the weather in London",
+      "Check the weather in London"
     );
   });
 
@@ -432,7 +432,7 @@ describe("PostHogExporter", () => {
         duration: 250,
         parameters: { city: "London" },
         response: { temp: 15 },
-      }),
+      })
     );
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -495,7 +495,7 @@ describe("PostHogExporter", () => {
     // Same sessionId → same $ai_session_id and $ai_trace_id
     expect(spanA.properties.$ai_session_id).toBe(`mcpcat_${sesId}`);
     expect(spanA.properties.$ai_session_id).toBe(
-      spanB.properties.$ai_session_id,
+      spanB.properties.$ai_session_id
     );
     expect(spanA.properties.$ai_trace_id).toBe(spanB.properties.$ai_trace_id);
 
@@ -507,7 +507,7 @@ describe("PostHogExporter", () => {
 
     // trace_id (from session) != span_id (from event)
     expect(spanA.properties.$ai_trace_id).not.toBe(
-      spanA.properties.$ai_span_id,
+      spanA.properties.$ai_span_id
     );
 
     // Valid UUIDv7s
@@ -524,7 +524,7 @@ describe("PostHogExporter", () => {
     await exporter1.export(
       makeEvent({
         eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
-      }),
+      })
     );
     let body = JSON.parse(fetchSpy.mock.calls[0][1].body);
     expect(body.batch).toHaveLength(1);
@@ -540,7 +540,7 @@ describe("PostHogExporter", () => {
     await exporter2.export(
       makeEvent({
         eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
-      }),
+      })
     );
     body = JSON.parse(fetchSpy.mock.calls[0][1].body);
     expect(body.batch).toHaveLength(1);
@@ -584,7 +584,7 @@ describe("PostHogExporter", () => {
         eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
         tags: { env: "production", region: "us-east" },
         properties: { feature_flag: "new_ui", count: 42 },
-      }),
+      })
     );
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -617,7 +617,7 @@ describe("PostHogExporter", () => {
       makeEvent({
         eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
         tags: { $ai_trace_id: customTraceId, $ai_span_name: "custom_name" },
-      }),
+      })
     );
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -643,7 +643,7 @@ describe("PostHogExporter", () => {
           message: "Tool execution failed",
           type: "ExecutionError",
         },
-      }),
+      })
     );
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);

@@ -11,7 +11,7 @@ const MAX_TAG_ENTRIES = 50;
  * Returns null if no valid entries remain.
  */
 export function validateTags(
-  tags: Record<string, string>,
+  tags: Record<string, string>
 ): Record<string, string> | null {
   const entries = Object.entries(tags);
 
@@ -25,14 +25,14 @@ export function validateTags(
     // Key validation
     if (typeof key !== "string" || !TAG_KEY_REGEX.test(key)) {
       writeToLog(
-        `Dropping invalid tag: "${String(key)}" — key contains invalid characters or is empty`,
+        `Dropping invalid tag: "${String(key)}" — key contains invalid characters or is empty`
       );
       continue;
     }
 
     if (key.length > MAX_TAG_KEY_LENGTH) {
       writeToLog(
-        `Dropping invalid tag: "${key}" — key exceeds max length of ${MAX_TAG_KEY_LENGTH}`,
+        `Dropping invalid tag: "${key}" — key exceeds max length of ${MAX_TAG_KEY_LENGTH}`
       );
       continue;
     }
@@ -40,21 +40,21 @@ export function validateTags(
     // Value validation
     if (typeof value !== "string") {
       writeToLog(
-        `Dropping invalid tag: "${key}" — non-string value (got ${typeof value})`,
+        `Dropping invalid tag: "${key}" — non-string value (got ${typeof value})`
       );
       continue;
     }
 
     if (value.length > MAX_TAG_VALUE_LENGTH) {
       writeToLog(
-        `Dropping invalid tag: "${key}" — value exceeds max length of ${MAX_TAG_VALUE_LENGTH}`,
+        `Dropping invalid tag: "${key}" — value exceeds max length of ${MAX_TAG_VALUE_LENGTH}`
       );
       continue;
     }
 
     if (value.includes("\n")) {
       writeToLog(
-        `Dropping invalid tag: "${key}" — value contains newline character`,
+        `Dropping invalid tag: "${key}" — value contains newline character`
       );
       continue;
     }
@@ -69,7 +69,7 @@ export function validateTags(
   if (valid.length > MAX_TAG_ENTRIES) {
     const dropped = valid.length - MAX_TAG_ENTRIES;
     writeToLog(
-      `Dropping ${dropped} tag(s) — exceeds maximum of ${MAX_TAG_ENTRIES} entries per event`,
+      `Dropping ${dropped} tag(s) — exceeds maximum of ${MAX_TAG_ENTRIES} entries per event`
     );
     valid.length = MAX_TAG_ENTRIES;
   }

@@ -1,5 +1,3 @@
-"use strict";
-
 const maxLength = (array, from, to) =>
   Math.ceil((array.length * Math.log2(from)) / Math.log2(to));
 
@@ -14,7 +12,7 @@ function baseConvertIntArray(array, { from, to, fixedLength = null }) {
   while (input.length > 0) {
     if (offset === 0) {
       throw new RangeError(
-        `Fixed length of ${fixedLength} is too small, expected at least ${maxLength(array, from, to)}`,
+        `Fixed length of ${fixedLength} is too small, expected at least ${maxLength(array, from, to)}`
       );
     }
 

@@ -1,7 +1,7 @@
-import { Event, UnredactedEvent } from "../types.js";
+import type { Event, UnredactedEvent } from "../types.js";
 
 const BASE64_PATTERN = /^[A-Za-z0-9+/\n\r]+=*$/;
-const SIZE_GATE = 10240; // 10KB - skip strings shorter than this
+const SIZE_GATE = 10_240; // 10KB - skip strings shorter than this
 
 /**
  * Sanitizes an event by redacting non-text content blocks from responses

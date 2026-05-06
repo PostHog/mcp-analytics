@@ -10,7 +10,7 @@
  * These tests simulate edge-like conditions within the Node.js test environment.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureException } from "../modules/exceptions.js";
 
 describe("Edge Runtime Compatibility", () => {
@@ -199,13 +199,10 @@ describe("Edge Runtime Compatibility", () => {
   describe("Edge Environment Detection Patterns", () => {
     it("should detect Node.js environment correctly", () => {
       // Helper function that MCPCat could use internally
-      const isNodeJs = () => {
-        return (
-          typeof process !== "undefined" &&
-          process.versions != null &&
-          process.versions.node != null
-        );
-      };
+      const isNodeJs = () =>
+        typeof process !== "undefined" &&
+        process.versions != null &&
+        process.versions.node != null;
 
       // In test environment, we should be in Node.js
       expect(isNodeJs()).toBe(true);

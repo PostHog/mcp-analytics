@@ -1,9 +1,9 @@
 import { createHash } from "crypto";
-import { Event, Exporter } from "../../types.js";
-import { writeToLog } from "../logging.js";
 import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
-import { MCPCAT_SOURCE } from "../constants.js";
 import KSUID from "../../thirdparty/ksuid/index.js";
+import type { Event, Exporter } from "../../types.js";
+import { MCPCAT_SOURCE } from "../constants.js";
+import { writeToLog } from "../logging.js";
 
 /**
  * Generates a deterministic UUIDv7 from a prefixed KSUID (e.g. ses_xxx).
@@ -67,9 +67,7 @@ function getTimestamp(event: Event): string {
 }
 
 export interface PostHogExporterConfig {
-  type: "posthog";
   apiKey: string; // PostHog project API key (e.g. phc_...)
-  host?: string; // Default: "https://us.i.posthog.com" (supports self-hosted & EU region)
   /**
    * Emits `$ai_span` events for tool calls alongside regular capture events,
    * integrating with PostHog's AI observability views. Each tool call is its own
@@ -79,11 +77,13 @@ export interface PostHogExporterConfig {
    * @default false
    */
   enableAITracing?: boolean;
+  host?: string; // Default: "https://us.i.posthog.com" (supports self-hosted & EU region)
+  type: "posthog";
 }
 
 interface PostHogCaptureEvent {
-  event: string;
   distinct_id: string;
+  event: string;
   properties: Record<string, any>;
   timestamp: string;
   type: "capture";
@@ -124,7 +124,7 @@ export class PostHogExporter implements Exporter {
       }
 
       writeToLog(
-        `PostHogExporter: Sending ${batch.length} event(s) for ${event.id}`,
+        `PostHogExporter: Sending ${batch.length} event(s) for ${event.id}`
       );
 
       const response = await fetch(this.batchUrl, {
@@ -138,13 +138,13 @@ export class PostHogExporter implements Exporter {
         }),
       });
 
-      if (!response.ok) {
+      if (response.ok) {
+        writeToLog(`PostHog export success - Event: ${event.id}`);
+      } else {
         const errorBody = await response.text();
         writeToLog(
-          `PostHog export failed - Status: ${response.status}, Body: ${errorBody}`,
+          `PostHog export failed - Status: ${response.status}, Body: ${errorBody}`
         );
-      } else {
-        writeToLog(`PostHog export success - Event: ${event.id}`);
       }
     } catch (error) {
       writeToLog(`PostHog export error: ${error}`);
@@ -170,13 +170,27 @@ export class PostHogExporter implements Exporter {
     if (event.duration !== undefined) {
       properties.duration_ms = event.duration;
     }
-    if (event.serverName) properties.server_name = event.serverName;
-    if (event.serverVersion) properties.server_version = event.serverVersion;
-    if (event.clientName) properties.client_name = event.clientName;
-    if (event.clientVersion) properties.client_version = event.clientVersion;
-    if (event.projectId) properties.project_id = event.projectId;
-    if (event.userIntent) properties.user_intent = event.userIntent;
-    if (event.isError !== undefined) properties.is_error = event.isError;
+    if (event.serverName) {
+      properties.server_name = event.serverName;
+    }
+    if (event.serverVersion) {
+      properties.server_version = event.serverVersion;
+    }
+    if (event.clientName) {
+      properties.client_name = event.clientName;
+    }
+    if (event.clientVersion) {
+      properties.client_version = event.clientVersion;
+    }
+    if (event.projectId) {
+      properties.project_id = event.projectId;
+    }
+    if (event.userIntent) {
+      properties.user_intent = event.userIntent;
+    }
+    if (event.isError !== undefined) {
+      properties.is_error = event.isError;
+    }
 
     if (event.parameters !== undefined) {
       properties.parameters = event.parameters;
@@ -187,7 +201,9 @@ export class PostHogExporter implements Exporter {
 
     // Set person properties from identity data
     const $set: Record<string, any> = {};
-    if (event.identifyActorName) $set.name = event.identifyActorName;
+    if (event.identifyActorName) {
+      $set.name = event.identifyActorName;
+    }
     if (event.identifyActorData) {
       Object.assign($set, event.identifyActorData);
     }
@@ -246,10 +262,18 @@ export class PostHogExporter implements Exporter {
         properties.tool_name = event.resourceName;
       }
     }
-    if (event.serverName) properties.server_name = event.serverName;
-    if (event.serverVersion) properties.server_version = event.serverVersion;
-    if (event.clientName) properties.client_name = event.clientName;
-    if (event.clientVersion) properties.client_version = event.clientVersion;
+    if (event.serverName) {
+      properties.server_name = event.serverName;
+    }
+    if (event.serverVersion) {
+      properties.server_version = event.serverVersion;
+    }
+    if (event.clientName) {
+      properties.client_name = event.clientName;
+    }
+    if (event.clientVersion) {
+      properties.client_version = event.clientVersion;
+    }
 
     return {
       event: "$exception",
@@ -269,7 +293,7 @@ export class PostHogExporter implements Exporter {
       $ai_trace_id: toUUIDv7(event.sessionId),
       $ai_span_id: toUUIDv7(event.id),
       $ai_span_name: event.resourceName || "unknown_tool",
-      $ai_is_error: event.isError || false,
+      $ai_is_error: event.isError,
       $session_id: toUUIDv7(event.sessionId),
       source: MCPCAT_SOURCE,
     };
@@ -286,8 +310,12 @@ export class PostHogExporter implements Exporter {
     if (event.response !== undefined) {
       properties.$ai_output_state = event.response;
     }
-    if (event.serverName) properties.server_name = event.serverName;
-    if (event.clientName) properties.client_name = event.clientName;
+    if (event.serverName) {
+      properties.server_name = event.serverName;
+    }
+    if (event.clientName) {
+      properties.client_name = event.clientName;
+    }
 
     // Spread customer tags directly (can override MCPCat defaults)
     if (event.tags) {

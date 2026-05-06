@@ -1,4 +1,4 @@
-import { Event, RedactFunction, UnredactedEvent } from "../types.js";
+import type { Event, RedactFunction, UnredactedEvent } from "../types.js";
 
 /**
  * Set of field names that should be protected from redaction.
@@ -34,8 +34,8 @@ const PROTECTED_FIELDS = new Set([
 async function redactStringsInObject(
   obj: any,
   redactFn: RedactFunction,
-  path: string = "",
-  isProtected: boolean = false,
+  path = "",
+  isProtected = false
 ): Promise<any> {
   if (obj === null || obj === undefined) {
     return obj;
@@ -54,8 +54,8 @@ async function redactStringsInObject(
   if (Array.isArray(obj)) {
     return Promise.all(
       obj.map((item, index) =>
-        redactStringsInObject(item, redactFn, `${path}[${index}]`, isProtected),
-      ),
+        redactStringsInObject(item, redactFn, `${path}[${index}]`, isProtected)
+      )
     );
   }
 
@@ -83,7 +83,7 @@ async function redactStringsInObject(
         value,
         redactFn,
         fieldPath,
-        isFieldProtected,
+        isFieldProtected
       );
     }
 
@@ -105,7 +105,7 @@ async function redactStringsInObject(
  */
 export async function redactEvent(
   event: UnredactedEvent,
-  redactFn: RedactFunction,
+  redactFn: RedactFunction
 ): Promise<Event> {
   return redactStringsInObject(event, redactFn, "", false) as Promise<Event>;
 }

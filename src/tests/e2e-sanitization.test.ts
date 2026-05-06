@@ -1,12 +1,12 @@
-import { describe, it, expect } from "vitest";
-import {
-  setupTestServerAndClient,
-  resetTodos,
-} from "./test-utils/client-server-factory";
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { EventCapture } from "./test-utils";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import {
+  resetTodos,
+  setupTestServerAndClient,
+} from "./test-utils/client-server-factory";
 
 describe("E2E Sanitization - real MCP tool calls", () => {
   it("should sanitize image content blocks in tool responses", async () => {
@@ -37,7 +37,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
               mimeType: "image/png",
             },
           ],
-        }),
+        })
       );
 
       await client.request(
@@ -45,7 +45,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
           method: "tools/call",
           params: { name: "get_attachment", arguments: { id: "att_1" } },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -54,7 +54,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
       const toolEvent = events.find(
         (e) =>
           e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_attachment",
+          e.resourceName === "get_attachment"
       );
 
       expect(toolEvent).toBeDefined();
@@ -103,7 +103,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
               mimeType: "audio/wav",
             },
           ],
-        }),
+        })
       );
 
       await client.request(
@@ -111,7 +111,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
           method: "tools/call",
           params: { name: "get_audio_clip", arguments: { clipId: "clip_1" } },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -120,7 +120,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
       const toolEvent = events.find(
         (e) =>
           e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_audio_clip",
+          e.resourceName === "get_audio_clip"
       );
 
       expect(toolEvent).toBeDefined();
@@ -160,11 +160,11 @@ describe("E2E Sanitization - real MCP tool calls", () => {
           content: [
             { type: "text", text: `Uploaded ${args.filename} successfully` },
           ],
-        }),
+        })
       );
 
       // Create a large base64 string (>10KB to trigger the size gate)
-      const largeBase64 = "A".repeat(12000) + "=";
+      const largeBase64 = "A".repeat(12_000) + "=";
 
       await client.request(
         {
@@ -174,7 +174,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
             arguments: { filename: "photo.png", data: largeBase64 },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -183,14 +183,14 @@ describe("E2E Sanitization - real MCP tool calls", () => {
       const toolEvent = events.find(
         (e) =>
           e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "upload_file",
+          e.resourceName === "upload_file"
       );
 
       expect(toolEvent).toBeDefined();
       // The base64 param should be redacted in the captured event's parameters
       const args = toolEvent!.parameters?.request?.params?.arguments;
       expect(args.data).toBe(
-        "[binary data redacted - not supported by MCPcat]",
+        "[binary data redacted - not supported by MCPcat]"
       );
       // Non-base64 params should be preserved
       expect(args.filename).toBe("photo.png");
@@ -229,7 +229,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
               mimeType: "image/png",
             },
           ],
-        }),
+        })
       );
 
       // Call a normal todo tool
@@ -241,7 +241,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
             arguments: { text: "Buy groceries" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Call the image-returning tool
@@ -253,19 +253,19 @@ describe("E2E Sanitization - real MCP tool calls", () => {
             arguments: {},
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       const events = eventCapture.getEvents();
       const toolCallEvents = events.filter(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
       );
 
       // Normal add_todo event should have its text response preserved
       const addTodoEvent = toolCallEvents.find(
-        (e) => e.resourceName === "add_todo",
+        (e) => e.resourceName === "add_todo"
       );
       expect(addTodoEvent).toBeDefined();
       expect(addTodoEvent!.response.content[0].type).toBe("text");
@@ -273,7 +273,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
 
       // Screenshot event should have its image block sanitized
       const screenshotEvent = toolCallEvents.find(
-        (e) => e.resourceName === "get_todo_screenshot",
+        (e) => e.resourceName === "get_todo_screenshot"
       );
       expect(screenshotEvent).toBeDefined();
       expect(screenshotEvent!.response.content[0]).toEqual({

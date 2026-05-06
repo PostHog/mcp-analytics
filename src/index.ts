@@ -1,40 +1,40 @@
 // Import our minimal interface from types
-import {
-  MCPCatOptions,
-  MCPCatData,
-  UserIdentity,
-  MCPServerLike,
-  HighLevelMCPServerLike,
-  CustomEventData,
-  UnredactedEvent,
-} from "./types.js";
 
 // Import from modules
 import {
   isCompatibleServerType,
   isHighLevelServer,
 } from "./modules/compatibility.js";
-import { writeToLog } from "./modules/logging.js";
-import { setupMCPCatTools } from "./modules/tools.js";
-import { setupToolCallTracing } from "./modules/tracing.js";
+import { MCPCAT_CUSTOM_EVENT_TYPE } from "./modules/constants.js";
 import {
+  eventQueue,
+  publishEvent as publishEventToQueue,
+  setTelemetryManager,
+} from "./modules/eventQueue.js";
+import {
+  getServerTrackingData,
+  setServerTrackingData,
+} from "./modules/internal.js";
+import { writeToLog } from "./modules/logging.js";
+import {
+  deriveSessionIdFromMCPSession,
   getSessionInfo,
   newSessionId,
-  deriveSessionIdFromMCPSession,
 } from "./modules/session.js";
-import {
-  setServerTrackingData,
-  getServerTrackingData,
-} from "./modules/internal.js";
-import { setupTracking } from "./modules/tracingV2.js";
 import { TelemetryManager } from "./modules/telemetry.js";
-import {
-  setTelemetryManager,
-  publishEvent as publishEventToQueue,
-} from "./modules/eventQueue.js";
-import { MCPCAT_CUSTOM_EVENT_TYPE } from "./modules/constants.js";
+import { setupMCPCatTools } from "./modules/tools.js";
+import { setupToolCallTracing } from "./modules/tracing.js";
+import { setupTracking } from "./modules/tracingV2.js";
 import { validateTags } from "./modules/validation.js";
-import { eventQueue } from "./modules/eventQueue.js";
+import type {
+  CustomEventData,
+  HighLevelMCPServerLike,
+  MCPCatData,
+  MCPCatOptions,
+  MCPServerLike,
+  UnredactedEvent,
+  UserIdentity,
+} from "./types.js";
 
 /**
  * Integrates MCPCat analytics into an MCP server to track tool usage patterns and user interactions.
@@ -159,7 +159,7 @@ import { eventQueue } from "./modules/eventQueue.js";
 function track(
   server: any,
   projectId: string | null,
-  options: MCPCatOptions = {},
+  options: MCPCatOptions = {}
 ): any {
   try {
     const validatedServer = isCompatibleServerType(server);
@@ -181,7 +181,7 @@ function track(
     const existingData = getServerTrackingData(lowLevelServer);
     if (existingData) {
       writeToLog(
-        "[SESSION DEBUG] track() - Server already being tracked, skipping initialization",
+        "[SESSION DEBUG] track() - Server already being tracked, skipping initialization"
       );
       return validatedServer;
     }
@@ -191,14 +191,14 @@ function track(
       const telemetryManager = new TelemetryManager(options.exporters);
       setTelemetryManager(telemetryManager);
       writeToLog(
-        `Initialized telemetry with ${Object.keys(options.exporters).length} exporters`,
+        `Initialized telemetry with ${Object.keys(options.exporters).length} exporters`
       );
     }
 
     // If projectId is null and no exporters, warn the user
-    if (!projectId && !options.exporters) {
+    if (!(projectId || options.exporters)) {
       writeToLog(
-        "Warning: No projectId provided and no exporters configured. Events will not be sent anywhere.",
+        "Warning: No projectId provided and no exporters configured. Events will not be sent anywhere."
       );
     }
 
@@ -302,7 +302,7 @@ function track(
 export async function publishCustomEvent(
   serverOrSessionId: any | string,
   projectId: string,
-  eventData?: CustomEventData,
+  eventData?: CustomEventData
 ): Promise<void> {
   // Validate required parameters
   if (!projectId) {
@@ -329,7 +329,7 @@ export async function publishCustomEvent(
     } else {
       // Server is not tracked - treat it as an error
       throw new Error(
-        "Server is not tracked. Please call mcpcat.track() first or provide a session ID string.",
+        "Server is not tracked. Please call mcpcat.track() first or provide a session ID string."
       );
     }
   } else if (typeof serverOrSessionId === "string") {
@@ -337,7 +337,7 @@ export async function publishCustomEvent(
     sessionId = deriveSessionIdFromMCPSession(serverOrSessionId, projectId);
   } else {
     throw new Error(
-      "First parameter must be either an MCP server object or a session ID string",
+      "First parameter must be either an MCP server object or a session ID string"
     );
   }
 
@@ -381,17 +381,17 @@ export async function publishCustomEvent(
   }
 
   writeToLog(
-    `Published custom event for session ${sessionId} with type 'mcpcat:custom'`,
+    `Published custom event for session ${sessionId} with type 'mcpcat:custom'`
   );
 }
 
 export type {
-  MCPCatOptions,
-  UserIdentity,
-  RedactFunction,
-  ExporterConfig,
-  Exporter,
   CustomEventData,
+  Exporter,
+  ExporterConfig,
+  MCPCatOptions,
+  RedactFunction,
+  UserIdentity,
 } from "./types.js";
 
 export type IdentifyFunction = MCPCatOptions["identify"];

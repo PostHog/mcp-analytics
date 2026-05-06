@@ -1,7 +1,5 @@
-"use strict";
 import { randomBytes } from "node:crypto";
-import { inspect } from "node:util";
-import { promisify } from "node:util";
+import { inspect, promisify } from "node:util";
 import * as base62 from "./base62.js";
 
 const customInspectSymbol = inspect.custom;
@@ -88,7 +86,7 @@ class KSUID {
   get string() {
     const encoded = base62.encode(
       bufferLookup.get(this),
-      STRING_ENCODED_LENGTH,
+      STRING_ENCODED_LENGTH
     );
     return encoded.padStart(STRING_ENCODED_LENGTH, "0");
   }
@@ -181,21 +179,19 @@ Object.defineProperty(KSUID, "MIN_STRING_ENCODED", {
 });
 
 // Add prefix functionality
-KSUID.withPrefix = function (prefix) {
-  return {
-    random: async (time = Date.now()) => {
-      const ksuid = await KSUID.random(time);
-      return `${prefix}_${ksuid.string}`;
-    },
-    randomSync: (time = Date.now()) => {
-      const ksuid = KSUID.randomSync(time);
-      return `${prefix}_${ksuid.string}`;
-    },
-    fromParts: (timeInMs, payload) => {
-      const ksuid = KSUID.fromParts(timeInMs, payload);
-      return `${prefix}_${ksuid.string}`;
-    },
-  };
-};
+KSUID.withPrefix = (prefix) => ({
+  random: async (time = Date.now()) => {
+    const ksuid = await KSUID.random(time);
+    return `${prefix}_${ksuid.string}`;
+  },
+  randomSync: (time = Date.now()) => {
+    const ksuid = KSUID.randomSync(time);
+    return `${prefix}_${ksuid.string}`;
+  },
+  fromParts: (timeInMs, payload) => {
+    const ksuid = KSUID.fromParts(timeInMs, payload);
+    return `${prefix}_${ksuid.string}`;
+  },
+});
 
 export default KSUID;

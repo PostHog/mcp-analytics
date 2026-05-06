@@ -1,16 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  setupTestServerAndClient,
-  resetTodos,
-} from "./test-utils/client-server-factory";
-import { track } from "../index";
 import {
   CallToolResultSchema,
   ListToolsResultSchema,
-} from "@modelcontextprotocol/sdk/types";
-import { EventCapture } from "./test-utils";
+} from "@modelcontextprotocol/sdk/types.js";
 import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { track } from "../index";
 import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "../modules/constants";
+import { EventCapture } from "./test-utils";
+import {
+  resetTodos,
+  setupTestServerAndClient,
+} from "./test-utils/client-server-factory";
 
 describe("Custom Context Description", () => {
   let server: any;
@@ -44,21 +44,21 @@ describe("Custom Context Description", () => {
         method: "tools/list",
         params: {},
       },
-      ListToolsResultSchema,
+      ListToolsResultSchema
     );
 
     // Find the add_todo tool (uses shorthand Zod syntax)
     const addTodoTool = toolsResponse.tools.find(
-      (tool: any) => tool.name === "add_todo",
+      (tool: any) => tool.name === "add_todo"
     );
 
     expect(addTodoTool).toBeDefined();
     expect(addTodoTool.inputSchema.properties.context).toBeDefined();
     expect(addTodoTool.inputSchema.properties.context.description).toBe(
-      customDescription,
+      customDescription
     );
     expect(addTodoTool.inputSchema.properties.context.description).not.toBe(
-      DEFAULT_CONTEXT_PARAMETER_DESCRIPTION,
+      DEFAULT_CONTEXT_PARAMETER_DESCRIPTION
     );
   });
 
@@ -77,18 +77,18 @@ describe("Custom Context Description", () => {
         method: "tools/list",
         params: {},
       },
-      ListToolsResultSchema,
+      ListToolsResultSchema
     );
 
     // Find the complete_todo tool (uses registerTool with Zod schema)
     const completeTodoTool = toolsResponse.tools.find(
-      (tool: any) => tool.name === "complete_todo",
+      (tool: any) => tool.name === "complete_todo"
     );
 
     expect(completeTodoTool).toBeDefined();
     expect(completeTodoTool.inputSchema.properties.context).toBeDefined();
     expect(completeTodoTool.inputSchema.properties.context.description).toBe(
-      customDescription,
+      customDescription
     );
   });
 
@@ -107,13 +107,13 @@ describe("Custom Context Description", () => {
         method: "tools/list",
         params: {},
       },
-      ListToolsResultSchema,
+      ListToolsResultSchema
     );
 
     // Check all original tools (exclude MCPCat-added tools)
     const originalTools = ["add_todo", "list_todos", "complete_todo"];
     const toolsToCheck = toolsResponse.tools.filter((tool: any) =>
-      originalTools.includes(tool.name),
+      originalTools.includes(tool.name)
     );
 
     expect(toolsToCheck.length).toBe(3);
@@ -121,7 +121,7 @@ describe("Custom Context Description", () => {
     toolsToCheck.forEach((tool: any) => {
       expect(tool.inputSchema.properties.context).toBeDefined();
       expect(tool.inputSchema.properties.context.description).toBe(
-        customDescription,
+        customDescription
       );
     });
   });
@@ -151,7 +151,7 @@ describe("Custom Context Description", () => {
           },
         },
       },
-      CallToolResultSchema,
+      CallToolResultSchema
     );
 
     expect(result.content[0].text).toContain("Added todo");
@@ -164,7 +164,7 @@ describe("Custom Context Description", () => {
     const toolCallEvent = events.find(
       (e) =>
         e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-        e.resourceName === "add_todo",
+        e.resourceName === "add_todo"
     );
 
     expect(toolCallEvent).toBeDefined();
@@ -185,18 +185,18 @@ describe("Custom Context Description", () => {
         method: "tools/list",
         params: {},
       },
-      ListToolsResultSchema,
+      ListToolsResultSchema
     );
 
     // Find the add_todo tool
     const addTodoTool = toolsResponse.tools.find(
-      (tool: any) => tool.name === "add_todo",
+      (tool: any) => tool.name === "add_todo"
     );
 
     expect(addTodoTool).toBeDefined();
     expect(addTodoTool.inputSchema.properties.context).toBeDefined();
     expect(addTodoTool.inputSchema.properties.context.description).toBe(
-      DEFAULT_CONTEXT_PARAMETER_DESCRIPTION,
+      DEFAULT_CONTEXT_PARAMETER_DESCRIPTION
     );
   });
 
@@ -218,14 +218,14 @@ describe("Custom Context Description", () => {
         method: "tools/list",
         params: {},
       },
-      ListToolsResultSchema,
+      ListToolsResultSchema
     );
 
     const addTodoTool = toolsResponse.tools.find(
-      (tool: any) => tool.name === "add_todo",
+      (tool: any) => tool.name === "add_todo"
     );
     expect(addTodoTool.inputSchema.properties.context.description).toBe(
-      customDescription,
+      customDescription
     );
 
     // Call add_todo
@@ -240,7 +240,7 @@ describe("Custom Context Description", () => {
           },
         },
       },
-      CallToolResultSchema,
+      CallToolResultSchema
     );
 
     // Call complete_todo
@@ -255,7 +255,7 @@ describe("Custom Context Description", () => {
           },
         },
       },
-      CallToolResultSchema,
+      CallToolResultSchema
     );
 
     // Call list_todos
@@ -269,7 +269,7 @@ describe("Custom Context Description", () => {
           },
         },
       },
-      CallToolResultSchema,
+      CallToolResultSchema
     );
 
     // Wait for events to be processed
@@ -278,17 +278,17 @@ describe("Custom Context Description", () => {
     // Verify all events were captured with user intent
     const events = eventCapture.getEvents();
     const toolCallEvents = events.filter(
-      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
     );
 
     expect(toolCallEvents.length).toBeGreaterThanOrEqual(3);
 
     const addEvent = toolCallEvents.find((e) => e.resourceName === "add_todo");
     const completeEvent = toolCallEvents.find(
-      (e) => e.resourceName === "complete_todo",
+      (e) => e.resourceName === "complete_todo"
     );
     const listEvent = toolCallEvents.find(
-      (e) => e.resourceName === "list_todos",
+      (e) => e.resourceName === "list_todos"
     );
 
     expect(addEvent?.userIntent).toBe("Setting up my first task");
@@ -314,15 +314,15 @@ describe("Custom Context Description", () => {
         method: "tools/list",
         params: {},
       },
-      ListToolsResultSchema,
+      ListToolsResultSchema
     );
 
     const addTodoTool = toolsResponse.tools.find(
-      (tool: any) => tool.name === "add_todo",
+      (tool: any) => tool.name === "add_todo"
     );
 
     expect(addTodoTool.inputSchema.properties.context.description).toBe(
-      customDescription,
+      customDescription
     );
   });
 
@@ -341,15 +341,15 @@ describe("Custom Context Description", () => {
         method: "tools/list",
         params: {},
       },
-      ListToolsResultSchema,
+      ListToolsResultSchema
     );
 
     const addTodoTool = toolsResponse.tools.find(
-      (tool: any) => tool.name === "add_todo",
+      (tool: any) => tool.name === "add_todo"
     );
 
     expect(addTodoTool.inputSchema.properties.context.description).toBe(
-      customDescription,
+      customDescription
     );
   });
 });

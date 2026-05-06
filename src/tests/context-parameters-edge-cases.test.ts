@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addContextParameterToTool,
   addContextParameterToTools,
@@ -29,10 +29,10 @@ describe("Context Parameters Edge Cases", () => {
       // Should preserve the original context parameter type
       expect(result.inputSchema.properties.context.type).toBe("number");
       expect(result.inputSchema.properties.context.description).toBe(
-        "existing",
+        "existing"
       );
       expect(logging.writeToLog).toHaveBeenCalledWith(
-        expect.stringContaining("already has 'context' parameter"),
+        expect.stringContaining("already has 'context' parameter")
       );
     });
 
@@ -48,7 +48,7 @@ describe("Context Parameters Edge Cases", () => {
       addContextParameterToTool(tool);
 
       expect(logging.writeToLog).toHaveBeenCalledWith(
-        expect.stringContaining("my-special-tool"),
+        expect.stringContaining("my-special-tool")
       );
     });
   });
@@ -70,7 +70,7 @@ describe("Context Parameters Edge Cases", () => {
       // Should not add properties to oneOf schema
       expect(result.inputSchema.properties).toBeUndefined();
       expect(logging.writeToLog).toHaveBeenCalledWith(
-        expect.stringContaining("complex schema"),
+        expect.stringContaining("complex schema")
       );
     });
 
@@ -89,7 +89,7 @@ describe("Context Parameters Edge Cases", () => {
 
       expect(result.inputSchema.properties).toBeUndefined();
       expect(logging.writeToLog).toHaveBeenCalledWith(
-        expect.stringContaining("complex schema"),
+        expect.stringContaining("complex schema")
       );
     });
 
@@ -103,7 +103,7 @@ describe("Context Parameters Edge Cases", () => {
 
       expect(result.inputSchema.properties).toBeUndefined();
       expect(logging.writeToLog).toHaveBeenCalledWith(
-        expect.stringContaining("complex schema"),
+        expect.stringContaining("complex schema")
       );
     });
   });

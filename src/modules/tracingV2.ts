@@ -1,31 +1,31 @@
-import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import {
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import type {
+  CompatibleRequestHandlerExtra,
   HighLevelMCPServerLike,
   MCPServerLike,
-  UnredactedEvent,
   RegisteredTool,
-  CompatibleRequestHandlerExtra,
+  UnredactedEvent,
 } from "../types.js";
-import { writeToLog } from "./logging.js";
+import { publishEvent } from "./eventQueue.js";
+import { captureException } from "./exceptions.js";
 import {
   getServerTrackingData,
   handleIdentify,
-  resolveEventTags,
   resolveEventProperties,
+  resolveEventTags,
 } from "./internal.js";
-import { getServerSessionId } from "./session.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
-import { publishEvent } from "./eventQueue.js";
-import { handleReportMissing } from "./tools.js";
-import { setupInitializeTracing, setupListToolsTracing } from "./tracing.js";
-import { captureException } from "./exceptions.js";
+import { writeToLog } from "./logging.js";
 import {
+  createWrappedTool,
+  getLiteralValue,
+  getObjectShape,
   getToolFunction,
   hasToolFunction,
-  createWrappedTool,
-  getObjectShape,
-  getLiteralValue,
 } from "./mcp-sdk-compat.js";
+import { getServerSessionId } from "./session.js";
+import { handleReportMissing } from "./tools.js";
+import { setupInitializeTracing, setupListToolsTracing } from "./tracing.js";
 
 // WeakMap to track which callbacks have already been wrapped
 const wrappedCallbacks = new WeakMap<Function, boolean>();
@@ -39,13 +39,13 @@ function isToolResultError(result: any): boolean {
 
 function addTracingToToolRegistry(
   tools: Record<string, RegisteredTool>,
-  server: HighLevelMCPServerLike,
+  server: HighLevelMCPServerLike
 ): Record<string, RegisteredTool> {
   return Object.fromEntries(
     Object.entries(tools).map(([name, tool]) => [
       name,
       addTracingToToolCallbackInternal(tool, name, server),
-    ]),
+    ])
   );
 }
 
@@ -62,7 +62,7 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
       set(
         target: Record<string, RegisteredTool>,
         property: string | symbol,
-        value: RegisteredTool,
+        value: RegisteredTool
       ): boolean {
         try {
           // Check if this is a tool being registered (has callback or handler property)
@@ -75,7 +75,7 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
             // Check if tool has already been processed
             if ((value as any)[MCPCAT_PROCESSED]) {
               writeToLog(
-                `Tool ${String(property)} already processed, skipping proxy wrapping`,
+                `Tool ${String(property)} already processed, skipping proxy wrapping`
               );
               // Just set the value without processing
               return Reflect.set(target, property, value);
@@ -84,7 +84,7 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
             // Check if callback/handler is already wrapped
             if (wrappedCallbacks.has(getToolFunction(value))) {
               writeToLog(
-                `Tool ${String(property)} callback already wrapped, skipping proxy wrapping`,
+                `Tool ${String(property)} callback already wrapped, skipping proxy wrapping`
               );
               // Just set the value without processing
               return Reflect.set(target, property, value);
@@ -112,7 +112,7 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
                     const wrappedTool = addTracingToToolCallbackInternal(
                       { callback: updateObj.callback } as RegisteredTool,
                       property,
-                      server,
+                      server
                     );
                     updateObj.callback = getToolFunction(wrappedTool);
                   }
@@ -126,7 +126,7 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
           return Reflect.set(target, property, value);
         } catch (error) {
           writeToLog(
-            `Warning: Error in proxy set handler for tool ${String(property)} - ${error}`,
+            `Warning: Error in proxy set handler for tool ${String(property)} - ${error}`
           );
           // Fall back to default behavior on error
           return Reflect.set(target, property, value);
@@ -135,21 +135,21 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
 
       get(
         target: Record<string, RegisteredTool>,
-        property: string | symbol,
+        property: string | symbol
       ): any {
         return Reflect.get(target, property);
       },
 
       deleteProperty(
         target: Record<string, RegisteredTool>,
-        property: string | symbol,
+        property: string | symbol
       ): boolean {
         return Reflect.deleteProperty(target, property);
       },
 
       has(
         target: Record<string, RegisteredTool>,
-        property: string | symbol,
+        property: string | symbol
       ): boolean {
         return Reflect.has(target, property);
       },
@@ -162,7 +162,7 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
     writeToLog("Successfully set up listener for new tool registrations");
   } catch (error) {
     writeToLog(
-      `Warning: Failed to setup listener for registered tools - ${error}`,
+      `Warning: Failed to setup listener for registered tools - ${error}`
     );
   }
 }
@@ -170,7 +170,7 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
 function addTracingToToolCallbackInternal(
   tool: RegisteredTool,
   toolName: string,
-  _server: HighLevelMCPServerLike,
+  _server: HighLevelMCPServerLike
 ): RegisteredTool {
   const originalCallback = getToolFunction(tool);
 
@@ -184,9 +184,7 @@ function addTracingToToolCallbackInternal(
     return tool;
   }
 
-  const wrappedCallback = async function (
-    ...params: any[]
-  ): Promise<CallToolResult> {
+  const wrappedCallback = async (...params: any[]): Promise<CallToolResult> => {
     let args: any;
     let extra: CompatibleRequestHandlerExtra;
 
@@ -212,16 +210,15 @@ function addTracingToToolCallbackInternal(
     try {
       if (cleanedArgs === undefined) {
         const handler = originalCallback as (
-          extra: CompatibleRequestHandlerExtra,
+          extra: CompatibleRequestHandlerExtra
         ) => Promise<CallToolResult>;
         return await handler(extra);
-      } else {
-        const handler = originalCallback as (
-          args: any,
-          extra: CompatibleRequestHandlerExtra,
-        ) => Promise<CallToolResult>;
-        return await handler(cleanedArgs, extra);
       }
+      const handler = originalCallback as (
+        args: any,
+        extra: CompatibleRequestHandlerExtra
+      ) => Promise<CallToolResult>;
+      return await handler(cleanedArgs, extra);
     } catch (error) {
       if (error instanceof Error) {
         (extra as any).__mcpcat_error = error;
@@ -253,7 +250,7 @@ function setupToolsCallHandlerWrapping(server: HighLevelMCPServerLike): void {
   if (existingHandler) {
     const wrappedHandler = createToolsCallWrapper(
       existingHandler,
-      lowLevelServer,
+      lowLevelServer
     );
     lowLevelServer._requestHandlers.set("tools/call", wrappedHandler);
   }
@@ -262,10 +259,7 @@ function setupToolsCallHandlerWrapping(server: HighLevelMCPServerLike): void {
   const originalSetRequestHandler =
     lowLevelServer.setRequestHandler.bind(lowLevelServer);
 
-  lowLevelServer.setRequestHandler = function (
-    requestSchema: any,
-    handler: any,
-  ) {
+  lowLevelServer.setRequestHandler = ((requestSchema: any, handler: any) => {
     const shape = getObjectShape(requestSchema);
     const method = shape?.method ? getLiteralValue(shape.method) : undefined;
 
@@ -277,12 +271,12 @@ function setupToolsCallHandlerWrapping(server: HighLevelMCPServerLike): void {
 
     // Pass through all other handlers unchanged
     return originalSetRequestHandler(requestSchema, handler);
-  } as any;
+  }) as any;
 }
 
 function createToolsCallWrapper(
   originalHandler: any,
-  server: MCPServerLike,
+  server: MCPServerLike
 ): any {
   return async (request: any, extra: any) => {
     const startTime = new Date();
@@ -292,11 +286,7 @@ function createToolsCallWrapper(
     try {
       const data = getServerTrackingData(server);
 
-      if (!data) {
-        writeToLog(
-          "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls.",
-        );
-      } else {
+      if (data) {
         shouldPublishEvent = true;
 
         const sessionId = getServerSessionId(server, extra);
@@ -315,13 +305,17 @@ function createToolsCallWrapper(
         event.sessionId = data.sessionId;
 
         const resolvedTags = await resolveEventTags(data, request, extra);
-        if (resolvedTags) event.tags = resolvedTags;
+        if (resolvedTags) {
+          event.tags = resolvedTags;
+        }
         const resolvedProperties = await resolveEventProperties(
           data,
           request,
-          extra,
+          extra
         );
-        if (resolvedProperties) event.properties = resolvedProperties;
+        if (resolvedProperties) {
+          event.properties = resolvedProperties;
+        }
 
         // Extract context for userIntent
         if (
@@ -330,11 +324,15 @@ function createToolsCallWrapper(
         ) {
           event.userIntent = request.params.arguments.context;
         }
+      } else {
+        writeToLog(
+          "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
+        );
       }
     } catch (error) {
       // If tracing setup fails, log it but continue with tool execution
       writeToLog(
-        `Warning: MCPCat tracing failed for tool ${request.params?.name}, falling back to original handler - ${error}`,
+        `Warning: MCPCat tracing failed for tool ${request.params?.name}, falling back to original handler - ${error}`
       );
     }
 
@@ -419,7 +417,7 @@ export function setupTracking(server: HighLevelMCPServerLike): void {
     // This now includes get_more_tools if it was added
     server._registeredTools = addTracingToToolRegistry(
       server._registeredTools,
-      server,
+      server
     );
 
     setupListToolsTracing(server);

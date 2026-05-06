@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
 import { validate as uuidValidate, version as uuidVersion } from "uuid";
+import { describe, expect, it } from "vitest";
 import { toUUIDv7 } from "../modules/exporters/posthog.js";
 import KSUID from "../thirdparty/ksuid/index.js";
 
@@ -37,7 +37,7 @@ describe("toUUIDv7", () => {
 
     // Extract timestamp from UUIDv7 (first 48 bits = first 12 hex chars)
     const hex = result.replace(/-/g, "");
-    const extractedMs = parseInt(hex.substring(0, 12), 16);
+    const extractedMs = Number.parseInt(hex.substring(0, 12), 16);
 
     // KSUID has second-level precision, so the extracted timestamp should
     // be within 1 second of the known time
@@ -48,7 +48,7 @@ describe("toUUIDv7", () => {
     const result = toUUIDv7(realSessionId);
     // Version is the 13th hex character (index 14 in the formatted string, index 12 in raw hex)
     const hex = result.replace(/-/g, "");
-    const versionNibble = parseInt(hex[12], 16);
+    const versionNibble = Number.parseInt(hex[12], 16);
     expect(versionNibble).toBe(7);
   });
 
@@ -56,7 +56,7 @@ describe("toUUIDv7", () => {
     const result = toUUIDv7(realSessionId);
     // Variant is the 17th hex character (index 16 in raw hex)
     const hex = result.replace(/-/g, "");
-    const variantNibble = parseInt(hex[16], 16);
+    const variantNibble = Number.parseInt(hex[16], 16);
     // Must be 8, 9, a, or b (binary 10xx)
     expect(variantNibble).toBeGreaterThanOrEqual(8);
     expect(variantNibble).toBeLessThanOrEqual(0xb);
@@ -81,7 +81,7 @@ describe("toUUIDv7", () => {
     const result = toUUIDv7(realSessionId);
 
     const hex = result.replace(/-/g, "");
-    const extractedMs = parseInt(hex.substring(0, 12), 16);
+    const extractedMs = Number.parseInt(hex.substring(0, 12), 16);
 
     // KSUID creation time should be at or before now
     expect(extractedMs).toBeLessThanOrEqual(now);

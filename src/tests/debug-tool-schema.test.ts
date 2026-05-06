@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { track } from "../index.js";
 
@@ -29,21 +29,21 @@ describe("Debug Tool Schema Structure", () => {
       console.log("  - Has inputSchema?", !!toolsBefore["add"].inputSchema);
       console.log(
         "  - inputSchema type:",
-        typeof toolsBefore["add"].inputSchema,
+        typeof toolsBefore["add"].inputSchema
       );
       console.log(
         "  - inputSchema value:",
-        JSON.stringify(toolsBefore["add"].inputSchema, null, 2),
+        JSON.stringify(toolsBefore["add"].inputSchema, null, 2)
       );
 
       if (toolsBefore["add"].inputSchema) {
         console.log(
           "  - Has properties?",
-          !!toolsBefore["add"].inputSchema.properties,
+          !!toolsBefore["add"].inputSchema.properties
         );
         console.log(
           "  - Properties type:",
-          typeof toolsBefore["add"].inputSchema.properties,
+          typeof toolsBefore["add"].inputSchema.properties
         );
       }
     }
@@ -64,22 +64,22 @@ describe("Debug Tool Schema Structure", () => {
       console.log("  - Has inputSchema?", !!toolsAfter["add"].inputSchema);
       console.log(
         "  - inputSchema type:",
-        typeof toolsAfter["add"].inputSchema,
+        typeof toolsAfter["add"].inputSchema
       );
       console.log(
         "  - inputSchema value:",
-        JSON.stringify(toolsAfter["add"].inputSchema, null, 2),
+        JSON.stringify(toolsAfter["add"].inputSchema, null, 2)
       );
 
       if (toolsAfter["add"].inputSchema) {
         console.log(
           "  - Has properties?",
-          !!toolsAfter["add"].inputSchema.properties,
+          !!toolsAfter["add"].inputSchema.properties
         );
         console.log(
           "  - Has context in properties?",
           toolsAfter["add"].inputSchema.properties &&
-            !!toolsAfter["add"].inputSchema.properties.context,
+            !!toolsAfter["add"].inputSchema.properties.context
         );
       }
     }
@@ -96,7 +96,7 @@ describe("Debug Tool Schema Structure", () => {
       { a: z.number(), b: z.number() },
       async ({ a, b }) => ({
         content: [{ type: "text", text: String(a + b) }],
-      }),
+      })
     );
 
     // Log the registered tool structure
@@ -110,11 +110,11 @@ describe("Debug Tool Schema Structure", () => {
       console.log("  - Has inputSchema?", !!tools["add_with_desc"].inputSchema);
       console.log(
         "  - inputSchema type:",
-        typeof tools["add_with_desc"].inputSchema,
+        typeof tools["add_with_desc"].inputSchema
       );
       console.log(
         "  - inputSchema value:",
-        JSON.stringify(tools["add_with_desc"].inputSchema, null, 2),
+        JSON.stringify(tools["add_with_desc"].inputSchema, null, 2)
       );
     }
 

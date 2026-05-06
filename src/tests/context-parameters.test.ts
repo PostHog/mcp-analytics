@@ -1,17 +1,17 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  setupTestServerAndClient,
-  resetTodos,
-} from "./test-utils/client-server-factory";
-import { addContextParameterToTools } from "../modules/context-parameters";
-import { track } from "../index";
 import {
   CallToolResultSchema,
   ListToolsResultSchema,
-} from "@modelcontextprotocol/sdk/types";
-import { EventCapture } from "./test-utils";
+} from "@modelcontextprotocol/sdk/types.js";
 import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { track } from "../index";
 import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "../modules/constants";
+import { addContextParameterToTools } from "../modules/context-parameters";
+import { EventCapture } from "./test-utils";
+import {
+  resetTodos,
+  setupTestServerAndClient,
+} from "./test-utils/client-server-factory";
 
 describe("Context Parameters", () => {
   let server: any;
@@ -45,7 +45,7 @@ describe("Context Parameters", () => {
       expect(modifiedTools[0].inputSchema.type).toBe("object");
       expect(modifiedTools[0].inputSchema.properties.context).toBeDefined();
       expect(modifiedTools[0].inputSchema.properties.context.type).toBe(
-        "string",
+        "string"
       );
       expect(modifiedTools[0].inputSchema.required).toContain("context");
     });
@@ -73,7 +73,7 @@ describe("Context Parameters", () => {
       expect(modifiedTools[0].inputSchema.properties.text).toBeDefined();
       expect(modifiedTools[0].inputSchema.properties.context).toBeDefined();
       expect(modifiedTools[0].inputSchema.properties.context.type).toBe(
-        "string",
+        "string"
       );
       expect(modifiedTools[0].inputSchema.required).toContain("text");
       expect(modifiedTools[0].inputSchema.required).toContain("context");
@@ -100,12 +100,12 @@ describe("Context Parameters", () => {
       const modifiedTools = addContextParameterToTools(tools);
 
       expect(modifiedTools[0].inputSchema.properties.context.description).toBe(
-        "Existing context",
+        "Existing context"
       );
       expect(
         modifiedTools[0].inputSchema.required.filter(
-          (r: string) => r === "context",
-        ),
+          (r: string) => r === "context"
+        )
       ).toHaveLength(1);
     });
 
@@ -159,7 +159,7 @@ describe("Context Parameters", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result.content[0].text).toContain("Added todo");
@@ -172,7 +172,7 @@ describe("Context Parameters", () => {
       const toolCallEvent = events.find(
         (e) =>
           e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "add_todo",
+          e.resourceName === "add_todo"
       );
 
       expect(toolCallEvent).toBeDefined();
@@ -204,7 +204,7 @@ describe("Context Parameters", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Then complete it with context
@@ -220,7 +220,7 @@ describe("Context Parameters", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result.content[0].text).toContain("Completed todo");
@@ -233,7 +233,7 @@ describe("Context Parameters", () => {
       const completeEvent = events.find(
         (e) =>
           e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "complete_todo",
+          e.resourceName === "complete_todo"
       );
 
       expect(completeEvent).toBeDefined();
@@ -263,7 +263,7 @@ describe("Context Parameters", () => {
             arguments: {},
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
       expect(result1.content[0].text).toBeDefined();
 
@@ -278,7 +278,7 @@ describe("Context Parameters", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result2.content[0].text).toBeDefined();
@@ -291,7 +291,7 @@ describe("Context Parameters", () => {
       const listEvents = events.filter(
         (e) =>
           e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "list_todos",
+          e.resourceName === "list_todos"
       );
 
       // Should have at least 2 events (one without context, one with)
@@ -303,7 +303,7 @@ describe("Context Parameters", () => {
 
       // Find event with context - should have userIntent
       const eventWithContext = listEvents.find(
-        (e) => e.userIntent === "Listing todos to check current status",
+        (e) => e.userIntent === "Listing todos to check current status"
       );
       expect(eventWithContext).toBeDefined();
 
@@ -322,7 +322,7 @@ describe("Context Parameters", () => {
           method: "tools/list",
           params: {},
         },
-        ListToolsResultSchema,
+        ListToolsResultSchema
       );
 
       // Apply context parameter injection to simulate what the client would see
@@ -335,7 +335,7 @@ describe("Context Parameters", () => {
       // Find the original tools
       const originalTools = ["add_todo", "list_todos", "complete_todo"];
       const originalModifiedTools = modifiedTools.filter((tool: any) =>
-        originalTools.includes(tool.name),
+        originalTools.includes(tool.name)
       );
 
       // Verify the original tools have context parameter in their schema
@@ -344,7 +344,7 @@ describe("Context Parameters", () => {
         expect(tool.inputSchema.properties.context).toBeDefined();
         expect(tool.inputSchema.properties.context.type).toBe("string");
         expect(tool.inputSchema.properties.context.description).toBe(
-          DEFAULT_CONTEXT_PARAMETER_DESCRIPTION,
+          DEFAULT_CONTEXT_PARAMETER_DESCRIPTION
         );
       });
     });
@@ -361,13 +361,13 @@ describe("Context Parameters", () => {
           method: "tools/list",
           params: {},
         },
-        ListToolsResultSchema,
+        ListToolsResultSchema
       );
 
       // Find all original tools
       const originalTools = ["add_todo", "list_todos", "complete_todo"];
       const toolsToCheck = toolsResponse.tools.filter((tool: any) =>
-        originalTools.includes(tool.name),
+        originalTools.includes(tool.name)
       );
 
       expect(toolsToCheck.length).toBe(3);
@@ -376,7 +376,7 @@ describe("Context Parameters", () => {
       toolsToCheck.forEach((tool: any) => {
         expect(tool.inputSchema.properties.context).toBeDefined();
         expect(tool.inputSchema.properties.context.description).toBe(
-          DEFAULT_CONTEXT_PARAMETER_DESCRIPTION,
+          DEFAULT_CONTEXT_PARAMETER_DESCRIPTION
         );
       });
     });
@@ -404,7 +404,7 @@ describe("Context Parameters", () => {
               },
             ],
           };
-        },
+        }
       );
 
       // Enable tracking with context parameters
@@ -425,7 +425,7 @@ describe("Context Parameters", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for processing

@@ -1,19 +1,19 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { redactEvent } from "../modules/redaction.js";
-import { UnredactedEvent, RedactFunction } from "../types.js";
-import {
-  setupTestServerAndClient,
-  resetTodos,
-} from "./test-utils/client-server-factory.js";
-import { track } from "../index.js";
-import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types";
-import { EventCapture } from "./test-utils.js";
+import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { track } from "../index.js";
+import { redactEvent } from "../modules/redaction.js";
+import type { RedactFunction, UnredactedEvent } from "../types.js";
+import {
+  resetTodos,
+  setupTestServerAndClient,
+} from "./test-utils/client-server-factory.js";
+import { EventCapture } from "./test-utils.js";
 
 describe("redactEvent", () => {
   // Mock redaction function that replaces strings with "[REDACTED]"
   const mockRedactFn: RedactFunction = vi.fn(
-    async (text: string) => `[REDACTED-${text.length}]`,
+    async (text: string) => `[REDACTED-${text.length}]`
   );
 
   beforeEach(() => {
@@ -161,7 +161,7 @@ describe("redactEvent", () => {
 
     expect(redacted.timestamp).toEqual(testDate);
     expect(redacted.parameters.createdAt).toEqual(
-      new Date("2024-01-02T12:00:00Z"),
+      new Date("2024-01-02T12:00:00Z")
     );
     expect(redacted.parameters.createdAt).toBeInstanceOf(Date);
   });
@@ -264,7 +264,7 @@ describe("redactEvent", () => {
     };
 
     await expect(redactEvent(event, errorRedactFn)).rejects.toThrow(
-      "Redaction failed",
+      "Redaction failed"
     );
   });
 
@@ -294,7 +294,7 @@ describe("redactEvent", () => {
 
     // Protected field contents should NOT be redacted
     expect(redacted.identifyData.nested.deeply.sensitive).toBe(
-      "this should NOT be redacted",
+      "this should NOT be redacted"
     );
     expect(redacted.identifyData.nested.deeply.data).toEqual([
       "array",
@@ -308,7 +308,7 @@ describe("redactEvent", () => {
     // Verify the redact function was only called for non-protected content
     expect(mockRedactFn).toHaveBeenCalledWith("this SHOULD be redacted");
     expect(mockRedactFn).not.toHaveBeenCalledWith(
-      "this should NOT be redacted",
+      "this should NOT be redacted"
     );
     expect(mockRedactFn).not.toHaveBeenCalledWith("array");
     expect(mockRedactFn).not.toHaveBeenCalledWith("of");
@@ -457,7 +457,7 @@ describe("redactEvent integration tests", () => {
           },
         },
       },
-      CallToolResultSchema,
+      CallToolResultSchema
     );
 
     // Wait for events to be processed
@@ -468,7 +468,7 @@ describe("redactEvent integration tests", () => {
 
     // Find the tool call event
     const toolCallEvent = events.find(
-      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
     );
 
     expect(toolCallEvent).toBeDefined();
@@ -477,12 +477,12 @@ describe("redactEvent integration tests", () => {
     const params = toolCallEvent?.parameters as any;
     expect(params.request.params.arguments.text).toBe("[REDACTED-EMAIL]"); // Contains email
     expect(params.request.params.arguments.context).toBe(
-      "Adding a todo item for reset task",
+      "Adding a todo item for reset task"
     ); // Context should not be redacted
 
     // Find the identify event
     const identifyEvent = events.find(
-      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify,
+      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify
     );
 
     expect(identifyEvent).toBeDefined();
@@ -491,10 +491,10 @@ describe("redactEvent integration tests", () => {
     // since it's created from the same base event
     const identifyParams = identifyEvent?.parameters as any;
     expect(identifyParams.request.params.arguments.text).toBe(
-      "[REDACTED-EMAIL]",
+      "[REDACTED-EMAIL]"
     );
     expect(identifyParams.request.params.arguments.context).toBe(
-      "Adding a todo item for reset task",
+      "Adding a todo item for reset task"
     );
 
     // Verify protected fields were NOT redacted
@@ -502,7 +502,7 @@ describe("redactEvent integration tests", () => {
     expect(toolCallEvent?.projectId).toBe("test-project");
     expect(toolCallEvent?.resourceName).toBe("add_todo");
     expect(toolCallEvent?.eventType).toBe(
-      PublishEventRequestEventTypeEnum.mcpToolsCall,
+      PublishEventRequestEventTypeEnum.mcpToolsCall
     );
 
     // The identify event includes actor info from sessionInfo
@@ -543,7 +543,7 @@ describe("redactEvent integration tests", () => {
           },
         },
       },
-      CallToolResultSchema,
+      CallToolResultSchema
     );
 
     // Wait for events
@@ -551,7 +551,7 @@ describe("redactEvent integration tests", () => {
 
     const events = eventCapture.getEvents();
     const toolCallEvent = events.find(
-      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
     );
 
     expect(toolCallEvent).toBeDefined();
@@ -561,7 +561,7 @@ describe("redactEvent integration tests", () => {
     // Verify credit card data in text was redacted
     expect(params.request.params.arguments.text).toBe("[REDACTED-CC]");
     expect(params.request.params.arguments.context).toBe(
-      "Processing payment for order",
+      "Processing payment for order"
     );
 
     await eventCapture.stop();
@@ -604,7 +604,7 @@ describe("redactEvent integration tests", () => {
           },
         },
       },
-      CallToolResultSchema,
+      CallToolResultSchema
     );
 
     // Wait for events
@@ -614,7 +614,7 @@ describe("redactEvent integration tests", () => {
 
     // Check tool call event
     const toolCallEvent = events.find(
-      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
     );
 
     // Protected fields should NOT be redacted
@@ -628,7 +628,7 @@ describe("redactEvent integration tests", () => {
 
     // Check identify event
     const identifyEvent = events.find(
-      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify,
+      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify
     );
 
     // Protected identity fields should NOT be redacted
@@ -639,7 +639,7 @@ describe("redactEvent integration tests", () => {
     const identifyParams = identifyEvent?.parameters as any;
     expect(identifyParams.request.params.arguments.text).toBe("[REDACTED-ID]");
     expect(identifyParams.request.params.arguments.context).toBe(
-      "[REDACTED-ID]",
+      "[REDACTED-ID]"
     );
 
     await eventCapture.stop();

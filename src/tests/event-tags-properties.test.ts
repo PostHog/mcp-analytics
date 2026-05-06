@@ -1,13 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  setupTestServerAndClient,
-  resetTodos,
-} from "./test-utils/client-server-factory";
-import { track, publishCustomEvent } from "../index";
-import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types";
-import { EventCapture } from "./test-utils";
-import { HighLevelMCPServerLike } from "../types";
+import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { publishCustomEvent, track } from "../index";
+import type { HighLevelMCPServerLike } from "../types";
+import { EventCapture } from "./test-utils";
+import {
+  resetTodos,
+  setupTestServerAndClient,
+} from "./test-utils/client-server-factory";
 
 describe("Event Tags & Properties", () => {
   let server: HighLevelMCPServerLike;
@@ -47,13 +47,13 @@ describe("Event Tags & Properties", () => {
             arguments: { text: "Test todo" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
       expect(toolCallEvent!.tags).toEqual({ env: "test", trace_id: "abc-123" });
@@ -74,7 +74,7 @@ describe("Event Tags & Properties", () => {
             arguments: { text: "Test todo" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result.content[0].text).toContain("Added todo");
@@ -82,7 +82,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
       // When callback throws, resolveEventTags returns null, and conditional assignment means field stays undefined
@@ -102,13 +102,13 @@ describe("Event Tags & Properties", () => {
             arguments: { text: "Test todo" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
       expect(toolCallEvent!.tags).toBeUndefined();
@@ -130,13 +130,13 @@ describe("Event Tags & Properties", () => {
             arguments: { text: "Test todo" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
       );
       expect(toolCallEvent!.tags).toEqual({ valid: "value" });
     });
@@ -160,13 +160,13 @@ describe("Event Tags & Properties", () => {
             arguments: { text: "Test todo" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
       expect(toolCallEvent!.properties).toEqual({
@@ -191,7 +191,7 @@ describe("Event Tags & Properties", () => {
             arguments: { text: "Test todo" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result.content[0].text).toContain("Added todo");
@@ -210,13 +210,13 @@ describe("Event Tags & Properties", () => {
             arguments: { text: "Test todo" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
       expect(toolCallEvent!.properties).toBeUndefined();
@@ -238,13 +238,13 @@ describe("Event Tags & Properties", () => {
             arguments: { text: "Test todo" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
       );
       expect(toolCallEvent!.tags).toEqual({ env: "test" });
       expect(toolCallEvent!.properties).toEqual({ device: "mobile" });
@@ -264,7 +264,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const customEvent = events.find(
-        (e) => e.resourceName === "custom-action",
+        (e) => e.resourceName === "custom-action"
       );
       expect(customEvent).toBeDefined();
       expect(customEvent!.tags).toEqual({ env: "production", trace_id: "xyz" });
@@ -285,7 +285,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const customEvent = events.find(
-        (e) => e.resourceName === "custom-action",
+        (e) => e.resourceName === "custom-action"
       );
       expect(customEvent!.tags).toEqual({ valid: "value" });
     });
@@ -301,7 +301,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const customEvent = events.find(
-        (e) => e.resourceName === "custom-action",
+        (e) => e.resourceName === "custom-action"
       );
       expect(customEvent!.properties).toBeUndefined();
     });
@@ -319,13 +319,13 @@ describe("Event Tags & Properties", () => {
             arguments: { text: "Test todo" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
       expect(toolCallEvent!.tags).toBeUndefined();
@@ -365,7 +365,7 @@ describe("Event Tags & Properties", () => {
         { input: z.string() },
         async (args) => ({
           content: [{ type: "text", text: `Got: ${args.input}` }],
-        }),
+        })
       );
 
       // Track BEFORE connecting
@@ -376,7 +376,7 @@ describe("Event Tags & Properties", () => {
 
       const freshClient = new Client(
         { name: "test client", version: "1.0" },
-        { capabilities: {} },
+        { capabilities: {} }
       );
       const [clientTransport, serverTransport] =
         InMemoryTransport.createLinkedPair();
@@ -390,7 +390,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
       const events = eventCapture.getEvents();
       const initEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpInitialize,
+        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpInitialize
       );
       expect(initEvent).toBeDefined();
       expect(initEvent!.tags).toEqual({ env: "test", source: "init" });
@@ -414,13 +414,13 @@ describe("Event Tags & Properties", () => {
       );
       await client.request(
         { method: "tools/list", params: {} },
-        ListToolsResultSchema,
+        ListToolsResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const listEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsList,
+        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsList
       );
       expect(listEvent).toBeDefined();
       expect(listEvent!.tags).toEqual({ env: "test", action: "list" });
@@ -451,13 +451,13 @@ describe("Event Tags & Properties", () => {
             arguments: { text: "Test todo" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 100));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
       // Tags should NOT be redacted — customer explicitly provides this data
@@ -495,14 +495,14 @@ describe("Event Tags & Properties", () => {
             arguments: { text: "Callback args test" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(capturedRequest).toBeDefined();
       expect(capturedRequest.params?.name).toBe("add_todo");
       expect(capturedRequest.params?.arguments?.text).toBe(
-        "Callback args test",
+        "Callback args test"
       );
       expect(capturedExtra).toBeDefined();
     });
@@ -527,7 +527,7 @@ describe("Event Tags & Properties", () => {
             arguments: { text: "Props callback args test" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 50));

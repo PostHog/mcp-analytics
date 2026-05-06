@@ -12,7 +12,9 @@ let useConsoleFallback = false;
  * Falls back to console.log in edge environments where fs/os modules are unavailable.
  */
 function tryInitSync(): void {
-  if (initAttempted) return;
+  if (initAttempted) {
+    return;
+  }
   initAttempted = true;
 
   try {
@@ -51,15 +53,15 @@ export function writeToLog(message: string): void {
   }
 
   // Node.js environment: write to file
-  if (!logFilePath || !fsModule) {
+  if (!(logFilePath && fsModule)) {
     return;
   }
 
   try {
-    if (!fsModule.existsSync(logFilePath)) {
-      fsModule.writeFileSync(logFilePath, logEntry + "\n");
-    } else {
+    if (fsModule.existsSync(logFilePath)) {
       fsModule.appendFileSync(logFilePath, logEntry + "\n");
+    } else {
+      fsModule.writeFileSync(logFilePath, logEntry + "\n");
     }
   } catch {
     // Silently fail to avoid breaking the server

@@ -1,7 +1,7 @@
 {
-  "name": "mcpcat",
-  "version": "0.1.15",
-  "description": "Analytics tool for MCP (Model Context Protocol) servers - tracks tool usage patterns and provides insights",
+  "name": "@posthog/mcp-analytics",
+  "version": "0.0.0",
+  "description": "PostHog analytics for MCP servers",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -18,10 +18,13 @@
     "dev": "tsup --watch",
     "test": "vitest",
     "test:compatibility": "vitest run src/tests/mcp-version-compatibility.test.ts",
-    "lint": "eslint src/",
-    "typecheck": "tsc --noEmit",
+    "format": "biome format --write .",
+    "lint": "biome format .",
+    "typecheck": "tsgo --noEmit",
+    "typecheck:tsc6": "tsc6 --noEmit",
     "prepare": "husky",
-    "prepublishOnly": "pnpm run build && pnpm run test && pnpm run lint && pnpm run typecheck"
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "prepublishOnly": "pnpm verify"
   },
   "keywords": [
     "ai",
@@ -41,32 +44,30 @@
     "mcp-framework",
     "mcp-analytics"
   ],
-  "author": "MCPcat",
+  "author": "PostHog",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MCPCat/mcpcat-typescript-sdk.git"
+    "url": "git+https://github.com/PostHog/mcp-analytics.git"
   },
   "bugs": {
-    "url": "https://github.com/MCPCat/mcpcat-typescript-sdk/issues"
+    "url": "https://github.com/PostHog/mcp-analytics/issues"
   },
-  "homepage": "https://github.com/MCPCat/mcpcat-typescript-sdk#readme",
-  "packageManager": "pnpm@10.11.0",
+  "homepage": "https://github.com/PostHog/mcp-analytics#readme",
+  "packageManager": "pnpm@10.33.2",
   "devDependencies": {
+    "@biomejs/biome": "2.4.14",
     "@changesets/cli": "^2.29.8",
     "@modelcontextprotocol/sdk": "~1.24.2",
+    "@typescript/native-preview": "beta",
     "@types/node": "^22.15.21",
     "@types/uuid": "^11.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.32.1",
-    "@typescript-eslint/parser": "^8.32.1",
     "@vitest/coverage-v8": "^4.0.14",
     "@vitest/ui": "^4.0.14",
-    "eslint": "^9.39.1",
     "husky": "^9.1.7",
-    "lint-staged": "^16.1.0",
-    "prettier": "^3.5.3",
     "tsup": "^8.5.0",
-    "typescript": "^5.8.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.0",
+    "ultracite": "7.6.3",
     "uuid": "^13.0.0",
     "vitest": "^4.0.14",
     "zod": "^3.25 || ^4.0"
@@ -76,15 +77,6 @@
   },
   "dependencies": {
     "mcpcat-api": "0.1.8"
-  },
-  "lint-staged": {
-    "*.{ts,js}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md,yml,yaml}": [
-      "prettier --write"
-    ]
   },
   "pnpm": {
     "overrides": {

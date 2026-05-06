@@ -1,18 +1,18 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  setupTestServerAndClient,
-  resetTodos,
-} from "./test-utils/client-server-factory";
-import { track } from "../index";
+import { randomUUID } from "node:crypto";
 import {
   CallToolResultSchema,
   ListToolsResultSchema,
-} from "@modelcontextprotocol/sdk/types";
-import { EventCapture } from "./test-utils";
+} from "@modelcontextprotocol/sdk/types.js";
 import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
-import { getServerTrackingData } from "../modules/internal";
-import { randomUUID } from "node:crypto";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { track } from "../index";
 import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "../modules/constants";
+import { getServerTrackingData } from "../modules/internal";
+import { EventCapture } from "./test-utils";
+import {
+  resetTodos,
+  setupTestServerAndClient,
+} from "./test-utils/client-server-factory";
 
 describe("Report Missing Tool", () => {
   let server: any;
@@ -45,19 +45,19 @@ describe("Report Missing Tool", () => {
           method: "tools/list",
           params: {},
         },
-        ListToolsResultSchema,
+        ListToolsResultSchema
       );
 
       // Find report_missing tool
       const reportMissingTool = toolsResponse.tools.find(
-        (tool: any) => tool.name === "get_more_tools",
+        (tool: any) => tool.name === "get_more_tools"
       );
 
       // Verify the tool exists with correct properties
       expect(reportMissingTool).toBeDefined();
       expect(reportMissingTool.name).toBe("get_more_tools");
       expect(reportMissingTool.description).toContain(
-        "Check for additional tools",
+        "Check for additional tools"
       );
 
       // Verify context is required
@@ -77,12 +77,12 @@ describe("Report Missing Tool", () => {
           method: "tools/list",
           params: {},
         },
-        ListToolsResultSchema,
+        ListToolsResultSchema
       );
 
       // Verify report_missing is not in the list
       const reportMissingTool = toolsResponse.tools.find(
-        (tool: any) => tool.name === "get_more_tools",
+        (tool: any) => tool.name === "get_more_tools"
       );
 
       expect(reportMissingTool).toBeUndefined();
@@ -102,12 +102,12 @@ describe("Report Missing Tool", () => {
           method: "tools/list",
           params: {},
         },
-        ListToolsResultSchema,
+        ListToolsResultSchema
       );
 
       // Find report_missing tool
       const reportMissingTool = toolsResponse.tools.find(
-        (tool: any) => tool.name === "get_more_tools",
+        (tool: any) => tool.name === "get_more_tools"
       );
 
       // Verify context is NOT required
@@ -115,7 +115,7 @@ describe("Report Missing Tool", () => {
 
       // Check that other tools DO have injected context
       const addTodoTool = toolsResponse.tools.find(
-        (tool: any) => tool.name === "add_todo",
+        (tool: any) => tool.name === "add_todo"
       );
       expect(addTodoTool.inputSchema.properties.context).toEqual({
         type: "string",
@@ -150,7 +150,7 @@ describe("Report Missing Tool", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Verify response
@@ -164,12 +164,12 @@ describe("Report Missing Tool", () => {
       const reportEvent = events.find(
         (e) =>
           e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_more_tools",
+          e.resourceName === "get_more_tools"
       );
 
       expect(reportEvent).toBeDefined();
       expect(
-        (reportEvent?.parameters as any).request.params.arguments.context,
+        (reportEvent?.parameters as any).request.params.arguments.context
       ).toBe(missingDescription);
 
       await eventCapture.stop();
@@ -199,7 +199,7 @@ describe("Report Missing Tool", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Verify response acknowledges the feedback
@@ -213,12 +213,12 @@ describe("Report Missing Tool", () => {
       const reportEvent = events.find(
         (e) =>
           e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_more_tools",
+          e.resourceName === "get_more_tools"
       );
 
       expect(reportEvent).toBeDefined();
       expect(
-        (reportEvent?.parameters as any).request.params.arguments.context,
+        (reportEvent?.parameters as any).request.params.arguments.context
       ).toBe(additionalContext);
 
       await eventCapture.stop();
@@ -245,7 +245,7 @@ describe("Report Missing Tool", () => {
             } as any,
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // The function handles undefined gracefully
@@ -273,11 +273,11 @@ describe("Report Missing Tool", () => {
           params: {
             name: "get_more_tools",
             arguments: {
-              context: context,
+              context,
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for events
@@ -288,7 +288,7 @@ describe("Report Missing Tool", () => {
       const reportEvent = events.find(
         (e) =>
           e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_more_tools",
+          e.resourceName === "get_more_tools"
       );
 
       // Verify event structure
@@ -298,12 +298,12 @@ describe("Report Missing Tool", () => {
       expect(reportEvent?.resourceName).toBe("get_more_tools");
       expect(reportEvent?.parameters).toBeDefined();
       expect((reportEvent?.parameters as any).request.params.name).toBe(
-        "get_more_tools",
+        "get_more_tools"
       );
       expect((reportEvent?.parameters as any).request.params.arguments).toEqual(
         {
-          context: context,
-        },
+          context,
+        }
       );
 
       // Since report_missing has its own context parameter, it should NOT have userIntent
@@ -337,7 +337,7 @@ describe("Report Missing Tool", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Call report_missing
@@ -351,7 +351,7 @@ describe("Report Missing Tool", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Call list_todos
@@ -365,7 +365,7 @@ describe("Report Missing Tool", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for events
@@ -374,7 +374,7 @@ describe("Report Missing Tool", () => {
       // Get all tool call events
       const events = eventCapture.getEvents();
       const toolCallEvents = events.filter(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
       );
 
       // Should have 3 events
@@ -423,7 +423,7 @@ describe("Report Missing Tool", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for events
@@ -432,7 +432,7 @@ describe("Report Missing Tool", () => {
       // Verify identify event was triggered
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify,
+        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify
       );
 
       expect(identifyEvent).toBeDefined();
@@ -486,7 +486,7 @@ describe("Report Missing Tool", () => {
               arguments: report,
             },
           },
-          CallToolResultSchema,
+          CallToolResultSchema
         );
       }
 
@@ -498,7 +498,7 @@ describe("Report Missing Tool", () => {
       const reportEvents = events.filter(
         (e) =>
           e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_more_tools",
+          e.resourceName === "get_more_tools"
       );
 
       // Verify we captured all reports with useful data
@@ -507,7 +507,7 @@ describe("Report Missing Tool", () => {
       // Each event should have structured data for analysis
       reportEvents.forEach((event, index) => {
         expect((event.parameters as any).request.params.arguments.context).toBe(
-          reports[index].context,
+          reports[index].context
         );
         expect(event.sessionId).toBeDefined();
         expect(event.timestamp).toBeDefined();
@@ -543,7 +543,7 @@ describe("Report Missing Tool", () => {
               },
             },
           },
-          CallToolResultSchema,
+          CallToolResultSchema
         );
 
         await setup1.cleanup();
@@ -567,7 +567,7 @@ describe("Report Missing Tool", () => {
               },
             },
           },
-          CallToolResultSchema,
+          CallToolResultSchema
         );
 
         await setup2.cleanup();
@@ -581,7 +581,7 @@ describe("Report Missing Tool", () => {
       const reportEvents = events.filter(
         (e) =>
           e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_more_tools",
+          e.resourceName === "get_more_tools"
       );
 
       // Should have 2 events from different sessions
@@ -593,7 +593,7 @@ describe("Report Missing Tool", () => {
 
       // Similar content (OAuth) from different sessions indicates a pattern
       const contexts = reportEvents.map(
-        (e) => (e.parameters as any).request.params.arguments?.context,
+        (e) => (e.parameters as any).request.params.arguments?.context
       );
       expect(contexts[0]).toContain("OAuth");
       expect(contexts[1]).toContain("OAuth");
@@ -634,7 +634,7 @@ describe("Report Missing Tool", () => {
               arguments: tool,
             },
           },
-          CallToolResultSchema,
+          CallToolResultSchema
         );
       }
 
@@ -646,7 +646,7 @@ describe("Report Missing Tool", () => {
       const reportEvents = events.filter(
         (e) =>
           e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_more_tools",
+          e.resourceName === "get_more_tools"
       );
 
       // All from same session

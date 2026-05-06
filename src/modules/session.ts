@@ -1,16 +1,15 @@
-import {
+import { createHash } from "crypto";
+import packageJson from "../../package.json" with { type: "json" };
+import KSUID from "../thirdparty/ksuid/index.js";
+import type {
+  CompatibleRequestHandlerExtra,
   MCPCatData,
   MCPServerLike,
   ServerClientInfoLike,
   SessionInfo,
-  CompatibleRequestHandlerExtra,
 } from "../types.js";
-import { getServerTrackingData, setServerTrackingData } from "./internal.js";
-import KSUID from "../thirdparty/ksuid/index.js";
-import packageJson from "../../package.json" with { type: "json" };
-import { createHash } from "crypto";
-
 import { INACTIVITY_TIMEOUT_IN_MINUTES } from "./constants.js";
+import { getServerTrackingData, setServerTrackingData } from "./internal.js";
 
 export function newSessionId(): string {
   return KSUID.withPrefix("ses").randomSync();
@@ -26,7 +25,7 @@ export function newSessionId(): string {
  */
 export function deriveSessionIdFromMCPSession(
   mcpSessionId: string,
-  projectId?: string,
+  projectId?: string
 ): string {
   // Create input string for hashing
   const input = projectId ? `${mcpSessionId}:${projectId}` : mcpSessionId;
@@ -57,7 +56,7 @@ export function deriveSessionIdFromMCPSession(
  */
 export function getServerSessionId(
   server: MCPServerLike,
-  extra?: CompatibleRequestHandlerExtra,
+  extra?: CompatibleRequestHandlerExtra
 ): string {
   const data = getServerTrackingData(server);
 
@@ -72,7 +71,7 @@ export function getServerSessionId(
     // Derive deterministic KSUID from MCP sessionId
     data.sessionId = deriveSessionIdFromMCPSession(
       mcpSessionId,
-      data.projectId || undefined,
+      data.projectId || undefined
     );
     data.lastMcpSessionId = mcpSessionId;
     data.sessionSource = "mcp";
@@ -116,7 +115,7 @@ export function setLastActivity(server: MCPServerLike): void {
 
 export function getSessionInfo(
   server: MCPServerLike,
-  data: MCPCatData | undefined,
+  data: MCPCatData | undefined
 ): SessionInfo {
   let clientInfo: ServerClientInfoLike | undefined = {
     name: undefined,

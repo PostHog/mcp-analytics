@@ -1,5 +1,5 @@
 import { createRequire } from "module";
-import { ErrorData, StackFrame, ChainedErrorData } from "../types.js";
+import type { ChainedErrorData, ErrorData, StackFrame } from "../types.js";
 
 // Lazy-loaded fs module for context_line extraction (Node.js only)
 // Edge environments don't have filesystem access
@@ -40,7 +40,7 @@ const MAX_STACK_FRAMES = 50;
  */
 export function captureException(
   error: unknown,
-  contextStack?: Error,
+  contextStack?: Error
 ): ErrorData {
   // Handle CallToolResult objects (SDK 1.21.0+ converts errors to these)
   if (isCallToolResult(error)) {
@@ -136,7 +136,7 @@ function parseV8StackTrace(stackTrace: string): StackFrame[] {
  * @returns The modified StackFrame
  */
 function addContextToFrame(frame: StackFrame): StackFrame {
-  if (!frame.in_app || !frame.abs_path || !frame.lineno) {
+  if (!(frame.in_app && frame.abs_path && frame.lineno)) {
     return frame;
   }
 
@@ -200,8 +200,8 @@ function parseLocation(location: string): {
     return {
       filename: makeRelativePath(filename),
       abs_path: filename,
-      lineno: parseInt(lineStr, 10),
-      colno: parseInt(colStr, 10),
+      lineno: Number.parseInt(lineStr, 10),
+      colno: Number.parseInt(colStr, 10),
     };
   }
 
@@ -262,8 +262,8 @@ function parseEvalOrigin(evalLocation: string): {
     return {
       filename: makeRelativePath(filename),
       abs_path: filename,
-      lineno: parseInt(lineStr, 10),
-      colno: parseInt(colStr, 10),
+      lineno: Number.parseInt(lineStr, 10),
+      colno: Number.parseInt(colStr, 10),
     };
   }
 
@@ -294,7 +294,8 @@ function findCommaAfterBalancedParens(str: string): number {
         for (let j = i + 1; j < str.length; j++) {
           if (str[j] === ",") {
             return j;
-          } else if (str[j] !== " ") {
+          }
+          if (str[j] !== " ") {
             // Non-comma, non-space character found, no comma separator
             return -1;
           }
@@ -418,7 +419,7 @@ function normalizeUrl(filename: string): string {
     let result = filename.substring(7); // Remove "file://"
 
     // Ensure Unix paths start with /
-    if (!result.startsWith("/") && !result.match(/^[A-Za-z]:/)) {
+    if (!(result.startsWith("/") || result.match(/^[A-Za-z]:/))) {
       result = "/" + result;
     }
 
@@ -473,7 +474,7 @@ function stripSystemPrefixes(path: string): string {
   path = path.replace(/^\/home\/[^/]+\//, "~/");
 
   // Windows: C:\Users\username\ or C:/Users/username/ (with any separator)
-  path = path.replace(/^[A-Za-z]:[\\\/]Users[\\\/][^\\\/]+[\\\/]/, "~/");
+  path = path.replace(/^[A-Za-z]:[\\/]Users[\\/][^\\/]+[\\/]/, "~/");
 
   return path;
 }
@@ -633,7 +634,7 @@ function makeRelativePath(filename: string): string {
   result = normalizeUrl(result);
 
   // Step 2: Handle already-relative paths and special cases
-  if (!result.startsWith("/") && !result.match(/^[A-Za-z]:\\/)) {
+  if (!(result.startsWith("/") || result.match(/^[A-Za-z]:\\/))) {
     // Already relative or special path (native, <unknown>, etc.)
     // Still normalize Node internals
     if (result.startsWith("node:")) {
@@ -783,7 +784,7 @@ function isCallToolResult(value: unknown): boolean {
  */
 function captureCallToolResultError(
   result: any,
-  _contextStack?: Error,
+  _contextStack?: Error
 ): ErrorData {
   // Extract message from content array
   const message =

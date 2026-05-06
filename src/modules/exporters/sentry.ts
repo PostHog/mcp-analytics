@@ -1,31 +1,26 @@
-import { Event, Exporter } from "../../types.js";
+import type { Event, Exporter } from "../../types.js";
+import { MCPCAT_SOURCE } from "../constants.js";
 import { writeToLog } from "../logging.js";
 import { traceContext } from "./trace-context.js";
-import { MCPCAT_SOURCE } from "../constants.js";
 
 export interface SentryExporterConfig {
-  type: "sentry";
   dsn: string;
+  enableTracing?: boolean; // Default: false (logs/errors only)
   environment?: string;
   release?: string;
-  enableTracing?: boolean; // Default: false (logs/errors only)
+  type: "sentry";
 }
 
 interface ParsedDSN {
+  host: string;
+  path: string;
+  port?: string;
+  projectId: string;
   protocol: string;
   publicKey: string;
-  host: string;
-  port?: string;
-  path: string;
-  projectId: string;
 }
 
 interface SentryTransaction {
-  type: "transaction";
-  event_id: string;
-  timestamp: number;
-  start_timestamp: number;
-  transaction: string;
   contexts: {
     trace: {
       trace_id: string;
@@ -35,6 +30,8 @@ interface SentryTransaction {
     };
     [key: string]: any;
   };
+  event_id: string;
+  extra?: Record<string, any>;
   spans?: Array<{
     span_id: string;
     trace_id: string;
@@ -45,15 +42,24 @@ interface SentryTransaction {
     timestamp: number;
     status?: "ok" | "internal_error";
   }>;
+  start_timestamp: number;
   tags?: Record<string, string>;
-  extra?: Record<string, any>;
+  timestamp: number;
+  transaction: string;
+  type: "transaction";
 }
 
 interface SentryErrorEvent {
-  type: "event";
+  contexts?: {
+    trace?: {
+      trace_id: string;
+      span_id: string;
+      parent_span_id?: string;
+      op?: string;
+    };
+    [key: string]: any;
+  };
   event_id: string;
-  timestamp: number;
-  level: "error" | "fatal" | "warning";
   exception: {
     values: Array<{
       type: string;
@@ -64,30 +70,24 @@ interface SentryErrorEvent {
       };
     }>;
   };
-  contexts?: {
-    trace?: {
-      trace_id: string;
-      span_id: string;
-      parent_span_id?: string;
-      op?: string;
-    };
-    [key: string]: any;
-  };
-  tags?: Record<string, string>;
   extra?: Record<string, any>;
+  level: "error" | "fatal" | "warning";
+  tags?: Record<string, string>;
+  timestamp: number;
   transaction?: string;
+  type: "event";
 }
 
 interface SentryLog {
-  timestamp: number;
-  trace_id: string;
-  event_id: string;
-  level: "info" | "error";
-  body: string;
   attributes?: Record<
     string,
     { value: any; type: "string" | "boolean" | "integer" | "double" }
   >;
+  body: string;
+  event_id: string;
+  level: "info" | "error";
+  timestamp: number;
+  trace_id: string;
 }
 
 export class SentryExporter implements Exporter {
@@ -147,13 +147,13 @@ export class SentryExporter implements Exporter {
         body: logEnvelope,
       });
 
-      if (!logResponse.ok) {
+      if (logResponse.ok) {
+        writeToLog(`Sentry log export success - Event: ${event.id}`);
+      } else {
         const errorBody = await logResponse.text();
         writeToLog(
-          `Sentry log export failed - Status: ${logResponse.status}, Body: ${errorBody}`,
+          `Sentry log export failed - Status: ${logResponse.status}, Body: ${errorBody}`
         );
-      } else {
-        writeToLog(`Sentry log export success - Event: ${event.id}`);
       }
 
       // OPTIONALLY send transaction for performance monitoring
@@ -162,7 +162,7 @@ export class SentryExporter implements Exporter {
         const transactionEnvelope = this.createTransactionEnvelope(transaction);
 
         writeToLog(
-          `SentryExporter: Sending transaction ${transaction.event_id} to Sentry`,
+          `SentryExporter: Sending transaction ${transaction.event_id} to Sentry`
         );
 
         const transactionResponse = await fetch(this.endpoint, {
@@ -174,13 +174,13 @@ export class SentryExporter implements Exporter {
           body: transactionEnvelope,
         });
 
-        if (!transactionResponse.ok) {
+        if (transactionResponse.ok) {
+          writeToLog(`Sentry transaction export success - Event: ${event.id}`);
+        } else {
           const errorBody = await transactionResponse.text();
           writeToLog(
-            `Sentry transaction export failed - Status: ${transactionResponse.status}, Body: ${errorBody}`,
+            `Sentry transaction export failed - Status: ${transactionResponse.status}, Body: ${errorBody}`
           );
-        } else {
-          writeToLog(`Sentry transaction export success - Event: ${event.id}`);
         }
       }
 
@@ -193,7 +193,7 @@ export class SentryExporter implements Exporter {
         const errorEnvelope = this.createErrorEnvelope(errorEvent);
 
         writeToLog(
-          `SentryExporter: Sending error event ${errorEvent.event_id} to Sentry for Issue creation`,
+          `SentryExporter: Sending error event ${errorEvent.event_id} to Sentry for Issue creation`
         );
 
         const errorResponse = await fetch(this.endpoint, {
@@ -205,13 +205,13 @@ export class SentryExporter implements Exporter {
           body: errorEnvelope,
         });
 
-        if (!errorResponse.ok) {
+        if (errorResponse.ok) {
+          writeToLog(`Sentry error export success - Event: ${event.id}`);
+        } else {
           const errorBody = await errorResponse.text();
           writeToLog(
-            `Sentry error export failed - Status: ${errorResponse.status}, Body: ${errorBody}`,
+            `Sentry error export failed - Status: ${errorResponse.status}, Body: ${errorBody}`
           );
-        } else {
-          writeToLog(`Sentry error export success - Event: ${event.id}`);
         }
       }
     } catch (error) {
@@ -246,7 +246,7 @@ export class SentryExporter implements Exporter {
   }
 
   private buildLogAttributes(
-    event: Event,
+    event: Event
   ): Record<
     string,
     { value: any; type: "string" | "boolean" | "integer" | "double" }
@@ -373,13 +373,27 @@ export class SentryExporter implements Exporter {
       source: MCPCAT_SOURCE,
     };
 
-    if (this.config.environment) tags.environment = this.config.environment;
-    if (this.config.release) tags.release = this.config.release;
-    if (event.eventType) tags.event_type = event.eventType;
-    if (event.resourceName) tags.resource = event.resourceName;
-    if (event.serverName) tags.server_name = event.serverName;
-    if (event.clientName) tags.client_name = event.clientName;
-    if (event.identifyActorGivenId) tags.actor_id = event.identifyActorGivenId;
+    if (this.config.environment) {
+      tags.environment = this.config.environment;
+    }
+    if (this.config.release) {
+      tags.release = this.config.release;
+    }
+    if (event.eventType) {
+      tags.event_type = event.eventType;
+    }
+    if (event.resourceName) {
+      tags.resource = event.resourceName;
+    }
+    if (event.serverName) {
+      tags.server_name = event.serverName;
+    }
+    if (event.clientName) {
+      tags.client_name = event.clientName;
+    }
+    if (event.identifyActorGivenId) {
+      tags.actor_id = event.identifyActorGivenId;
+    }
 
     // Add customer-defined tags (namespaced to avoid collisions with Sentry reserved fields)
     if (event.tags) {
@@ -394,21 +408,37 @@ export class SentryExporter implements Exporter {
   private buildExtra(event: Event): Record<string, any> {
     const extra: Record<string, any> = {};
 
-    if (event.sessionId) extra.session_id = event.sessionId;
-    if (event.projectId) extra.project_id = event.projectId;
-    if (event.userIntent) extra.user_intent = event.userIntent;
-    if (event.identifyActorName) extra.actor_name = event.identifyActorName;
-    if (event.serverVersion) extra.server_version = event.serverVersion;
-    if (event.clientVersion) extra.client_version = event.clientVersion;
-    if (event.duration !== undefined) extra.duration_ms = event.duration;
-    if (event.error) extra.error = event.error;
+    if (event.sessionId) {
+      extra.session_id = event.sessionId;
+    }
+    if (event.projectId) {
+      extra.project_id = event.projectId;
+    }
+    if (event.userIntent) {
+      extra.user_intent = event.userIntent;
+    }
+    if (event.identifyActorName) {
+      extra.actor_name = event.identifyActorName;
+    }
+    if (event.serverVersion) {
+      extra.server_version = event.serverVersion;
+    }
+    if (event.clientVersion) {
+      extra.client_version = event.clientVersion;
+    }
+    if (event.duration !== undefined) {
+      extra.duration_ms = event.duration;
+    }
+    if (event.error) {
+      extra.error = event.error;
+    }
 
     return extra;
   }
 
   private buildContexts(
     event: Event,
-    traceCtx: Record<string, any>,
+    traceCtx: Record<string, any>
   ): Record<string, any> {
     const contexts: Record<string, any> = {
       trace: traceCtx,
@@ -424,7 +454,7 @@ export class SentryExporter implements Exporter {
 
   private eventToErrorEvent(
     event: Event,
-    transaction?: SentryTransaction,
+    transaction?: SentryTransaction
   ): SentryErrorEvent {
     // Extract error message
     let errorMessage = "Unknown error";

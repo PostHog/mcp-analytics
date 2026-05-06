@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { MCPServerLike, CustomEventData } from "../types.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { CustomEventData, MCPServerLike } from "../types.js";
 import { setupTestHooks } from "./test-utils.js";
 
 // Mock external dependencies
@@ -10,19 +10,18 @@ vi.mock("../modules/eventQueue.js");
 vi.mock("../modules/constants.js");
 vi.mock("../thirdparty/ksuid/index.js");
 
-// Import mocked modules
-import { writeToLog } from "../modules/logging.js";
-import { getServerTrackingData } from "../modules/internal.js";
-import { deriveSessionIdFromMCPSession } from "../modules/session.js";
-import {
-  publishEvent as publishEventToQueue,
-  eventQueue,
-} from "../modules/eventQueue.js";
-import { MCPCAT_CUSTOM_EVENT_TYPE } from "../modules/constants.js";
-import KSUID from "../thirdparty/ksuid/index.js";
-
 // Import the function under test
 import { publishCustomEvent } from "../index.js";
+import { MCPCAT_CUSTOM_EVENT_TYPE } from "../modules/constants.js";
+import {
+  eventQueue,
+  publishEvent as publishEventToQueue,
+} from "../modules/eventQueue.js";
+import { getServerTrackingData } from "../modules/internal.js";
+// Import mocked modules
+import { writeToLog } from "../modules/logging.js";
+import { deriveSessionIdFromMCPSession } from "../modules/session.js";
+import KSUID from "../thirdparty/ksuid/index.js";
 
 describe("publishCustomEvent", () => {
   setupTestHooks();
@@ -51,9 +50,8 @@ describe("publishCustomEvent", () => {
 
     // Mock deriveSessionIdFromMCPSession
     (deriveSessionIdFromMCPSession as any).mockImplementation(
-      (sessionId: string, projectId: string) => {
-        return `ses_derived_${sessionId}_${projectId}`;
-      },
+      (sessionId: string, projectId: string) =>
+        `ses_derived_${sessionId}_${projectId}`
     );
 
     // Mock publishEventToQueue
@@ -101,10 +99,10 @@ describe("publishCustomEvent", () => {
           resourceName: "custom-action",
           parameters: { action: "test" },
           userIntent: "Testing custom event", // message maps to userIntent
-        }),
+        })
       );
       expect(writeToLog).toHaveBeenCalledWith(
-        expect.stringContaining("Published custom event"),
+        expect.stringContaining("Published custom event")
       );
     });
 
@@ -121,7 +119,7 @@ describe("publishCustomEvent", () => {
         expect.objectContaining({
           isError: true,
           error: { message: "Test error", code: "ERR_001" },
-        }),
+        })
       );
     });
 
@@ -129,7 +127,7 @@ describe("publishCustomEvent", () => {
       (getServerTrackingData as any).mockReturnValue(undefined);
 
       await expect(publishCustomEvent(mockServer, projectId)).rejects.toThrow(
-        "Server is not tracked",
+        "Server is not tracked"
       );
     });
 
@@ -158,7 +156,7 @@ describe("publishCustomEvent", () => {
 
       expect(deriveSessionIdFromMCPSession).toHaveBeenCalledWith(
         customSessionId,
-        projectId,
+        projectId
       );
       expect(mockEventQueue.add).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -167,7 +165,7 @@ describe("publishCustomEvent", () => {
           eventType: "mcpcat:custom",
           resourceName: "custom-action",
           parameters: { action: "test" },
-        }),
+        })
       );
     });
 
@@ -193,7 +191,7 @@ describe("publishCustomEvent", () => {
           duration: 1500,
           isError: false,
           error: null,
-        }),
+        })
       );
     });
   });
@@ -201,31 +199,31 @@ describe("publishCustomEvent", () => {
   describe("parameter validation", () => {
     it("should throw error if projectId is not provided", async () => {
       await expect(publishCustomEvent("session-id", "")).rejects.toThrow(
-        "projectId is required",
+        "projectId is required"
       );
 
       await expect(
-        publishCustomEvent("session-id", null as any),
+        publishCustomEvent("session-id", null as any)
       ).rejects.toThrow("projectId is required");
 
       await expect(
-        publishCustomEvent("session-id", undefined as any),
+        publishCustomEvent("session-id", undefined as any)
       ).rejects.toThrow("projectId is required");
     });
 
     it("should throw error if first parameter is invalid", async () => {
       await expect(publishCustomEvent(123 as any, "proj_123")).rejects.toThrow(
-        "First parameter must be either an MCP server object or a session ID string",
+        "First parameter must be either an MCP server object or a session ID string"
       );
 
       await expect(publishCustomEvent(null as any, "proj_123")).rejects.toThrow(
-        "First parameter must be either an MCP server object or a session ID string",
+        "First parameter must be either an MCP server object or a session ID string"
       );
 
       await expect(
-        publishCustomEvent(undefined as any, "proj_123"),
+        publishCustomEvent(undefined as any, "proj_123")
       ).rejects.toThrow(
-        "First parameter must be either an MCP server object or a session ID string",
+        "First parameter must be either an MCP server object or a session ID string"
       );
     });
   });
@@ -240,7 +238,7 @@ describe("publishCustomEvent", () => {
       expect(mockEventQueue.add).toHaveBeenCalledWith(
         expect.objectContaining({
           eventType: "mcpcat:custom",
-        }),
+        })
       );
     });
 
@@ -256,15 +254,15 @@ describe("publishCustomEvent", () => {
       expect(mockEventQueue.add).toHaveBeenCalledWith(
         expect.objectContaining({
           timestamp: expect.any(Date),
-        }),
+        })
       );
 
       const calledTimestamp = mockEventQueue.add.mock.calls[0][0].timestamp;
       expect(calledTimestamp.getTime()).toBeGreaterThanOrEqual(
-        beforeTime.getTime(),
+        beforeTime.getTime()
       );
       expect(calledTimestamp.getTime()).toBeLessThanOrEqual(
-        afterTime.getTime(),
+        afterTime.getTime()
       );
     });
 
@@ -283,7 +281,7 @@ describe("publishCustomEvent", () => {
           duration: undefined,
           isError: undefined,
           error: undefined,
-        }),
+        })
       );
     });
 
@@ -302,7 +300,7 @@ describe("publishCustomEvent", () => {
           duration: undefined,
           isError: undefined,
           error: undefined,
-        }),
+        })
       );
     });
   });
