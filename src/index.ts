@@ -163,24 +163,15 @@ import type {
  * });
  * ```
  */
-function track(server: any, options: MCPAnalyticsOptions = {}): any {
+function track<TServer>(
+  server: TServer,
+  options: MCPAnalyticsOptions = {}
+): TServer {
   try {
     const validatedServer = isCompatibleServerType(server);
+    const lowLevelServer = getLowLevelServer(validatedServer);
 
-    const host = options.host || process.env.POSTHOG_MCP_ANALYTICS_HOST;
-    if (options.posthogOptions) {
-      eventQueue.configurePostHogOptions(options.posthogOptions);
-    }
-    if (host) {
-      eventQueue.configure(host);
-    }
-
-    // For high-level servers, we need to pass the underlying server to some functions
-    const lowLevelServer = (
-      isHighLevelServer(validatedServer)
-        ? (validatedServer as any).server
-        : validatedServer
-    ) as MCPServerLike;
+    configureIngestion(options);
 
     // Check if server is already being tracked
     const existingData = getServerTrackingData(lowLevelServer);
@@ -188,17 +179,10 @@ function track(server: any, options: MCPAnalyticsOptions = {}): any {
       writeToLog(
         "[SESSION DEBUG] track() - Server already being tracked, skipping initialization"
       );
-      return validatedServer;
+      return validatedServer as TServer;
     }
 
-    // Initialize telemetry if exporters are configured
-    if (options.exporters) {
-      const telemetryManager = new TelemetryManager(options.exporters);
-      setTelemetryManager(telemetryManager);
-      writeToLog(
-        `Initialized telemetry with ${Object.keys(options.exporters).length} exporters`
-      );
-    }
+    configureTelemetry(options);
 
     if (!(options.apiKey || options.exporters || options.posthogClient)) {
       writeToLog(
@@ -206,56 +190,100 @@ function track(server: any, options: MCPAnalyticsOptions = {}): any {
       );
     }
 
-    const sessionInfo = getSessionInfo(lowLevelServer, undefined);
-    const mcpAnalyticsData: MCPAnalyticsData = {
-      apiKey: options.apiKey || "",
-      sessionId: newSessionId(),
-      lastActivity: new Date(),
-      identifiedSessions: new Map<string, UserIdentity>(),
-      sessionInfo,
-      options: {
-        enableReportMissing: options.enableReportMissing ?? true,
-        enableTracing: options.enableTracing ?? true,
-        enableToolCallContext: options.enableToolCallContext ?? true,
-        customContextDescription: options.customContextDescription,
-        identify: options.identify,
-        redactSensitiveInformation: options.redactSensitiveInformation,
-        eventTags: options.eventTags,
-        eventProperties: options.eventProperties,
-        host: options.host,
-        posthogClient: options.posthogClient,
-        posthogOptions: options.posthogOptions,
-      },
-      sessionSource: "generated", // Changes to "mcp" if MCP sessionId is provided in requests
-    };
+    const mcpAnalyticsData = buildTrackingData(lowLevelServer, options);
 
     setServerTrackingData(lowLevelServer, mcpAnalyticsData);
-    if (isHighLevelServer(validatedServer)) {
-      const highLevelServer = validatedServer as HighLevelMCPServerLike;
-      setupTracking(highLevelServer);
-    } else {
-      if (mcpAnalyticsData.options.enableReportMissing) {
-        try {
-          setupMCPAnalyticsTools(lowLevelServer);
-        } catch (error) {
-          writeToLog(`Warning: Failed to setup report missing tool - ${error}`);
-        }
-      }
+    setupTrackedServer(validatedServer, lowLevelServer, mcpAnalyticsData);
 
-      if (mcpAnalyticsData.options.enableTracing) {
-        try {
-          // Pass the low-level server to the current tracing module
-          setupToolCallTracing(lowLevelServer);
-        } catch (error) {
-          writeToLog(`Warning: Failed to setup tool call tracing - ${error}`);
-        }
-      }
-    }
-
-    return validatedServer;
+    return validatedServer as TServer;
   } catch (error) {
     writeToLog(`Warning: Failed to track server - ${error}`);
     return server;
+  }
+}
+
+function getLowLevelServer(
+  server: MCPServerLike | HighLevelMCPServerLike
+): MCPServerLike {
+  return isHighLevelServer(server)
+    ? (server as HighLevelMCPServerLike).server
+    : (server as MCPServerLike);
+}
+
+function configureIngestion(options: MCPAnalyticsOptions): void {
+  const host = options.host || process.env.POSTHOG_MCP_ANALYTICS_HOST;
+  if (options.posthogOptions) {
+    eventQueue.configurePostHogOptions(options.posthogOptions);
+  }
+  if (host) {
+    eventQueue.configure(host);
+  }
+}
+
+function configureTelemetry(options: MCPAnalyticsOptions): void {
+  if (!options.exporters) {
+    return;
+  }
+
+  const telemetryManager = new TelemetryManager(options.exporters);
+  setTelemetryManager(telemetryManager);
+  writeToLog(
+    `Initialized telemetry with ${Object.keys(options.exporters).length} exporters`
+  );
+}
+
+function buildTrackingData(
+  lowLevelServer: MCPServerLike,
+  options: MCPAnalyticsOptions
+): MCPAnalyticsData {
+  return {
+    apiKey: options.apiKey || "",
+    sessionId: newSessionId(),
+    lastActivity: new Date(),
+    identifiedSessions: new Map<string, UserIdentity>(),
+    sessionInfo: getSessionInfo(lowLevelServer, undefined),
+    options: {
+      enableReportMissing: options.enableReportMissing ?? true,
+      enableTracing: options.enableTracing ?? true,
+      enableToolCallContext: options.enableToolCallContext ?? true,
+      customContextDescription: options.customContextDescription,
+      identify: options.identify,
+      redactSensitiveInformation: options.redactSensitiveInformation,
+      eventTags: options.eventTags,
+      eventProperties: options.eventProperties,
+      host: options.host,
+      posthogClient: options.posthogClient,
+      posthogOptions: options.posthogOptions,
+    },
+    sessionSource: "generated", // Changes to "mcp" if MCP sessionId is provided in requests
+  };
+}
+
+function setupTrackedServer(
+  validatedServer: MCPServerLike | HighLevelMCPServerLike,
+  lowLevelServer: MCPServerLike,
+  mcpAnalyticsData: MCPAnalyticsData
+): void {
+  if (isHighLevelServer(validatedServer)) {
+    const highLevelServer = validatedServer as HighLevelMCPServerLike;
+    setupTracking(highLevelServer);
+  } else {
+    if (mcpAnalyticsData.options.enableReportMissing) {
+      try {
+        setupMCPAnalyticsTools(lowLevelServer);
+      } catch (error) {
+        writeToLog(`Warning: Failed to setup report missing tool - ${error}`);
+      }
+    }
+
+    if (mcpAnalyticsData.options.enableTracing) {
+      try {
+        // Pass the low-level server to the current tracing module
+        setupToolCallTracing(lowLevelServer);
+      } catch (error) {
+        writeToLog(`Warning: Failed to setup tool call tracing - ${error}`);
+      }
+    }
   }
 }
 
@@ -303,57 +331,29 @@ function track(server: any, options: MCPAnalyticsOptions = {}): any {
  * );
  * ```
  */
-export async function publishCustomEvent(
-  serverOrSessionId: any | string,
+export function publishCustomEvent(
+  serverOrSessionId: unknown,
   eventData: CustomEventData = {}
 ): Promise<void> {
-  let sessionId: string;
-  let apiKey = eventData.apiKey || "";
-
-  // Determine if the first parameter is a tracked server or a session ID string
-  const isServer =
-    typeof serverOrSessionId === "object" && serverOrSessionId !== null;
-  let lowLevelServer: MCPServerLike | null = null;
-  let posthogClient: MCPAnalyticsOptions["posthogClient"];
-
-  if (isServer) {
-    // Try to get tracking data for the server
-    lowLevelServer = serverOrSessionId.server
-      ? serverOrSessionId.server
-      : serverOrSessionId;
-    const trackingData = getServerTrackingData(lowLevelServer as MCPServerLike);
-
-    if (trackingData) {
-      // Use the tracked server's session ID and configuration
-      sessionId = trackingData.sessionId;
-      apiKey = trackingData.apiKey;
-      posthogClient = trackingData.options.posthogClient;
-    } else {
-      // Server is not tracked - treat it as an error
-      throw new Error(
-        "Server is not tracked. Please call mcpAnalytics.track() first or provide a session ID string."
-      );
-    }
-  } else if (typeof serverOrSessionId === "string") {
-    if (!(apiKey || eventData.posthogClient)) {
-      throw new Error(
-        "apiKey or posthogClient is required when publishing with a session ID"
-      );
-    }
-    // Custom session ID provided - derive a deterministic session ID
-    sessionId = deriveSessionIdFromMCPSession(serverOrSessionId, apiKey);
-    posthogClient = eventData.posthogClient;
-  } else {
-    throw new Error(
-      "First parameter must be either an MCP server object or a session ID string"
-    );
+  try {
+    publishCustomEventSync(serverOrSessionId, eventData);
+    return Promise.resolve();
+  } catch (error) {
+    return Promise.reject(error);
   }
+}
+
+function publishCustomEventSync(
+  serverOrSessionId: unknown,
+  eventData: CustomEventData
+): void {
+  const target = resolveCustomEventTarget(serverOrSessionId, eventData);
 
   // Build the event object
   const event: UnredactedEvent = {
     // Core fields
-    sessionId,
-    apiKey,
+    sessionId: target.sessionId,
+    apiKey: target.apiKey,
 
     // Fixed event type for custom events
     eventType: MCPAnalyticsEventType.custom,
@@ -381,20 +381,97 @@ export async function publishCustomEvent(
 
   // If we have a tracked server, use the publishEvent function
   // Otherwise, add directly to the event queue
-  if (lowLevelServer && getServerTrackingData(lowLevelServer)) {
-    publishEventToQueue(lowLevelServer, event);
-  } else {
-    // For custom sessions, we need to import and use the event queue directly
-    if (posthogClient) {
-      eventQueue.add(event, posthogClient);
-    } else {
-      eventQueue.add(event);
-    }
-  }
+  publishResolvedCustomEvent(target, event);
 
   writeToLog(
-    `Published custom event for session ${sessionId} with type '${MCPAnalyticsEventType.custom}'`
+    `Published custom event for session ${target.sessionId} with type '${MCPAnalyticsEventType.custom}'`
   );
+}
+
+interface CustomEventTarget {
+  apiKey: string;
+  lowLevelServer: MCPServerLike | null;
+  posthogClient?: MCPAnalyticsOptions["posthogClient"];
+  sessionId: string;
+}
+
+function resolveCustomEventTarget(
+  serverOrSessionId: unknown,
+  eventData: CustomEventData
+): CustomEventTarget {
+  if (typeof serverOrSessionId === "string") {
+    return resolveSessionIdTarget(serverOrSessionId, eventData);
+  }
+
+  if (serverOrSessionId && typeof serverOrSessionId === "object") {
+    return resolveTrackedServerTarget(serverOrSessionId);
+  }
+
+  throw new Error(
+    "First parameter must be either an MCP server object or a session ID string"
+  );
+}
+
+function resolveSessionIdTarget(
+  sessionIdInput: string,
+  eventData: CustomEventData
+): CustomEventTarget {
+  const apiKey = eventData.apiKey || "";
+  if (!(apiKey || eventData.posthogClient)) {
+    throw new Error(
+      "apiKey or posthogClient is required when publishing with a session ID"
+    );
+  }
+
+  return {
+    apiKey,
+    lowLevelServer: null,
+    posthogClient: eventData.posthogClient,
+    sessionId: deriveSessionIdFromMCPSession(sessionIdInput, apiKey),
+  };
+}
+
+function resolveTrackedServerTarget(server: object): CustomEventTarget {
+  const lowLevelServer = getLowLevelServerFromUnknownObject(server);
+  const trackingData = getServerTrackingData(lowLevelServer);
+
+  if (!trackingData) {
+    throw new Error(
+      "Server is not tracked. Please call mcpAnalytics.track() first or provide a session ID string."
+    );
+  }
+
+  return {
+    apiKey: trackingData.apiKey,
+    lowLevelServer,
+    posthogClient: trackingData.options.posthogClient,
+    sessionId: trackingData.sessionId,
+  };
+}
+
+function getLowLevelServerFromUnknownObject(server: object): MCPServerLike {
+  return "server" in server &&
+    server.server &&
+    typeof server.server === "object"
+    ? (server.server as MCPServerLike)
+    : (server as MCPServerLike);
+}
+
+function publishResolvedCustomEvent(
+  target: CustomEventTarget,
+  event: UnredactedEvent
+): void {
+  if (target.lowLevelServer && getServerTrackingData(target.lowLevelServer)) {
+    publishEventToQueue(target.lowLevelServer, event);
+    return;
+  }
+
+  if (target.posthogClient) {
+    eventQueue.add(event, target.posthogClient);
+    return;
+  }
+
+  eventQueue.add(event);
 }
 
 export type {

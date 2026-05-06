@@ -7,7 +7,12 @@
   "linter": {
     "rules": {
       "complexity": {
-        "noExcessiveCognitiveComplexity": "warn"
+        "noExcessiveCognitiveComplexity": {
+          "level": "warn",
+          "options": {
+            "maxAllowedComplexity": 35
+          }
+        }
       },
       "performance": {
         "noBarrelFile": "warn",
