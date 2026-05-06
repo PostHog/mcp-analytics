@@ -72,10 +72,13 @@ export interface Exporter {
   export(event: Event): Promise<void>;
 }
 
-export enum MCPAnalyticsIDPrefixes {
-  Session = "ses",
-  Event = "evt",
-}
+export const MCPAnalyticsIDPrefixes = {
+  Event: "evt",
+  Session: "ses",
+} as const;
+
+export type MCPAnalyticsIDPrefix =
+  (typeof MCPAnalyticsIDPrefixes)[keyof typeof MCPAnalyticsIDPrefixes];
 
 export interface Event {
   actorId?: string; // Maps to identifyActorGivenId in some contexts
@@ -102,7 +105,6 @@ export interface Event {
 
   // Error tracking
   isError?: boolean;
-  sdkVersion?: string;
   parameters?: any;
   properties?: Record<string, any> | null;
 
@@ -110,6 +112,7 @@ export interface Event {
   resourceName?: string; // Tool/resource name
   response?: any;
   sdkLanguage?: string;
+  sdkVersion?: string;
   serverName?: string;
   serverVersion?: string;
   sessionId: string;
@@ -149,8 +152,7 @@ export interface HighLevelMCPServerLike {
   server: MCPServerLike;
   // Tool registration methods - simplified signatures without Zod dependency
   tool?(name: string, cb: ToolCallback): void;
-  tool?(name: string, description: string, cb: ToolCallback): void;
-  tool?(name: string, paramsSchema: any, cb: ToolCallback): void;
+  tool?(name: string, paramsSchema: any | string, cb: ToolCallback): void;
   tool?(
     name: string,
     description: string,
@@ -188,8 +190,8 @@ export interface SessionInfo {
   identifyActorGivenId?: string; // Actor ID for posthog:identify events
   identifyActorName?: string; // Actor name for posthog:identify events
   ipAddress?: string;
-  sdkVersion?: string;
   sdkLanguage?: string;
+  sdkVersion?: string;
   serverName?: string;
   serverVersion?: string;
 }
