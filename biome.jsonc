@@ -7,21 +7,21 @@
   "linter": {
     "rules": {
       "complexity": {
-        "noExcessiveCognitiveComplexity": "off"
+        "noExcessiveCognitiveComplexity": "warn"
       },
       "performance": {
-        "noBarrelFile": "off",
-        "noDelete": "off"
+        "noBarrelFile": "warn",
+        "noDelete": "warn"
       },
       "style": {
-        "noSubstr": "off",
-        "useNodejsImportProtocol": "off",
-        "useTemplate": "off"
+        "noSubstr": "warn",
+        "useNodejsImportProtocol": "warn",
+        "useTemplate": "warn"
       },
       "suspicious": {
-        "noConsole": "off",
-        "noExplicitAny": "off",
-        "useAwait": "off"
+        "noConsole": "warn",
+        "noExplicitAny": "warn",
+        "useAwait": "warn"
       }
     }
   }
