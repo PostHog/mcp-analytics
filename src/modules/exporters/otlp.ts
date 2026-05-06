@@ -1,5 +1,5 @@
 import type { Event, Exporter } from "../../types.js";
-import { MCPCAT_SOURCE } from "../constants.js";
+import { POSTHOG_MCP_ANALYTICS_SOURCE } from "../constants.js";
 import { writeToLog } from "../logging.js";
 import { traceContext } from "./trace-context.js";
 
@@ -26,7 +26,7 @@ export class OTLPExporter implements Exporter {
 
   async export(event: Event): Promise<void> {
     try {
-      // Convert MCPCat event to OTLP trace format
+      // Convert PostHog MCP analytics event to OTLP trace format
       const span = this.convertToOTLPSpan(event);
 
       // Create OTLP JSON format
@@ -48,8 +48,8 @@ export class OTLPExporter implements Exporter {
             scopeSpans: [
               {
                 scope: {
-                  name: "mcpcat",
-                  version: event.mcpcatVersion || "unknown",
+                  name: "mcpAnalytics",
+                  version: event.sdkVersion || "unknown",
                 },
                 spans: [span],
               },
@@ -99,7 +99,7 @@ export class OTLPExporter implements Exporter {
       attributes: [
         {
           key: "source",
-          value: { stringValue: MCPCAT_SOURCE },
+          value: { stringValue: POSTHOG_MCP_ANALYTICS_SOURCE },
         },
         {
           key: "mcp.event_type",
@@ -139,14 +139,14 @@ export class OTLPExporter implements Exporter {
         },
         // Add customer-defined tags as individual attributes
         ...Object.entries(event.tags || {}).map(([key, value]) => ({
-          key: `mcpcat.tag.${key}`,
+          key: `posthog_mcp_analytics.tag.${key}`,
           value: { stringValue: value },
         })),
         // Add customer-defined properties as JSON
         ...(event.properties
           ? [
               {
-                key: "mcpcat.properties",
+                key: "posthog_mcp_analytics.properties",
                 value: { stringValue: JSON.stringify(event.properties) },
               },
             ]

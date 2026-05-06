@@ -3,7 +3,7 @@ import {
   CallToolResultSchema,
   ListToolsResultSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { track } from "../index";
 import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "../modules/constants";
@@ -163,7 +163,7 @@ describe("Report Missing Tool", () => {
       const events = eventCapture.getEvents();
       const reportEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "get_more_tools"
       );
 
@@ -212,7 +212,7 @@ describe("Report Missing Tool", () => {
       const events = eventCapture.getEvents();
       const reportEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "get_more_tools"
       );
 
@@ -287,7 +287,7 @@ describe("Report Missing Tool", () => {
       const events = eventCapture.getEvents();
       const reportEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "get_more_tools"
       );
 
@@ -374,7 +374,7 @@ describe("Report Missing Tool", () => {
       // Get all tool call events
       const events = eventCapture.getEvents();
       const toolCallEvents = events.filter(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
 
       // Should have 3 events
@@ -432,7 +432,7 @@ describe("Report Missing Tool", () => {
       // Verify identify event was triggered
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify
+        (e) => e.eventType === MCPAnalyticsEventType.identify
       );
 
       expect(identifyEvent).toBeDefined();
@@ -497,7 +497,7 @@ describe("Report Missing Tool", () => {
       const events = eventCapture.getEvents();
       const reportEvents = events.filter(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "get_more_tools"
       );
 
@@ -580,7 +580,7 @@ describe("Report Missing Tool", () => {
       const events = eventCapture.getEvents();
       const reportEvents = events.filter(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "get_more_tools"
       );
 
@@ -645,7 +645,7 @@ describe("Report Missing Tool", () => {
       const events = eventCapture.getEvents();
       const reportEvents = events.filter(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "get_more_tools"
       );
 

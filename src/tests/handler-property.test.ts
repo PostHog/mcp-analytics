@@ -51,7 +51,7 @@ describe("MCP SDK callback/handler compatibility", () => {
     const toolBefore = toolsBefore["test_tool"];
     const originalPropName = getToolFunctionPropertyName(toolBefore);
 
-    // Call track() to apply MCPCat's tracing
+    // Call track() to apply PostHog MCP analytics's tracing
     track(server, "test-project-id");
 
     const toolsAfter = (server as any)._registeredTools;
@@ -64,7 +64,7 @@ describe("MCP SDK callback/handler compatibility", () => {
     console.log("Has 'callback':", "callback" in toolAfter);
     console.log("Has 'handler':", "handler" in toolAfter);
 
-    // MCPCat should preserve the original property name
+    // PostHog MCP analytics should preserve the original property name
     expect(afterPropName).toBe(originalPropName);
     expect(typeof toolAfter[afterPropName]).toBe("function");
   });

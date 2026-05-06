@@ -1,7 +1,7 @@
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "./event-types.js";
 import type {
   CompatibleRequestHandlerExtra,
-  MCPCatData,
+  MCPAnalyticsData,
   MCPServerLike,
   UnredactedEvent,
   UserIdentity,
@@ -66,17 +66,17 @@ class IdentityCache {
 const _globalIdentityCache = new IdentityCache(1000);
 
 // Internal tracking storage
-const _serverTracking = new WeakMap<MCPServerLike, MCPCatData>();
+const _serverTracking = new WeakMap<MCPServerLike, MCPAnalyticsData>();
 
 export function getServerTrackingData(
   server: MCPServerLike
-): MCPCatData | undefined {
+): MCPAnalyticsData | undefined {
   return _serverTracking.get(server);
 }
 
 export function setServerTrackingData(
   server: MCPServerLike,
-  data: MCPCatData
+  data: MCPAnalyticsData
 ): void {
   _serverTracking.set(server, data);
 }
@@ -149,7 +149,7 @@ export function mergeIdentities(
  */
 export async function handleIdentify(
   server: MCPServerLike,
-  data: MCPCatData,
+  data: MCPAnalyticsData,
   request: any,
   extra?: CompatibleRequestHandlerExtra
 ): Promise<void> {
@@ -161,7 +161,7 @@ export async function handleIdentify(
   const identifyEvent: UnredactedEvent = {
     sessionId,
     resourceName: request.params?.name || "Unknown",
-    eventType: PublishEventRequestEventTypeEnum.mcpcatIdentify,
+    eventType: MCPAnalyticsEventType.identify,
     parameters: {
       request,
       extra,
@@ -216,7 +216,7 @@ export async function handleIdentify(
  * Returns null if no callback configured, callback returns nullish, or callback throws.
  */
 export async function resolveEventTags(
-  data: MCPCatData,
+  data: MCPAnalyticsData,
   request: any,
   extra?: CompatibleRequestHandlerExtra
 ): Promise<Record<string, string> | null> {
@@ -240,7 +240,7 @@ export async function resolveEventTags(
  * Returns null if no callback configured, callback returns nullish, or callback throws.
  */
 export async function resolveEventProperties(
-  data: MCPCatData,
+  data: MCPAnalyticsData,
   request: any,
   extra?: CompatibleRequestHandlerExtra
 ): Promise<Record<string, any> | null> {

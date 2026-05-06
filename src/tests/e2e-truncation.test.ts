@@ -1,5 +1,5 @@
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { EventCapture } from "./test-utils";
@@ -54,7 +54,7 @@ describe("E2E Truncation - real MCP tool calls", () => {
       const events = eventCapture.getEvents();
       const toolEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "get_large_report"
       );
 
@@ -116,7 +116,7 @@ describe("E2E Truncation - real MCP tool calls", () => {
       const events = eventCapture.getEvents();
       const toolEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "process_bulk_data"
       );
 
@@ -180,7 +180,7 @@ describe("E2E Truncation - real MCP tool calls", () => {
 
       const events = eventCapture.getEvents();
       const toolCallEvents = events.filter(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
 
       // Normal add_todo response should be fully preserved
@@ -251,7 +251,7 @@ describe("E2E Truncation - real MCP tool calls", () => {
       const events = eventCapture.getEvents();
       const toolEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "get_annotated_screenshot"
       );
 
@@ -265,7 +265,7 @@ describe("E2E Truncation - real MCP tool calls", () => {
       // Image block should be sanitized
       expect(content[1]).toEqual({
         type: "text",
-        text: "[image content redacted - not supported by MCPcat]",
+        text: "[image content redacted - not supported by PostHog MCP analytics]",
       });
 
       // Total event size should still be under 100KB

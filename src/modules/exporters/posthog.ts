@@ -1,8 +1,8 @@
 import { createHash } from "crypto";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "../event-types.js";
 import KSUID from "../../thirdparty/ksuid/index.js";
 import type { Event, Exporter } from "../../types.js";
-import { MCPCAT_SOURCE } from "../constants.js";
+import { POSTHOG_MCP_ANALYTICS_SOURCE } from "../constants.js";
 import { writeToLog } from "../logging.js";
 
 /**
@@ -118,7 +118,7 @@ export class PostHogExporter implements Exporter {
       // Send $ai_span for tool calls when AI tracing is enabled
       if (
         this.config.enableAITracing &&
-        event.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        event.eventType === MCPAnalyticsEventType.mcpToolsCall
       ) {
         batch.push(this.buildAISpanEvent(event));
       }
@@ -158,12 +158,12 @@ export class PostHogExporter implements Exporter {
 
     const properties: Record<string, any> = {
       $session_id: toUUIDv7(event.sessionId),
-      source: MCPCAT_SOURCE,
+      source: POSTHOG_MCP_ANALYTICS_SOURCE,
     };
 
     if (event.resourceName) {
       properties.resource_name = event.resourceName;
-      if (event.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall) {
+      if (event.eventType === MCPAnalyticsEventType.mcpToolsCall) {
         properties.tool_name = event.resourceName;
       }
     }
@@ -211,14 +211,14 @@ export class PostHogExporter implements Exporter {
       properties.$set = $set;
     }
 
-    // Spread customer-defined tags directly (can override MCPCat defaults)
+    // Spread customer-defined tags directly (can override PostHog MCP analytics defaults)
     if (event.tags) {
       for (const [key, value] of Object.entries(event.tags)) {
         properties[key] = value;
       }
     }
 
-    // Spread customer-defined properties directly (can override MCPCat defaults)
+    // Spread customer-defined properties directly (can override PostHog MCP analytics defaults)
     if (event.properties) {
       for (const [key, value] of Object.entries(event.properties)) {
         properties[key] = value;
@@ -258,7 +258,7 @@ export class PostHogExporter implements Exporter {
     // Add tool/resource context
     if (event.resourceName) {
       properties.resource_name = event.resourceName;
-      if (event.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall) {
+      if (event.eventType === MCPAnalyticsEventType.mcpToolsCall) {
         properties.tool_name = event.resourceName;
       }
     }
@@ -289,13 +289,13 @@ export class PostHogExporter implements Exporter {
     const timestamp = getTimestamp(event);
 
     const properties: Record<string, any> = {
-      $ai_session_id: `mcpcat_${event.sessionId}`,
+      $ai_session_id: `posthog_mcp_analytics_${event.sessionId}`,
       $ai_trace_id: toUUIDv7(event.sessionId),
       $ai_span_id: toUUIDv7(event.id),
       $ai_span_name: event.resourceName || "unknown_tool",
       $ai_is_error: event.isError,
       $session_id: toUUIDv7(event.sessionId),
-      source: MCPCAT_SOURCE,
+      source: POSTHOG_MCP_ANALYTICS_SOURCE,
     };
 
     if (event.duration !== undefined) {
@@ -317,14 +317,14 @@ export class PostHogExporter implements Exporter {
       properties.client_name = event.clientName;
     }
 
-    // Spread customer tags directly (can override MCPCat defaults)
+    // Spread customer tags directly (can override PostHog MCP analytics defaults)
     if (event.tags) {
       for (const [key, value] of Object.entries(event.tags)) {
         properties[key] = value;
       }
     }
 
-    // Spread customer properties directly (can override MCPCat defaults)
+    // Spread customer properties directly (can override PostHog MCP analytics defaults)
     if (event.properties) {
       for (const [key, value] of Object.entries(event.properties)) {
         properties[key] = value;
@@ -341,15 +341,15 @@ export class PostHogExporter implements Exporter {
   }
 
   private mapEventType(eventType: string): string {
-    // Map MCPcat event types to PostHog event names
+    // Map PostHog MCP analytics event types to PostHog event names
     const mapping: Record<string, string> = {
-      [PublishEventRequestEventTypeEnum.mcpToolsCall]: "mcp_tool_call",
-      [PublishEventRequestEventTypeEnum.mcpToolsList]: "mcp_tools_list",
-      [PublishEventRequestEventTypeEnum.mcpInitialize]: "mcp_initialize",
-      [PublishEventRequestEventTypeEnum.mcpResourcesRead]: "mcp_resource_read",
-      [PublishEventRequestEventTypeEnum.mcpResourcesList]: "mcp_resources_list",
-      [PublishEventRequestEventTypeEnum.mcpPromptsGet]: "mcp_prompt_get",
-      [PublishEventRequestEventTypeEnum.mcpPromptsList]: "mcp_prompts_list",
+      [MCPAnalyticsEventType.mcpToolsCall]: "mcp_tool_call",
+      [MCPAnalyticsEventType.mcpToolsList]: "mcp_tools_list",
+      [MCPAnalyticsEventType.mcpInitialize]: "mcp_initialize",
+      [MCPAnalyticsEventType.mcpResourcesRead]: "mcp_resource_read",
+      [MCPAnalyticsEventType.mcpResourcesList]: "mcp_resources_list",
+      [MCPAnalyticsEventType.mcpPromptsGet]: "mcp_prompt_get",
+      [MCPAnalyticsEventType.mcpPromptsList]: "mcp_prompts_list",
     };
 
     return (

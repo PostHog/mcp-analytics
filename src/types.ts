@@ -1,6 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
-export interface MCPCatOptions {
+export interface MCPAnalyticsOptions {
   apiBaseUrl?: string;
   customContextDescription?: string;
   enableReportMissing?: boolean;
@@ -52,13 +52,13 @@ export interface Exporter {
   export(event: Event): Promise<void>;
 }
 
-export enum MCPCatIDPrefixes {
+export enum MCPAnalyticsIDPrefixes {
   Session = "ses",
   Event = "evt",
 }
 
 export interface Event {
-  // Legacy fields for MCPCat API compatibility
+  // Legacy fields for PostHog MCP analytics API compatibility
   actorId?: string; // Maps to identifyActorGivenId in some contexts
   clientName?: string;
   clientVersion?: string;
@@ -82,7 +82,7 @@ export interface Event {
 
   // Error tracking
   isError?: boolean;
-  mcpcatVersion?: string;
+  sdkVersion?: string;
   parameters?: any;
   projectId?: string; // Optional for telemetry-only mode
   properties?: Record<string, any> | null;
@@ -166,24 +166,24 @@ export interface SessionInfo {
   clientName?: string;
   clientVersion?: string;
   identifyActorData?: object;
-  identifyActorGivenId?: string; // Actor ID for mcpcat:identify events
-  identifyActorName?: string; // Actor name for mcpcat:identify events
+  identifyActorGivenId?: string; // Actor ID for posthog:identify events
+  identifyActorName?: string; // Actor name for posthog:identify events
   ipAddress?: string;
-  mcpcatVersion?: string;
+  sdkVersion?: string;
   sdkLanguage?: string;
   serverName?: string;
   serverVersion?: string;
 }
 
-export interface MCPCatData {
+export interface MCPAnalyticsData {
   identifiedSessions: Map<string, UserIdentity>;
   lastActivity: Date; // Last activity timestamp
   lastMcpSessionId?: string; // Track the last MCP sessionId we saw
-  options: MCPCatOptions;
-  projectId: string; // Project ID for MCPCat
+  options: MCPAnalyticsOptions;
+  projectId: string; // Project ID for PostHog MCP analytics
   sessionId: string; // Unique identifier for the session (KSUID with ses prefix)
   sessionInfo: SessionInfo;
-  sessionSource: "mcp" | "mcpcat"; // Track whether session ID came from MCP protocol or MCPCat generation
+  sessionSource: "generated" | "mcp"; // Track whether session ID came from MCP protocol or SDK generation
 }
 
 // Error tracking types

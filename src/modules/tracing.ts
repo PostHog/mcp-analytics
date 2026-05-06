@@ -4,7 +4,7 @@ import {
   ListToolsRequestSchema,
   type ListToolsResult,
 } from "@modelcontextprotocol/sdk/types.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "./event-types.js";
 import type {
   HighLevelMCPServerLike,
   MCPServerLike,
@@ -69,7 +69,7 @@ export function setupListToolsTracing(
           request,
           extra,
         },
-        eventType: PublishEventRequestEventTypeEnum.mcpToolsList,
+        eventType: MCPAnalyticsEventType.mcpToolsList,
         timestamp: new Date(),
         redactionFn: data?.options.redactSensitiveInformation,
       };
@@ -114,7 +114,7 @@ export function setupListToolsTracing(
       } catch (error) {
         // If original handler fails, start with empty tools
         writeToLog(
-          `Warning: Original list tools handler failed, this suggests an error MCPCat did not cause - ${error}`
+          `Warning: Original list tools handler failed, this suggests an error PostHog MCP analytics did not cause - ${error}`
         );
         event.error = { message: getMCPCompatibleErrorMessage(error) };
         event.isError = true;
@@ -128,14 +128,14 @@ export function setupListToolsTracing(
 
       if (!data) {
         writeToLog(
-          "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
+          "Warning: PostHog MCP analytics is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
         );
         return { tools };
       }
 
       if (tools.length === 0) {
         writeToLog(
-          "Warning: No tools found in the original list. This is likely due to the tools not being registered before MCPCat.track()."
+          "Warning: No tools found in the original list. This is likely due to the tools not being registered before PostHog MCP analytics.track()."
         );
         event.error = { message: "No tools were sent to MCP client." };
         event.isError = true;
@@ -177,7 +177,7 @@ export function setupInitializeTracing(
         const data = getServerTrackingData(server);
         if (!data) {
           writeToLog(
-            "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
+            "Warning: PostHog MCP analytics is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
           );
           return await originalInitializeHandler(request, extra);
         }
@@ -190,7 +190,7 @@ export function setupInitializeTracing(
         const event: UnredactedEvent = {
           sessionId,
           resourceName: request.params?.name || "Unknown Tool Name",
-          eventType: PublishEventRequestEventTypeEnum.mcpInitialize,
+          eventType: MCPAnalyticsEventType.mcpInitialize,
           parameters: {
             request,
             extra,
@@ -235,7 +235,7 @@ export function setupToolCallTracing(server: MCPServerLike): void {
           const data = getServerTrackingData(server);
           if (!data) {
             writeToLog(
-              "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
+              "Warning: PostHog MCP analytics is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
             );
             return await originalInitializeHandler(request, extra);
           }
@@ -248,7 +248,7 @@ export function setupToolCallTracing(server: MCPServerLike): void {
           const event: UnredactedEvent = {
             sessionId,
             resourceName: request.params?.name || "Unknown Tool Name",
-            eventType: PublishEventRequestEventTypeEnum.mcpInitialize,
+            eventType: MCPAnalyticsEventType.mcpInitialize,
             parameters: {
               request,
               extra,
@@ -282,7 +282,7 @@ export function setupToolCallTracing(server: MCPServerLike): void {
       const data = getServerTrackingData(server);
       if (!data) {
         writeToLog(
-          "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
+          "Warning: PostHog MCP analytics is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
         );
         return await originalCallToolHandler?.(request, extra);
       }
@@ -295,7 +295,7 @@ export function setupToolCallTracing(server: MCPServerLike): void {
           request,
           extra,
         },
-        eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
+        eventType: MCPAnalyticsEventType.mcpToolsCall,
         timestamp: new Date(),
         redactionFn: data.options.redactSensitiveInformation,
       };

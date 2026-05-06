@@ -1,5 +1,5 @@
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { publishCustomEvent, track } from "../index";
 import type { HighLevelMCPServerLike } from "../types";
@@ -53,7 +53,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
       expect(toolCallEvent!.tags).toEqual({ env: "test", trace_id: "abc-123" });
@@ -82,7 +82,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
       // When callback throws, resolveEventTags returns null, and conditional assignment means field stays undefined
@@ -108,7 +108,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
       expect(toolCallEvent!.tags).toBeUndefined();
@@ -136,7 +136,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
       expect(toolCallEvent!.tags).toEqual({ valid: "value" });
     });
@@ -166,7 +166,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
       expect(toolCallEvent!.properties).toEqual({
@@ -216,7 +216,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
       expect(toolCallEvent!.properties).toBeUndefined();
@@ -244,7 +244,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
       expect(toolCallEvent!.tags).toEqual({ env: "test" });
       expect(toolCallEvent!.properties).toEqual({ device: "mobile" });
@@ -325,7 +325,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
       expect(toolCallEvent!.tags).toBeUndefined();
@@ -390,7 +390,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
       const events = eventCapture.getEvents();
       const initEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpInitialize
+        (e) => e.eventType === MCPAnalyticsEventType.mcpInitialize
       );
       expect(initEvent).toBeDefined();
       expect(initEvent!.tags).toEqual({ env: "test", source: "init" });
@@ -420,7 +420,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const events = eventCapture.getEvents();
       const listEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsList
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsList
       );
       expect(listEvent).toBeDefined();
       expect(listEvent!.tags).toEqual({ env: "test", action: "list" });
@@ -457,7 +457,7 @@ describe("Event Tags & Properties", () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
       // Tags should NOT be redacted — customer explicitly provides this data

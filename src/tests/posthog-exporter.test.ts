@@ -1,4 +1,4 @@
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { validate as uuidValidate, version as uuidVersion } from "uuid";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PostHogExporter } from "../modules/exporters/posthog.js";
@@ -32,7 +32,7 @@ describe("PostHogExporter", () => {
       id: "evt_test123",
       sessionId: "ses_session456",
       projectId: "proj_1",
-      eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
+      eventType: MCPAnalyticsEventType.mcpToolsCall,
       timestamp: new Date("2025-01-15T10:00:00Z"),
       resourceName: "get_weather",
       serverName: "weather-server",
@@ -303,7 +303,7 @@ describe("PostHogExporter", () => {
     // tools/call should have tool_name
     await exporter.export(
       makeEvent({
-        eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
+        eventType: MCPAnalyticsEventType.mcpToolsCall,
         resourceName: "get_weather",
       })
     );
@@ -315,7 +315,7 @@ describe("PostHogExporter", () => {
     fetchSpy.mockClear();
     await exporter.export(
       makeEvent({
-        eventType: PublishEventRequestEventTypeEnum.mcpResourcesRead,
+        eventType: MCPAnalyticsEventType.mcpResourcesRead,
         resourceName: "my_resource",
       })
     );
@@ -331,13 +331,13 @@ describe("PostHogExporter", () => {
     });
 
     const eventTypes: Record<string, string> = {
-      [PublishEventRequestEventTypeEnum.mcpToolsCall]: "mcp_tool_call",
-      [PublishEventRequestEventTypeEnum.mcpToolsList]: "mcp_tools_list",
-      [PublishEventRequestEventTypeEnum.mcpInitialize]: "mcp_initialize",
-      [PublishEventRequestEventTypeEnum.mcpResourcesRead]: "mcp_resource_read",
-      [PublishEventRequestEventTypeEnum.mcpResourcesList]: "mcp_resources_list",
-      [PublishEventRequestEventTypeEnum.mcpPromptsGet]: "mcp_prompt_get",
-      [PublishEventRequestEventTypeEnum.mcpPromptsList]: "mcp_prompts_list",
+      [MCPAnalyticsEventType.mcpToolsCall]: "mcp_tool_call",
+      [MCPAnalyticsEventType.mcpToolsList]: "mcp_tools_list",
+      [MCPAnalyticsEventType.mcpInitialize]: "mcp_initialize",
+      [MCPAnalyticsEventType.mcpResourcesRead]: "mcp_resource_read",
+      [MCPAnalyticsEventType.mcpResourcesList]: "mcp_resources_list",
+      [MCPAnalyticsEventType.mcpPromptsGet]: "mcp_prompt_get",
+      [MCPAnalyticsEventType.mcpPromptsList]: "mcp_prompts_list",
       "mcp:custom/type": "mcp_custom_type",
     };
 
@@ -396,8 +396,8 @@ describe("PostHogExporter", () => {
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
     const props = body.batch[0].properties;
-    // Only MCPCat-set properties should exist, no customer tags/properties
-    expect(props.source).toBe("mcpcat");
+    // Only PostHog MCP analytics-set properties should exist, no customer tags/properties
+    expect(props.source).toBe("posthog_mcp_analytics");
     expect(props.env).toBeUndefined();
     expect(props.device).toBeUndefined();
   });
@@ -427,7 +427,7 @@ describe("PostHogExporter", () => {
 
     await exporter.export(
       makeEvent({
-        eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
+        eventType: MCPAnalyticsEventType.mcpToolsCall,
         resourceName: "get_weather",
         duration: 250,
         parameters: { city: "London" },
@@ -448,7 +448,9 @@ describe("PostHogExporter", () => {
     expect(span.timestamp).toBe("2025-01-15T10:00:00.000Z");
 
     // Core $ai_* properties — full property schema verification
-    expect(span.properties.$ai_session_id).toBe("mcpcat_ses_session456");
+    expect(span.properties.$ai_session_id).toBe(
+      "posthog_mcp_analytics_ses_session456"
+    );
     expect(span.properties.$ai_trace_id).toBeDefined();
     expect(span.properties.$ai_span_id).toBeDefined();
     expect(span.properties.$ai_trace_id).not.toBe(span.properties.$ai_span_id); // trace from session, span from event
@@ -458,7 +460,7 @@ describe("PostHogExporter", () => {
     expect(span.properties.$ai_input_state).toEqual({ city: "London" });
     expect(span.properties.$ai_output_state).toEqual({ temp: 15 });
     expectUUIDv7(span.properties.$session_id);
-    expect(span.properties.source).toBe("mcpcat");
+    expect(span.properties.source).toBe("posthog_mcp_analytics");
     expect(span.properties.server_name).toBe("weather-server");
     expect(span.properties.client_name).toBe("claude-desktop");
   });
@@ -493,7 +495,9 @@ describe("PostHogExporter", () => {
     const spanC = bodyC.batch.find((e: any) => e.event === "$ai_span");
 
     // Same sessionId → same $ai_session_id and $ai_trace_id
-    expect(spanA.properties.$ai_session_id).toBe(`mcpcat_${sesId}`);
+    expect(spanA.properties.$ai_session_id).toBe(
+      `posthog_mcp_analytics_${sesId}`
+    );
     expect(spanA.properties.$ai_session_id).toBe(
       spanB.properties.$ai_session_id
     );
@@ -523,7 +527,7 @@ describe("PostHogExporter", () => {
     });
     await exporter1.export(
       makeEvent({
-        eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
+        eventType: MCPAnalyticsEventType.mcpToolsCall,
       })
     );
     let body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -539,7 +543,7 @@ describe("PostHogExporter", () => {
     });
     await exporter2.export(
       makeEvent({
-        eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
+        eventType: MCPAnalyticsEventType.mcpToolsCall,
       })
     );
     body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -555,12 +559,12 @@ describe("PostHogExporter", () => {
     });
 
     const nonToolCallTypes = [
-      PublishEventRequestEventTypeEnum.mcpInitialize,
-      PublishEventRequestEventTypeEnum.mcpToolsList,
-      PublishEventRequestEventTypeEnum.mcpResourcesRead,
-      PublishEventRequestEventTypeEnum.mcpResourcesList,
-      PublishEventRequestEventTypeEnum.mcpPromptsGet,
-      PublishEventRequestEventTypeEnum.mcpPromptsList,
+      MCPAnalyticsEventType.mcpInitialize,
+      MCPAnalyticsEventType.mcpToolsList,
+      MCPAnalyticsEventType.mcpResourcesRead,
+      MCPAnalyticsEventType.mcpResourcesList,
+      MCPAnalyticsEventType.mcpPromptsGet,
+      MCPAnalyticsEventType.mcpPromptsList,
     ];
 
     for (const eventType of nonToolCallTypes) {
@@ -581,7 +585,7 @@ describe("PostHogExporter", () => {
 
     await exporter.export(
       makeEvent({
-        eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
+        eventType: MCPAnalyticsEventType.mcpToolsCall,
         tags: { env: "production", region: "us-east" },
         properties: { feature_flag: "new_ui", count: 42 },
       })
@@ -590,7 +594,7 @@ describe("PostHogExporter", () => {
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
     const span = body.batch.find((e: any) => e.event === "$ai_span");
 
-    // Tags spread directly (NOT as mcpcat_tag_*)
+    // Tags spread directly (NOT as posthog_mcp_analytics_tag_*)
     expect(span.properties.env).toBe("production");
     expect(span.properties.region).toBe("us-east");
 
@@ -615,7 +619,7 @@ describe("PostHogExporter", () => {
     const customTraceId = "custom-trace-uuid-from-customer";
     await exporter.export(
       makeEvent({
-        eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
+        eventType: MCPAnalyticsEventType.mcpToolsCall,
         tags: { $ai_trace_id: customTraceId, $ai_span_name: "custom_name" },
       })
     );
@@ -623,7 +627,7 @@ describe("PostHogExporter", () => {
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
     const span = body.batch.find((e: any) => e.event === "$ai_span");
 
-    // Customer tag overrides MCPCat's generated $ai_trace_id
+    // Customer tag overrides PostHog MCP analytics's generated $ai_trace_id
     expect(span.properties.$ai_trace_id).toBe(customTraceId);
     expect(span.properties.$ai_span_name).toBe("custom_name");
   });
@@ -637,7 +641,7 @@ describe("PostHogExporter", () => {
 
     await exporter.export(
       makeEvent({
-        eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
+        eventType: MCPAnalyticsEventType.mcpToolsCall,
         isError: true,
         error: {
           message: "Tool execution failed",

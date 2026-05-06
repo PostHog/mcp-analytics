@@ -1,5 +1,5 @@
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { track } from "../index.js";
@@ -26,7 +26,7 @@ describe("Error Capture Integration Tests", () => {
     const { server, client, cleanup } = await setupTestServerAndClient();
 
     try {
-      // Track the server with mcpcat (uses default settings including context parameters)
+      // Track the server with mcpAnalytics (uses default settings including context parameters)
       await track(server, {
         projectId: "test-project",
         enableTracing: true,
@@ -364,14 +364,14 @@ describe("Error Capture Integration Tests", () => {
       // Verify NO identify event was published (errors in identify should only be logged, not published)
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.McpcatIdentify
+        (e) => e.eventType === MCPAnalyticsEventType.McpcatIdentify
       );
 
       expect(identifyEvent).toBeUndefined();
 
       // Verify the tool call event was still published
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
     } finally {

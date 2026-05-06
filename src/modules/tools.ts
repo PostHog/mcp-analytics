@@ -2,7 +2,7 @@ import {
   ListToolsRequestSchema,
   type ListToolsResult,
 } from "@modelcontextprotocol/sdk/types.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "./event-types.js";
 import type { MCPServerLike, UnredactedEvent } from "../types.js";
 import { getMCPCompatibleErrorMessage } from "./compatibility.js";
 import { addContextParameterToTools } from "./context-parameters.js";
@@ -45,7 +45,7 @@ export function handleReportMissing(args: { context: string }) {
   };
 }
 
-export function setupMCPCatTools(server: MCPServerLike): void {
+export function setupMCPAnalyticsTools(server: MCPServerLike): void {
   // Store reference to original handlers - need to use the method name, not the schema
   const handlers = server._requestHandlers;
 
@@ -54,7 +54,7 @@ export function setupMCPCatTools(server: MCPServerLike): void {
 
   if (!(originalListToolsHandler && originalCallToolHandler)) {
     writeToLog(
-      "Warning: Original tool handlers not found. Your tools may not be setup before MCPCat .track()."
+      "Warning: Original tool handlers not found. Your tools may not be setup before PostHog MCP analytics .track()."
     );
     return;
   }
@@ -70,7 +70,7 @@ export function setupMCPCatTools(server: MCPServerLike): void {
           request,
           extra,
         },
-        eventType: PublishEventRequestEventTypeEnum.mcpToolsList,
+        eventType: MCPAnalyticsEventType.mcpToolsList,
         timestamp: new Date(),
         redactionFn: data?.options.redactSensitiveInformation,
       };
@@ -83,7 +83,7 @@ export function setupMCPCatTools(server: MCPServerLike): void {
       } catch (error) {
         // If original handler fails, start with empty tools
         writeToLog(
-          `Warning: Original list tools handler failed, this suggests an error MCPCat did not cause - ${error}`
+          `Warning: Original list tools handler failed, this suggests an error PostHog MCP analytics did not cause - ${error}`
         );
         event.error = { message: getMCPCompatibleErrorMessage(error) };
         event.isError = true;
@@ -97,14 +97,14 @@ export function setupMCPCatTools(server: MCPServerLike): void {
 
       if (!data) {
         writeToLog(
-          "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
+          "Warning: PostHog MCP analytics is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
         );
         return { tools };
       }
 
       if (tools.length === 0) {
         writeToLog(
-          "Warning: No tools found in the original list. This is likely due to the tools not being registered before MCPCat.track()."
+          "Warning: No tools found in the original list. This is likely due to the tools not being registered before PostHog MCP analytics.track()."
         );
         event.error = { message: "No tools were sent to MCP client." };
         event.isError = true;

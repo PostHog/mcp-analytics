@@ -72,9 +72,6 @@
   "peerDependencies": {
     "@modelcontextprotocol/sdk": ">=1.11"
   },
-  "dependencies": {
-    "mcpcat-api": "0.1.8"
-  },
   "pnpm": {
     "overrides": {
       "js-yaml": ">=4.1.1",

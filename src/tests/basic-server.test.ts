@@ -5,7 +5,7 @@ import {
   CallToolResultSchema,
   ListToolsResultSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { EventCapture } from "./test-utils";
@@ -337,7 +337,7 @@ describe("Basic Server Test", () => {
 
       // Filter for tool call events
       const toolCallEvents = events.filter(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
 
       // Verify we captured some events

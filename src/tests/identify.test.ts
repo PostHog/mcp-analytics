@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { track } from "../index";
@@ -79,7 +79,7 @@ describe("Identify Feature", () => {
       // Verify that an identify event was published
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify
+        (e) => e.eventType === MCPAnalyticsEventType.identify
       );
 
       expect(identifyEvent).toBeDefined();
@@ -137,7 +137,7 @@ describe("Identify Feature", () => {
       expect(identifyCallCount).toBe(1);
       const events1 = await eventCapture.getEvents();
       const identifyEvents1 = events1.filter(
-        (e) => e.eventType === "mcpcat:identify"
+        (e) => e.eventType === "posthog:identify"
       );
       expect(identifyEvents1.length).toBe(1); // First identify event published
 
@@ -158,7 +158,7 @@ describe("Identify Feature", () => {
       expect(identifyCallCount).toBe(2); // Called again
       const events2 = await eventCapture.getEvents();
       const identifyEvents2 = events2.filter(
-        (e) => e.eventType === "mcpcat:identify"
+        (e) => e.eventType === "posthog:identify"
       );
       expect(identifyEvents2.length).toBe(1); // Still only 1 event (no new event published)
 
@@ -180,7 +180,7 @@ describe("Identify Feature", () => {
       expect(identifyCallCount).toBe(3); // Called again
       const events3 = await eventCapture.getEvents();
       const identifyEvents3 = events3.filter(
-        (e) => e.eventType === "mcpcat:identify"
+        (e) => e.eventType === "posthog:identify"
       );
       expect(identifyEvents3.length).toBe(1); // Still only 1 event
 
@@ -257,7 +257,7 @@ describe("Identify Feature", () => {
       // Verify that an identify event was published
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify
+        (e) => e.eventType === MCPAnalyticsEventType.identify
       );
 
       expect(identifyEvent).toBeDefined();
@@ -266,7 +266,7 @@ describe("Identify Feature", () => {
       // Verify tool call event was tracked with user intent
       const toolCallEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "post_track_tool"
       );
 
@@ -357,7 +357,7 @@ describe("Identify Feature", () => {
       // Get all tool call events
       const events = eventCapture.getEvents();
       const toolCallEvents = events.filter(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
 
       // Verify all events have the same session ID
@@ -413,7 +413,7 @@ describe("Identify Feature", () => {
       // Verify no identify event was published (since it returned null)
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify
+        (e) => e.eventType === MCPAnalyticsEventType.identify
       );
 
       expect(identifyEvent).toBeUndefined();
@@ -470,7 +470,7 @@ describe("Identify Feature", () => {
       // Verify tool events were published with session IDs
       const events = eventCapture.getEvents();
       const toolCallEvents = events.filter(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
 
       expect(toolCallEvents.length).toBe(2);
@@ -481,7 +481,7 @@ describe("Identify Feature", () => {
 
       // Verify no identify events were published
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify
+        (e) => e.eventType === MCPAnalyticsEventType.identify
       );
       expect(identifyEvent).toBeUndefined();
 
@@ -576,7 +576,7 @@ describe("Identify Feature", () => {
       // Check that events include session info with actor data
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
 
       expect(toolCallEvent).toBeDefined();
@@ -640,7 +640,7 @@ describe("Identify Feature", () => {
       // Verify identify event was published with duration
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify
+        (e) => e.eventType === MCPAnalyticsEventType.identify
       );
 
       expect(identifyEvent).toBeDefined();
@@ -686,7 +686,7 @@ describe("Identify Feature", () => {
       // Verify NO identify event was published (errors in identify function should not publish events)
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify
+        (e) => e.eventType === MCPAnalyticsEventType.identify
       );
 
       expect(identifyEvent).toBeUndefined();

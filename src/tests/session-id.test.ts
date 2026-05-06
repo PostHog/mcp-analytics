@@ -131,7 +131,7 @@ describe("Session ID Management", () => {
       await eventCapture.stop();
     });
 
-    it("should use MCPCat-generated sessionId when no MCP sessionId provided", async () => {
+    it("should use PostHog MCP analytics-generated sessionId when no MCP sessionId provided", async () => {
       const eventCapture = new EventCapture();
       await eventCapture.start();
 
@@ -145,9 +145,9 @@ describe("Session ID Management", () => {
       const sessionId1 = getServerSessionId(lowLevelServer);
       expect(sessionId1).toMatch(/^ses_/);
 
-      // Verify tracking data shows MCPCat source
+      // Verify tracking data shows PostHog MCP analytics source
       const data = getServerTrackingData(lowLevelServer);
-      expect(data?.sessionSource).toBe("mcpcat");
+      expect(data?.sessionSource).toBe("generated");
       expect(data?.lastMcpSessionId).toBeUndefined();
 
       // Get session ID again - should be the same
@@ -171,11 +171,11 @@ describe("Session ID Management", () => {
       const lowLevelServer = server.server;
 
       // Start with no MCP sessionId
-      const mcpcatSessionId = getServerSessionId(lowLevelServer);
-      expect(mcpcatSessionId).toMatch(/^ses_/);
+      const generatedSessionId = getServerSessionId(lowLevelServer);
+      expect(generatedSessionId).toMatch(/^ses_/);
 
       let data = getServerTrackingData(lowLevelServer);
-      expect(data?.sessionSource).toBe("mcpcat");
+      expect(data?.sessionSource).toBe("generated");
 
       // Now provide MCP sessionId
       const extra = { sessionId: mcpSessionId };
@@ -187,7 +187,7 @@ describe("Session ID Management", () => {
         projectId
       );
       expect(mcpDerivedSessionId).toBe(expectedSessionId);
-      expect(mcpDerivedSessionId).not.toBe(mcpcatSessionId);
+      expect(mcpDerivedSessionId).not.toBe(generatedSessionId);
 
       // Verify tracking data is updated
       data = getServerTrackingData(lowLevelServer);
@@ -311,7 +311,7 @@ describe("Session ID Management", () => {
       await eventCapture.stop();
     });
 
-    it("should apply timeout to MCPCat-generated sessions", async () => {
+    it("should apply timeout to PostHog MCP analytics-generated sessions", async () => {
       const eventCapture = new EventCapture();
       await eventCapture.start();
 
@@ -321,7 +321,7 @@ describe("Session ID Management", () => {
 
       const lowLevelServer = server.server;
 
-      // Get MCPCat-generated session ID
+      // Get PostHog MCP analytics-generated session ID
       const sessionId1 = getServerSessionId(lowLevelServer);
 
       // Manually set lastActivity to simulate timeout (31 minutes ago)

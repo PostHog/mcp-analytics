@@ -1,5 +1,5 @@
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "../index.js";
 import { redactEvent } from "../modules/redaction.js";
@@ -468,7 +468,7 @@ describe("redactEvent integration tests", () => {
 
     // Find the tool call event
     const toolCallEvent = events.find(
-      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+      (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
     );
 
     expect(toolCallEvent).toBeDefined();
@@ -482,7 +482,7 @@ describe("redactEvent integration tests", () => {
 
     // Find the identify event
     const identifyEvent = events.find(
-      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify
+      (e) => e.eventType === MCPAnalyticsEventType.identify
     );
 
     expect(identifyEvent).toBeDefined();
@@ -501,9 +501,7 @@ describe("redactEvent integration tests", () => {
     expect(toolCallEvent?.sessionId).toMatch(/^ses_/); // Should start with ses_
     expect(toolCallEvent?.projectId).toBe("test-project");
     expect(toolCallEvent?.resourceName).toBe("add_todo");
-    expect(toolCallEvent?.eventType).toBe(
-      PublishEventRequestEventTypeEnum.mcpToolsCall
-    );
+    expect(toolCallEvent?.eventType).toBe(MCPAnalyticsEventType.mcpToolsCall);
 
     // The identify event includes actor info from sessionInfo
     expect(identifyEvent?.identifyActorGivenId).toBe("test-user-123");
@@ -551,7 +549,7 @@ describe("redactEvent integration tests", () => {
 
     const events = eventCapture.getEvents();
     const toolCallEvent = events.find(
-      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+      (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
     );
 
     expect(toolCallEvent).toBeDefined();
@@ -614,7 +612,7 @@ describe("redactEvent integration tests", () => {
 
     // Check tool call event
     const toolCallEvent = events.find(
-      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+      (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
     );
 
     // Protected fields should NOT be redacted
@@ -628,7 +626,7 @@ describe("redactEvent integration tests", () => {
 
     // Check identify event
     const identifyEvent = events.find(
-      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify
+      (e) => e.eventType === MCPAnalyticsEventType.identify
     );
 
     // Protected identity fields should NOT be redacted

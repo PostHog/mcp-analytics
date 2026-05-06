@@ -2,7 +2,7 @@ import {
   CallToolResultSchema,
   ListToolsResultSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { track } from "../index";
 import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "../modules/constants";
@@ -171,7 +171,7 @@ describe("Context Parameters", () => {
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "add_todo"
       );
 
@@ -232,7 +232,7 @@ describe("Context Parameters", () => {
       const events = eventCapture.getEvents();
       const completeEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "complete_todo"
       );
 
@@ -290,7 +290,7 @@ describe("Context Parameters", () => {
       const events = eventCapture.getEvents();
       const listEvents = events.filter(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "list_todos"
       );
 

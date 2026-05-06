@@ -1,5 +1,5 @@
 import type { Event, Exporter } from "../../types.js";
-import { MCPCAT_SOURCE } from "../constants.js";
+import { POSTHOG_MCP_ANALYTICS_SOURCE } from "../constants.js";
 import { writeToLog } from "../logging.js";
 import { traceContext } from "./trace-context.js";
 
@@ -151,21 +151,21 @@ export class DatadogExporter implements Exporter {
       tags.push("error:true");
     }
 
-    tags.push(`source:${MCPCAT_SOURCE}`);
+    tags.push(`source:${POSTHOG_MCP_ANALYTICS_SOURCE}`);
 
     // Add customer-defined tags to ddtags (namespaced to avoid collisions with reserved Datadog tags)
     if (event.tags) {
       for (const [key, value] of Object.entries(event.tags)) {
         const sanitizedKey = key.toLowerCase().replace(/[\s:,]+/g, "_");
         const sanitizedValue = value.replace(/,/g, "_");
-        tags.push(`mcpcat.${sanitizedKey}:${sanitizedValue}`);
+        tags.push(`posthog_mcp_analytics.${sanitizedKey}:${sanitizedValue}`);
       }
     }
 
     const log: DatadogLog = {
       message: `${event.eventType || "unknown"} - ${event.resourceName || "unknown"}`,
       service: this.config.service,
-      ddsource: MCPCAT_SOURCE,
+      ddsource: POSTHOG_MCP_ANALYTICS_SOURCE,
       ddtags: tags.join(","),
       timestamp: event.timestamp ? event.timestamp.getTime() : Date.now(),
       status: event.isError ? "error" : "info",

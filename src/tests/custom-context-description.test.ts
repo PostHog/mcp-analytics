@@ -2,7 +2,7 @@ import {
   CallToolResultSchema,
   ListToolsResultSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { track } from "../index";
 import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "../modules/constants";
@@ -110,7 +110,7 @@ describe("Custom Context Description", () => {
       ListToolsResultSchema
     );
 
-    // Check all original tools (exclude MCPCat-added tools)
+    // Check all original tools (exclude PostHog MCP analytics-added tools)
     const originalTools = ["add_todo", "list_todos", "complete_todo"];
     const toolsToCheck = toolsResponse.tools.filter((tool: any) =>
       originalTools.includes(tool.name)
@@ -163,7 +163,7 @@ describe("Custom Context Description", () => {
     const events = eventCapture.getEvents();
     const toolCallEvent = events.find(
       (e) =>
-        e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+        e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
         e.resourceName === "add_todo"
     );
 
@@ -278,7 +278,7 @@ describe("Custom Context Description", () => {
     // Verify all events were captured with user intent
     const events = eventCapture.getEvents();
     const toolCallEvents = events.filter(
-      (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+      (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
     );
 
     expect(toolCallEvents.length).toBeGreaterThanOrEqual(3);

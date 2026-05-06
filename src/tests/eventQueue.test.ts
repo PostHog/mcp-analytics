@@ -2,15 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Event, MCPServerLike } from "../types.js";
 import { setupTestHooks } from "./test-utils.js";
 
-// Mock external dependencies
-vi.mock("mcpcat-api");
 vi.mock("../modules/logging.js");
 vi.mock("../modules/internal.js");
 vi.mock("../modules/session.js");
 vi.mock("../thirdparty/ksuid/index.js");
 
 // Import mocked modules
-import { Configuration, EventsApi } from "mcpcat-api";
 import { getServerTrackingData } from "../modules/internal.js";
 import { writeToLog } from "../modules/logging.js";
 import { getSessionInfo } from "../modules/session.js";
@@ -22,21 +19,17 @@ const { publishEvent, eventQueue } = await import("../modules/eventQueue.js");
 describe("EventQueue", () => {
   setupTestHooks();
 
-  let mockApiClient: any;
-  let mockPublishEvent: any;
   let mockKSUID: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Mock API client
-    mockPublishEvent = vi.fn().mockResolvedValue({});
-    mockApiClient = {
-      publishEvent: mockPublishEvent,
-    };
-
-    (EventsApi as any).mockImplementation(() => mockApiClient);
-    (Configuration as any).mockImplementation(() => ({}));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+      })
+    );
 
     // Mock KSUID
     mockKSUID = {
@@ -58,7 +51,7 @@ describe("EventQueue", () => {
     (getSessionInfo as any).mockReturnValue({
       ipAddress: "127.0.0.1",
       sdkLanguage: "typescript",
-      mcpcatVersion: "1.0.0",
+      sdkVersion: "1.0.0",
       serverName: "test-server",
       serverVersion: "1.0.0",
       clientName: "test-client",
@@ -70,6 +63,7 @@ describe("EventQueue", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.resetAllMocks();
   });
 

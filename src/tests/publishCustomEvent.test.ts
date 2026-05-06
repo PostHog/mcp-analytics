@@ -7,12 +7,10 @@ vi.mock("../modules/logging.js");
 vi.mock("../modules/internal.js");
 vi.mock("../modules/session.js");
 vi.mock("../modules/eventQueue.js");
-vi.mock("../modules/constants.js");
 vi.mock("../thirdparty/ksuid/index.js");
 
 // Import the function under test
 import { publishCustomEvent } from "../index.js";
-import { MCPCAT_CUSTOM_EVENT_TYPE } from "../modules/constants.js";
 import {
   eventQueue,
   publishEvent as publishEventToQueue,
@@ -56,9 +54,6 @@ describe("publishCustomEvent", () => {
 
     // Mock publishEventToQueue
     (publishEventToQueue as any).mockImplementation(() => {});
-
-    // Mock MCPCAT_CUSTOM_EVENT_TYPE
-    (MCPCAT_CUSTOM_EVENT_TYPE as any) = "mcpcat:custom";
   });
 
   afterEach(() => {
@@ -95,7 +90,7 @@ describe("publishCustomEvent", () => {
         expect.objectContaining({
           sessionId: "ses_tracked123",
           projectId,
-          eventType: "mcpcat:custom",
+          eventType: "posthog:custom",
           resourceName: "custom-action",
           parameters: { action: "test" },
           userIntent: "Testing custom event", // message maps to userIntent
@@ -162,7 +157,7 @@ describe("publishCustomEvent", () => {
         expect.objectContaining({
           sessionId: `ses_derived_${customSessionId}_${projectId}`,
           projectId,
-          eventType: "mcpcat:custom",
+          eventType: "posthog:custom",
           resourceName: "custom-action",
           parameters: { action: "test" },
         })
@@ -229,7 +224,7 @@ describe("publishCustomEvent", () => {
   });
 
   describe("event structure", () => {
-    it("should always use 'mcpcat:custom' as event type", async () => {
+    it("should always use 'posthog:custom' as event type", async () => {
       const customSessionId = "test-session";
       const projectId = "proj_test";
 
@@ -237,7 +232,7 @@ describe("publishCustomEvent", () => {
 
       expect(mockEventQueue.add).toHaveBeenCalledWith(
         expect.objectContaining({
-          eventType: "mcpcat:custom",
+          eventType: "posthog:custom",
         })
       );
     });

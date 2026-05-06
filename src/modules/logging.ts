@@ -28,7 +28,7 @@ function tryInitSync(): void {
     const home = os.homedir?.();
     if (home) {
       fsModule = fs;
-      logFilePath = path.join(home, "mcpcat.log");
+      logFilePath = path.join(home, "posthog-mcp-analytics.log");
     } else {
       // homedir() returned null/undefined - use console fallback
       useConsoleFallback = true;
@@ -48,7 +48,7 @@ export function writeToLog(message: string): void {
   const logEntry = `[${timestamp}] ${message}`;
 
   if (useConsoleFallback) {
-    console.log(`[mcpcat] ${logEntry}`);
+    console.log(`[posthog-mcp-analytics] ${logEntry}`);
     return;
   }
 

@@ -1,5 +1,5 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "./event-types.js";
 import type {
   CompatibleRequestHandlerExtra,
   HighLevelMCPServerLike,
@@ -31,7 +31,7 @@ import { setupInitializeTracing, setupListToolsTracing } from "./tracing.js";
 const wrappedCallbacks = new WeakMap<Function, boolean>();
 
 // Symbol to mark tools that have already been processed
-const MCPCAT_PROCESSED = Symbol("__mcpcat_processed__");
+const MCP_ANALYTICS_PROCESSED = Symbol("__posthog_mcp_analytics_processed__");
 
 function isToolResultError(result: any): boolean {
   return result && typeof result === "object" && result.isError === true;
@@ -73,7 +73,7 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
             hasToolFunction(value)
           ) {
             // Check if tool has already been processed
-            if ((value as any)[MCPCAT_PROCESSED]) {
+            if ((value as any)[MCP_ANALYTICS_PROCESSED]) {
               writeToLog(
                 `Tool ${String(property)} already processed, skipping proxy wrapping`
               );
@@ -179,7 +179,7 @@ function addTracingToToolCallbackInternal(
     return tool;
   }
 
-  if ((tool as any)[MCPCAT_PROCESSED]) {
+  if ((tool as any)[MCP_ANALYTICS_PROCESSED]) {
     writeToLog(`Tool ${toolName} already processed, skipping re-wrap`);
     return tool;
   }
@@ -221,7 +221,7 @@ function addTracingToToolCallbackInternal(
       return await handler(cleanedArgs, extra);
     } catch (error) {
       if (error instanceof Error) {
-        (extra as any).__mcpcat_error = error;
+        (extra as any).__mcp_analytics_error = error;
       }
       throw error;
     }
@@ -237,7 +237,7 @@ function addTracingToToolCallbackInternal(
   const wrappedTool = createWrappedTool(tool, wrappedCallback);
 
   // Mark the tool as processed
-  (wrappedTool as any)[MCPCAT_PROCESSED] = true;
+  (wrappedTool as any)[MCP_ANALYTICS_PROCESSED] = true;
 
   return wrappedTool;
 }
@@ -295,7 +295,7 @@ function createToolsCallWrapper(
           sessionId,
           resourceName: request.params?.name || "Unknown Tool",
           parameters: { request, extra },
-          eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
+          eventType: MCPAnalyticsEventType.mcpToolsCall,
           timestamp: startTime,
           redactionFn: data.options.redactSensitiveInformation,
         };
@@ -326,13 +326,13 @@ function createToolsCallWrapper(
         }
       } else {
         writeToLog(
-          "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
+          "Warning: PostHog MCP analytics is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
         );
       }
     } catch (error) {
       // If tracing setup fails, log it but continue with tool execution
       writeToLog(
-        `Warning: MCPCat tracing failed for tool ${request.params?.name}, falling back to original handler - ${error}`
+        `Warning: PostHog MCP analytics tracing failed for tool ${request.params?.name}, falling back to original handler - ${error}`
       );
     }
 
@@ -371,12 +371,12 @@ function createToolsCallWrapper(
           event.isError = true;
 
           // Check if callback captured the original error (has full stack)
-          const capturedError = (extra as any).__mcpcat_error;
+          const capturedError = (extra as any).__mcp_analytics_error;
 
           if (capturedError) {
             // Use captured error from callback
             event.error = captureException(capturedError);
-            delete (extra as any).__mcpcat_error; // Cleanup
+            delete (extra as any).__mcp_analytics_error; // Cleanup
           } else {
             // SDK 1.21.0+ converted error (no stack trace available)
             event.error = captureException(result);
@@ -406,7 +406,7 @@ function createToolsCallWrapper(
 
 export function setupTracking(server: HighLevelMCPServerLike): void {
   try {
-    const _mcpcatData = getServerTrackingData(server.server);
+    const _mcpAnalyticsData = getServerTrackingData(server.server);
 
     // Setup handler wrapping before any tools are registered
     setupToolsCallHandlerWrapping(server);

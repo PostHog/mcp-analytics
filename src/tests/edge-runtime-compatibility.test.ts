@@ -1,7 +1,7 @@
 /**
  * Edge Runtime Compatibility Tests
  *
- * These tests verify that MCPCat gracefully handles environments where
+ * These tests verify that PostHog MCP analytics gracefully handles environments where
  * certain Node.js modules may not be available or have limited functionality
  * (like Cloudflare Workers, Vercel Edge, Deno Deploy).
  *
@@ -179,26 +179,26 @@ describe("Edge Runtime Compatibility", () => {
 
   describe("Full SDK API Availability", () => {
     it("should export track function", async () => {
-      const mcpcat = await import("../index.js");
-      expect(typeof mcpcat.track).toBe("function");
+      const mcpAnalytics = await import("../index.js");
+      expect(typeof mcpAnalytics.track).toBe("function");
     });
 
     it("should export publishCustomEvent function", async () => {
-      const mcpcat = await import("../index.js");
-      expect(typeof mcpcat.publishCustomEvent).toBe("function");
+      const mcpAnalytics = await import("../index.js");
+      expect(typeof mcpAnalytics.publishCustomEvent).toBe("function");
     });
 
     it("should export type definitions", async () => {
       // IdentifyFunction type is exported for users to define their identify callbacks
-      const mcpcat = await import("../index.js");
+      const mcpAnalytics = await import("../index.js");
       // The module should load without issues
-      expect(mcpcat).toBeDefined();
+      expect(mcpAnalytics).toBeDefined();
     });
   });
 
   describe("Edge Environment Detection Patterns", () => {
     it("should detect Node.js environment correctly", () => {
-      // Helper function that MCPCat could use internally
+      // Helper function that PostHog MCP analytics could use internally
       const isNodeJs = () =>
         typeof process !== "undefined" &&
         process.versions != null &&
@@ -289,11 +289,11 @@ describe("Integration: SDK in Limited Environment", () => {
     vi.resetModules();
 
     // SDK should still load
-    const mcpcat = await import("../index.js");
+    const mcpAnalytics = await import("../index.js");
 
     // Core functions should exist
-    expect(mcpcat.track).toBeDefined();
-    expect(mcpcat.publishCustomEvent).toBeDefined();
+    expect(mcpAnalytics.track).toBeDefined();
+    expect(mcpAnalytics.publishCustomEvent).toBeDefined();
 
     // Exception capture should work
     const { captureException: capture } = await import(

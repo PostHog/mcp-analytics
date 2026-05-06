@@ -43,11 +43,11 @@ describe("sanitizeEvent - response content blocks", () => {
     });
     expect(result.response.content[1]).toEqual({
       type: "text",
-      text: "[image content redacted - not supported by MCPcat]",
+      text: "[image content redacted - not supported by PostHog MCP analytics]",
     });
     expect(result.response.content[2]).toEqual({
       type: "text",
-      text: "[audio content redacted - not supported by MCPcat]",
+      text: "[audio content redacted - not supported by PostHog MCP analytics]",
     });
   });
 
@@ -89,7 +89,7 @@ describe("sanitizeEvent - response content blocks", () => {
 
     expect(result.response.content[0]).toEqual({
       type: "text",
-      text: "[binary resource content redacted - not supported by MCPcat]",
+      text: "[binary resource content redacted - not supported by PostHog MCP analytics]",
     });
   });
 
@@ -123,7 +123,7 @@ describe("sanitizeEvent - response content blocks", () => {
 
     expect(result.response.content[0]).toEqual({
       type: "text",
-      text: '[unsupported content type "video" redacted - not supported by MCPcat]',
+      text: '[unsupported content type "video" redacted - not supported by PostHog MCP analytics]',
     });
   });
 
@@ -158,7 +158,7 @@ describe("sanitizeEvent - response content blocks", () => {
     const result = sanitizeEvent(event);
 
     expect(result.response.structuredContent.data).toBe(
-      "[binary data redacted - not supported by MCPcat]"
+      "[binary data redacted - not supported by PostHog MCP analytics]"
     );
     expect(result.response.structuredContent.label).toBe("some label");
   });
@@ -209,7 +209,7 @@ describe("sanitizeEvent - parameter scanning", () => {
     const result = sanitizeEvent(event);
 
     expect(result.parameters.imageData).toBe(
-      "[binary data redacted - not supported by MCPcat]"
+      "[binary data redacted - not supported by PostHog MCP analytics]"
     );
   });
 
@@ -241,7 +241,7 @@ describe("sanitizeEvent - parameter scanning", () => {
     const result = sanitizeEvent(event);
 
     expect(result.parameters.level1.level2.level3.data).toBe(
-      "[binary data redacted - not supported by MCPcat]"
+      "[binary data redacted - not supported by PostHog MCP analytics]"
     );
   });
 
@@ -264,7 +264,7 @@ describe("sanitizeEvent - parameter scanning", () => {
     expect(result.parameters.active).toBe(true);
     expect(result.parameters.name).toBe("short string");
     expect(result.parameters.binaryData).toBe(
-      "[binary data redacted - not supported by MCPcat]"
+      "[binary data redacted - not supported by PostHog MCP analytics]"
     );
     expect(result.parameters.tags).toEqual(["a", "b", "c"]);
   });
@@ -282,7 +282,7 @@ describe("sanitizeEvent - parameter scanning", () => {
 
     expect(result.parameters.items[0]).toBe("small string");
     expect(result.parameters.items[1]).toBe(
-      "[binary data redacted - not supported by MCPcat]"
+      "[binary data redacted - not supported by PostHog MCP analytics]"
     );
     expect(result.parameters.items[2]).toBe("another small");
   });
@@ -301,7 +301,7 @@ describe("sanitizeEvent - parameter scanning", () => {
     const result = sanitizeEvent(event);
 
     expect(result.parameters.atGate).toBe(
-      "[binary data redacted - not supported by MCPcat]"
+      "[binary data redacted - not supported by PostHog MCP analytics]"
     );
     expect(result.parameters.belowGate).toBe(belowBoundary);
   });
@@ -337,7 +337,7 @@ describe("sanitizeEvent - integration", () => {
     const result = sanitizeEvent(event);
 
     expect(result.parameters.imageData).toBe(
-      "[binary data redacted - not supported by MCPcat]"
+      "[binary data redacted - not supported by PostHog MCP analytics]"
     );
     expect(result.parameters.query).toBe("hello");
 
@@ -347,7 +347,7 @@ describe("sanitizeEvent - integration", () => {
     });
     expect(result.response.content[1]).toEqual({
       type: "text",
-      text: "[image content redacted - not supported by MCPcat]",
+      text: "[image content redacted - not supported by PostHog MCP analytics]",
     });
 
     expect(result.id).toBe("evt_1");
@@ -375,7 +375,7 @@ describe("sanitizeEvent - integration", () => {
 
     // Result should be different
     expect(result.parameters.imageData).toBe(
-      "[binary data redacted - not supported by MCPcat]"
+      "[binary data redacted - not supported by PostHog MCP analytics]"
     );
     expect(result.response.content[0].type).toBe("text");
   });

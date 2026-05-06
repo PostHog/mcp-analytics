@@ -1,9 +1,3 @@
-import {
-  Configuration,
-  EventsApi,
-  type PublishEventRequest,
-  type PublishEventRequestEventTypeEnum,
-} from "mcpcat-api";
 import KSUID from "../thirdparty/ksuid/index.js";
 import type { Event, MCPServerLike, UnredactedEvent } from "../types.js";
 import { getMCPCompatibleErrorMessage } from "./compatibility.js";
@@ -22,17 +16,11 @@ class EventQueue {
   private maxQueueSize = 10_000; // Prevent unbounded growth
   private concurrency = 5; // Max parallel requests
   private activeRequests = 0;
-  private apiClient: EventsApi;
+  private apiBaseUrl = "https://us.i.posthog.com";
   private telemetryManager?: TelemetryManager;
 
-  constructor() {
-    const config = new Configuration({ basePath: "https://api.mcpcat.io" });
-    this.apiClient = new EventsApi(config);
-  }
-
   configure(apiBaseUrl: string): void {
-    const config = new Configuration({ basePath: apiBaseUrl });
-    this.apiClient = new EventsApi(config);
+    this.apiBaseUrl = apiBaseUrl;
   }
 
   setTelemetryManager(telemetryManager: TelemetryManager): void {
@@ -98,48 +86,6 @@ class EventQueue {
     this.processing = false;
   }
 
-  private toPublishEventRequest(event: Event): PublishEventRequest {
-    return {
-      // Core fields
-      id: event.id,
-      projectId: event.projectId,
-      sessionId: event.sessionId,
-      timestamp: event.timestamp,
-      duration: event.duration,
-
-      // Event data
-      eventType: event.eventType as PublishEventRequestEventTypeEnum,
-      resourceName: event.resourceName,
-      parameters: event.parameters,
-      response: event.response,
-      userIntent: event.userIntent,
-      isError: event.isError,
-      error: event.error,
-
-      // Actor fields
-      identifyActorGivenId: event.identifyActorGivenId,
-      identifyActorName: event.identifyActorName,
-      identifyData: event.identifyActorData,
-
-      // Session info
-      ipAddress: event.ipAddress,
-      sdkLanguage: event.sdkLanguage,
-      mcpcatVersion: event.mcpcatVersion,
-      serverName: event.serverName,
-      serverVersion: event.serverVersion,
-      clientName: event.clientName,
-      clientVersion: event.clientVersion,
-
-      // Legacy fields
-      actorId: event.actorId || event.identifyActorGivenId,
-      eventId: event.eventId,
-
-      // Customer-defined metadata
-      tags: event.tags ?? undefined,
-      properties: event.properties ?? undefined,
-    };
-  }
-
   private async sendEvent(event: Event, retries = 0): Promise<void> {
     // Export to telemetry if configured (fire-and-forget)
     if (this.telemetryManager) {
@@ -150,13 +96,30 @@ class EventQueue {
       });
     }
 
-    // Send to MCPCat API if projectId is provided
+    // Send to PostHog capture if projectId is provided. During the SDK migration
+    // this field still carries the API key inherited from the original API shape.
     if (event.projectId) {
       try {
-        const publishRequest = this.toPublishEventRequest(event);
-        await this.apiClient.publishEvent({
-          publishEventRequest: publishRequest,
+        const url = new URL("/capture/", this.apiBaseUrl);
+        const response = await fetch(url, {
+          body: JSON.stringify({
+            api_key: event.projectId,
+            distinct_id:
+              event.identifyActorGivenId || event.sessionId || "anonymous",
+            event: event.eventType,
+            properties: event,
+            timestamp: event.timestamp.toISOString(),
+          }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          method: "POST",
         });
+        if (!response.ok) {
+          throw new Error(
+            `PostHog capture failed with status ${response.status}`
+          );
+        }
         writeToLog(
           `Successfully sent event ${event.id} | ${event.eventType} | ${event.projectId} | ${event.duration} ms | ${event.identifyActorGivenId || "anonymous"}`
         );
@@ -272,7 +235,7 @@ export function publishEvent(
     // Session context from sessionInfo
     ipAddress: sessionInfo.ipAddress,
     sdkLanguage: sessionInfo.sdkLanguage,
-    mcpcatVersion: sessionInfo.mcpcatVersion,
+    sdkVersion: sessionInfo.sdkVersion,
     serverName: sessionInfo.serverName,
     serverVersion: sessionInfo.serverVersion,
     clientName: sessionInfo.clientName,

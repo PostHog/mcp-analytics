@@ -1,5 +1,5 @@
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { EventCapture } from "./test-utils";
@@ -53,7 +53,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
       const events = eventCapture.getEvents();
       const toolEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "get_attachment"
       );
 
@@ -68,7 +68,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
       // Image block redacted to text
       expect(content[1]).toEqual({
         type: "text",
-        text: "[image content redacted - not supported by MCPcat]",
+        text: "[image content redacted - not supported by PostHog MCP analytics]",
       });
 
       await eventCapture.stop();
@@ -119,14 +119,14 @@ describe("E2E Sanitization - real MCP tool calls", () => {
       const events = eventCapture.getEvents();
       const toolEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "get_audio_clip"
       );
 
       expect(toolEvent).toBeDefined();
       expect(toolEvent!.response.content[0]).toEqual({
         type: "text",
-        text: "[audio content redacted - not supported by MCPcat]",
+        text: "[audio content redacted - not supported by PostHog MCP analytics]",
       });
 
       await eventCapture.stop();
@@ -182,7 +182,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
       const events = eventCapture.getEvents();
       const toolEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
           e.resourceName === "upload_file"
       );
 
@@ -190,7 +190,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
       // The base64 param should be redacted in the captured event's parameters
       const args = toolEvent!.parameters?.request?.params?.arguments;
       expect(args.data).toBe(
-        "[binary data redacted - not supported by MCPcat]"
+        "[binary data redacted - not supported by PostHog MCP analytics]"
       );
       // Non-base64 params should be preserved
       expect(args.filename).toBe("photo.png");
@@ -260,7 +260,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
 
       const events = eventCapture.getEvents();
       const toolCallEvents = events.filter(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
 
       // Normal add_todo event should have its text response preserved
@@ -282,7 +282,7 @@ describe("E2E Sanitization - real MCP tool calls", () => {
       });
       expect(screenshotEvent!.response.content[1]).toEqual({
         type: "text",
-        text: "[image content redacted - not supported by MCPcat]",
+        text: "[image content redacted - not supported by PostHog MCP analytics]",
       });
 
       await eventCapture.stop();
