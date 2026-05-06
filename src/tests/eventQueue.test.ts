@@ -218,9 +218,9 @@ describe("EventQueue", () => {
       expect(capture.mock.calls[0][0].properties).toEqual(
         expect.objectContaining({
           $mcp_resource_name: "create_insight",
+          $mcp_intent: "Create a trend insight for weekly active users",
           $mcp_source: "posthog_mcp_analytics",
           $mcp_tool_name: "create_insight",
-          $mcp_user_intent: "Create a trend insight for weekly active users",
         })
       );
       expect(capture.mock.calls[0][0].properties).not.toHaveProperty(
@@ -255,7 +255,7 @@ describe("EventQueue", () => {
           event: "$ai_span",
           properties: expect.objectContaining({
             $ai_span_name: "create_insight",
-            $mcp_user_intent: "Create a trend insight for weekly active users",
+            $mcp_intent: "Create a trend insight for weekly active users",
           }),
         })
       );

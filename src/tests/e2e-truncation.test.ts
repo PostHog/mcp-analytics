@@ -1,7 +1,7 @@
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { EventCapture } from "./test-utils";
 import {
   resetTodos,
@@ -33,7 +33,7 @@ describe("E2E Truncation - real MCP tool calls", () => {
           content: [
             {
               type: "text",
-              text: `Report on ${args.topic}: ` + "x".repeat(50_000),
+              text: `Report on ${args.topic}: ${"x".repeat(50_000)}`,
             },
           ],
         })
@@ -154,7 +154,7 @@ describe("E2E Truncation - real MCP tool calls", () => {
         "Returns a huge log dump",
         {},
         async () => ({
-          content: [{ type: "text", text: "LOG: " + "entry ".repeat(10_000) }],
+          content: [{ type: "text", text: `LOG: ${"entry ".repeat(10_000)}` }],
         })
       );
 
@@ -229,7 +229,7 @@ describe("E2E Truncation - real MCP tool calls", () => {
         { page: z.string() },
         async () => ({
           content: [
-            { type: "text", text: "x".repeat(50_000) },
+            { type: "text", text: "long text ".repeat(5000) },
             {
               type: "image",
               data: "iVBORw0KGgo=",

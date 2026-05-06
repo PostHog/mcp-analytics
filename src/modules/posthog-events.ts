@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
-import KSUID from "../../thirdparty/ksuid/index.js";
-import type { Event } from "../../types.js";
+import KSUID from "../thirdparty/ksuid/index.js";
+import type { Event } from "../types.js";
 import {
   POSTHOG_MCP_ANALYTICS_SOURCE,
   PostHogMCPAnalyticsProperty,
-} from "../constants.js";
-import { MCPAnalyticsEventType } from "../event-types.js";
+} from "./constants.js";
+import { MCPAnalyticsEventType } from "./event-types.js";
 
 const PREFIXED_KSUID_REGEX = /^[a-z]+_/;
 const MCP_EVENT_PREFIX_REGEX = /^mcp:/;
@@ -88,23 +88,23 @@ export function buildPostHogCaptureEvents(
   event: Event,
   options: BuildPostHogCaptureEventsOptions = {}
 ): PostHogCaptureEvent[] {
-  const batch = [buildCaptureEvent(event)];
+  const batch = [buildCaptureEvent(event, options)];
 
   if (event.isError && event.error) {
     batch.push(buildExceptionEvent(event));
   }
 
-  if (
-    options.enableAITracing &&
-    event.eventType === MCPAnalyticsEventType.mcpToolsCall
-  ) {
+  if (shouldBuildAISpan(event, options)) {
     batch.push(buildAISpanEvent(event));
   }
 
   return batch;
 }
 
-function buildCaptureEvent(event: Event): PostHogCaptureEvent {
+function buildCaptureEvent(
+  event: Event,
+  options: BuildPostHogCaptureEventsOptions
+): PostHogCaptureEvent {
   const distinctId = getDistinctId(event);
   const eventName = mapEventType(event.eventType);
   const timestamp = getTimestamp(event);
@@ -115,6 +115,7 @@ function buildCaptureEvent(event: Event): PostHogCaptureEvent {
   };
 
   addCommonEventProperties(event, properties);
+  addTraceReferenceProperties(event, properties, options);
   addCustomEventProperties(event, properties);
 
   return {
@@ -124,6 +125,37 @@ function buildCaptureEvent(event: Event): PostHogCaptureEvent {
     timestamp,
     type: "capture",
   };
+}
+
+function shouldBuildAISpan(
+  event: Event,
+  options: BuildPostHogCaptureEventsOptions
+): boolean {
+  return (
+    options.enableAITracing === true &&
+    event.eventType === MCPAnalyticsEventType.mcpToolsCall
+  );
+}
+
+function getAITraceId(event: Event): string {
+  return toUUIDv7(event.sessionId);
+}
+
+function getAISpanId(event: Event): string {
+  return toUUIDv7(event.id);
+}
+
+function addTraceReferenceProperties(
+  event: Event,
+  properties: Record<string, unknown>,
+  options: BuildPostHogCaptureEventsOptions
+): void {
+  if (!shouldBuildAISpan(event, options)) {
+    return;
+  }
+
+  properties[PostHogMCPAnalyticsProperty.AiTraceId] = getAITraceId(event);
+  properties[PostHogMCPAnalyticsProperty.AiSpanId] = getAISpanId(event);
 }
 
 function addCommonEventProperties(
@@ -152,8 +184,7 @@ function addCommonEventProperties(
     properties[PostHogMCPAnalyticsProperty.ClientVersion] = event.clientVersion;
   }
   if (event.userIntent) {
-    properties[PostHogMCPAnalyticsProperty.UserIntent] = event.userIntent;
-    properties[PostHogMCPAnalyticsProperty.MCPContext] = event.userIntent;
+    properties[PostHogMCPAnalyticsProperty.Intent] = event.userIntent;
   }
   if (event.isError !== undefined) {
     properties[PostHogMCPAnalyticsProperty.IsError] = event.isError;
@@ -250,8 +281,8 @@ function buildAISpanEvent(event: Event): PostHogCaptureEvent {
 
   const properties: Record<string, unknown> = {
     [PostHogMCPAnalyticsProperty.AiSessionId]: `posthog_mcp_analytics_${event.sessionId}`,
-    [PostHogMCPAnalyticsProperty.AiTraceId]: toUUIDv7(event.sessionId),
-    [PostHogMCPAnalyticsProperty.AiSpanId]: toUUIDv7(event.id),
+    [PostHogMCPAnalyticsProperty.AiTraceId]: getAITraceId(event),
+    [PostHogMCPAnalyticsProperty.AiSpanId]: getAISpanId(event),
     [PostHogMCPAnalyticsProperty.AiSpanName]:
       event.resourceName || "unknown_tool",
     [PostHogMCPAnalyticsProperty.AiIsError]: event.isError,
@@ -278,8 +309,7 @@ function buildAISpanEvent(event: Event): PostHogCaptureEvent {
     properties[PostHogMCPAnalyticsProperty.ClientName] = event.clientName;
   }
   if (event.userIntent) {
-    properties[PostHogMCPAnalyticsProperty.UserIntent] = event.userIntent;
-    properties[PostHogMCPAnalyticsProperty.MCPContext] = event.userIntent;
+    properties[PostHogMCPAnalyticsProperty.Intent] = event.userIntent;
   }
 
   if (event.tags) {

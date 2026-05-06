@@ -35,7 +35,7 @@ import type {
 } from "./types.js";
 
 /**
- * Integrates PostHog MCP analytics into an MCP server to track tool usage patterns and user interactions.
+ * Integrates PostHog MCP into an MCP server to track tool usage patterns and user interactions.
  *
  * @param server - The MCP server instance to track. Must be a compatible MCP server implementation.
  * @param options - Configuration to customize tracking behavior.
@@ -46,10 +46,10 @@ import type {
  * @param options.enableTracing - Enables tracking of tool calls and usage patterns.
  * @param options.context - Enables the required "context" parameter on tools to capture user intent. Pass false to disable, or an object with a custom description.
  * @param options.identify - Async function to identify users and attach custom data to their sessions.
- * @param options.redactSensitiveInformation - Function to redact sensitive data before sending to PostHog MCP analytics.
- * @param options.eventTags - Callback invoked on every auto-captured event (tool calls, tool lists, initialize) to attach string key-value tags. Tags are intended to be indexed and queryable in the PostHog MCP analytics dashboard — use them for structured metadata you'll want to filter or group by (e.g., trace IDs, environments, regions). Tags are validated client-side: keys must be ≤32 chars matching `[a-zA-Z0-9$_.:\- ]`, values must be strings ≤200 chars with no newlines, max 50 entries per event. Invalid entries are silently dropped with a warning logged to `~/posthog-mcp-analytics.log`. If the callback throws or returns null, tags are omitted. Receives the same `(request, extra)` arguments as `identify`.
+ * @param options.redactSensitiveInformation - Function to redact sensitive data before sending to PostHog.
+ * @param options.eventTags - Callback invoked on every auto-captured event (tool calls, tool lists, initialize) to attach string key-value tags. Tags are intended to be indexed and queryable in PostHog — use them for structured metadata you'll want to filter or group by (e.g., trace IDs, environments, regions). Tags are validated client-side: keys must be ≤32 chars matching `[a-zA-Z0-9$_.:\- ]`, values must be strings ≤200 chars with no newlines, max 50 entries per event. Invalid entries are silently dropped with a warning logged to `~/posthog-mcp-analytics.log`. If the callback throws or returns null, tags are omitted. Receives the same `(request, extra)` arguments as `identify`.
  * @param options.eventProperties - Callback invoked on every auto-captured event to attach flexible JSON metadata (device info, feature flags, nested context). No constraints beyond standard JSON types. If the callback throws or returns null, properties are omitted. Receives the same `(request, extra)` arguments as `identify`.
- * @param options.posthogClient - Optional existing posthog-node compatible client. If provided, MCP analytics events are captured with that client instead of creating a new one.
+ * @param options.posthogClient - Optional existing posthog-node compatible client. If provided, MCP events are captured with that client instead of creating a new one.
  * @param options.posthogOptions - Optional posthog-node options used when the SDK creates its own client.
  *
  * @returns The tracked server instance.
@@ -62,12 +62,12 @@ import type {
  *
  * @example
  * ```typescript
- * import * as mcpAnalytics from "/mcp-analytics";
+ * import { track } from "@posthog/mcp";
  *
  * const mcpServer = new Server({ name: "my-mcp-server", version: "1.0.0" });
  *
- * // Track the server with PostHog MCP analytics
- * mcpAnalytics.track(mcpServer, { apiKey: "phc_abc123xyz" });
+ * // Track the server with PostHog MCP
+ * track(mcpServer, { apiKey: "phc_abc123xyz" });
  *
  * // Register your tools
  * mcpServer.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -78,7 +78,7 @@ import type {
  * @example
  * ```typescript
  * // With user identification
- * mcpAnalytics.track(mcpServer, {
+ * track(mcpServer, {
  *   apiKey: "phc_abc123xyz",
  *   identify: async (request, extra) => {
  *     const user = await getUserFromToken(request.params.arguments.token);
@@ -93,7 +93,7 @@ import type {
  * @example
  * ```typescript
  * // With custom context description
- * mcpAnalytics.track(mcpServer, {
+ * track(mcpServer, {
  *   apiKey: "phc_abc123xyz",
  *   context: {
  *     description: "Explain why you're calling this tool and what business objective it helps achieve"
@@ -104,7 +104,7 @@ import type {
  * @example
  * ```typescript
  * // With sensitive data redaction
- * mcpAnalytics.track(mcpServer, {
+ * track(mcpServer, {
  *   apiKey: "phc_abc123xyz",
  *   redactSensitiveInformation: async (text) => {
  *     return text.replace(/api_key_\w+/g, "[REDACTED]");
@@ -115,7 +115,7 @@ import type {
  * @example
  * ```typescript
  * // With event tags and properties
- * mcpAnalytics.track(mcpServer, {
+ * track(mcpServer, {
  *   apiKey: "phc_abc123xyz",
  *   eventTags: async (request, extra) => ({
  *     trace_id: extra?.requestContext?.traceId,
@@ -244,7 +244,7 @@ function setupTrackedServer(
 }
 
 /**
- * Publishes a custom event to PostHog MCP analytics with flexible session management.
+ * Publishes a custom event to PostHog MCP with flexible session management.
  *
  * @param serverOrSessionId - Either a tracked MCP server instance or a MCP session ID string
  * @param eventData - Event data to include with the custom event. `apiKey` is required when publishing against a raw session ID.
@@ -254,7 +254,7 @@ function setupTrackedServer(
  * @example
  * ```typescript
  * // With a tracked server
- * await mcpAnalytics.publishCustomEvent(
+ * await publishCustomEvent(
  *   server,
  *   {
  *     resourceName: "custom-action",
@@ -267,7 +267,7 @@ function setupTrackedServer(
  * @example
  * ```typescript
  * // With a MCP session ID
- * await mcpAnalytics.publishCustomEvent(
+ * await publishCustomEvent(
  *   "user-session-12345",
  *   {
  *     apiKey: "phc_abc123xyz",
@@ -279,7 +279,7 @@ function setupTrackedServer(
  *
  * @example
  * ```typescript
- * await mcpAnalytics.publishCustomEvent(
+ * await publishCustomEvent(
  *   server,
  *   {
  *     resourceName: "feature-usage",
@@ -393,7 +393,7 @@ function resolveTrackedServerTarget(server: object): CustomEventTarget {
 
   if (!trackingData) {
     throw new Error(
-      "Server is not tracked. Please call mcpAnalytics.track() first or provide a session ID string."
+      "Server is not tracked. Please call track() first or provide a session ID string."
     );
   }
 

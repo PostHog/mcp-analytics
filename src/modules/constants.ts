@@ -17,7 +17,7 @@ export const PostHogMCPAnalyticsProperty = {
   ClientVersion: "$mcp_client_version",
   DurationMs: "$mcp_duration_ms",
   IsError: "$mcp_is_error",
-  MCPContext: "$mcp_context",
+  Intent: "$mcp_intent",
   Parameters: "$mcp_parameters",
   ResourceName: "$mcp_resource_name",
   Response: "$mcp_response",
@@ -26,7 +26,6 @@ export const PostHogMCPAnalyticsProperty = {
   SessionId: "$session_id",
   Source: "$mcp_source",
   ToolName: "$mcp_tool_name",
-  UserIntent: "$mcp_user_intent",
 } as const;
 
 export type PostHogMCPAnalyticsProperty =

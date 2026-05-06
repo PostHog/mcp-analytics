@@ -1,6 +1,6 @@
 import { validate as uuidValidate, version as uuidVersion } from "uuid";
 import { describe, expect, it } from "vitest";
-import { toUUIDv7 } from "../modules/exporters/posthog.js";
+import { toUUIDv7 } from "../modules/posthog-events.js";
 import KSUID from "../thirdparty/ksuid/index.js";
 
 describe("toUUIDv7", () => {

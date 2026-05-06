@@ -1,7 +1,7 @@
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "../index.js";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { redactEvent } from "../modules/redaction.js";
 import type { RedactFunction, UnredactedEvent } from "../types.js";
 import {
@@ -9,6 +9,9 @@ import {
   setupTestServerAndClient,
 } from "./test-utils/client-server-factory.js";
 import { EventCapture } from "./test-utils.js";
+
+const CREDIT_CARD_PATTERN = /\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}/;
+const SESSION_ID_PATTERN = /^ses_/;
 
 describe("redactEvent", () => {
   // Mock redaction function that replaces strings with "[REDACTED]"
@@ -477,9 +480,7 @@ describe("redactEvent integration tests", () => {
     // Verify sensitive data in parameters was redacted
     const params = toolCallEvent?.parameters as any;
     expect(params.request.params.arguments.text).toBe("[REDACTED-EMAIL]"); // Contains email
-    expect(params.request.params.arguments.context).toBe(
-      "Adding a todo item for reset task"
-    ); // Context should not be redacted
+    expect(toolCallEvent?.userIntent).toBe("Adding a todo item for reset task");
 
     // Find the identify event
     const identifyEvent = events.find(
@@ -494,12 +495,9 @@ describe("redactEvent integration tests", () => {
     expect(identifyParams.request.params.arguments.text).toBe(
       "[REDACTED-EMAIL]"
     );
-    expect(identifyParams.request.params.arguments.context).toBe(
-      "Adding a todo item for reset task"
-    );
 
     // Verify protected fields were NOT redacted
-    expect(toolCallEvent?.sessionId).toMatch(/^ses_/); // Should start with ses_
+    expect(toolCallEvent?.sessionId).toMatch(SESSION_ID_PATTERN); // Should start with ses_
     expect(toolCallEvent?.apiKey).toBe("test-project");
     expect(toolCallEvent?.resourceName).toBe("add_todo");
     expect(toolCallEvent?.eventType).toBe(MCPAnalyticsEventType.mcpToolsCall);
@@ -518,7 +516,7 @@ describe("redactEvent integration tests", () => {
     // Redaction function that redacts credit card numbers
     const redactCreditCards: RedactFunction = async (text: string) => {
       // Simple credit card detection (4 groups of 4 digits)
-      if (/\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}/.test(text)) {
+      if (CREDIT_CARD_PATTERN.test(text)) {
         return "[REDACTED-CC]";
       }
       return text;
@@ -560,9 +558,7 @@ describe("redactEvent integration tests", () => {
 
     // Verify credit card data in text was redacted
     expect(params.request.params.arguments.text).toBe("[REDACTED-CC]");
-    expect(params.request.params.arguments.context).toBe(
-      "Processing payment for order"
-    );
+    expect(toolCallEvent?.userIntent).toBe("Processing payment for order");
 
     await eventCapture.stop();
   });
@@ -619,13 +615,13 @@ describe("redactEvent integration tests", () => {
     );
 
     // Protected fields should NOT be redacted
-    expect(toolCallEvent?.sessionId).toMatch(/^ses_/);
+    expect(toolCallEvent?.sessionId).toMatch(SESSION_ID_PATTERN);
     expect(toolCallEvent?.actorId).toBeUndefined(); // Not set in this test
 
     // Non-protected fields with 'id' should be redacted
     const params = toolCallEvent?.parameters as any;
     expect(params.request.params.arguments.text).toBe("[REDACTED-ID]");
-    expect(params.request.params.arguments.context).toBe("[REDACTED-ID]"); // Context contains 'id' so should be redacted too
+    expect(toolCallEvent?.userIntent).toBe("[REDACTED-ID]");
 
     // Check identify event
     const identifyEvent = events.find(
@@ -639,9 +635,6 @@ describe("redactEvent integration tests", () => {
     // The identify event parameters should also be redacted
     const identifyParams = identifyEvent?.parameters as any;
     expect(identifyParams.request.params.arguments.text).toBe("[REDACTED-ID]");
-    expect(identifyParams.request.params.arguments.context).toBe(
-      "[REDACTED-ID]"
-    );
 
     await eventCapture.stop();
   });

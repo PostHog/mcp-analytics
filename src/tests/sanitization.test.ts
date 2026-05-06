@@ -3,7 +3,7 @@ import { sanitizeEvent } from "../modules/sanitization.js";
 import type { Event } from "../types.js";
 
 function makeLargeBase64(sizeInChars = 12_000): string {
-  return "A".repeat(sizeInChars - 1) + "=";
+  return `${"A".repeat(sizeInChars - 1)}=`;
 }
 
 function makeLargeNonBase64(sizeInChars = 12_000): string {
@@ -171,6 +171,33 @@ describe("sanitizeEvent - response content blocks", () => {
     const result = sanitizeEvent(event);
 
     expect(result.response).toEqual({ result: "success" });
+  });
+
+  it("should redact token-shaped fields and PostHog tokens in text responses", () => {
+    const event = makeEvent({
+      response: {
+        content: [
+          {
+            type: "text",
+            text: "Project api_token: phc_123456789012345678901234567890",
+          },
+        ],
+        structuredContent: {
+          project: "Default project",
+          api_token: "phc_123456789012345678901234567890",
+        },
+      },
+    });
+
+    const result = sanitizeEvent(event);
+
+    expect(result.response.content[0].text).toBe(
+      "Project api_token: [redacted]"
+    );
+    expect(result.response.structuredContent).toEqual({
+      project: "Default project",
+      api_token: "[redacted]",
+    });
   });
 
   it("should handle null and undefined response without error", () => {

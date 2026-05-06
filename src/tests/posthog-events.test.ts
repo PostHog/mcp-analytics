@@ -4,7 +4,7 @@ import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import {
   buildPostHogCaptureEvents,
   type PostHogCaptureEvent,
-} from "../modules/exporters/posthog.js";
+} from "../modules/posthog-events.js";
 import KSUID from "../thirdparty/ksuid/index.js";
 import type { Event } from "../types.js";
 
@@ -231,15 +231,12 @@ describe("buildPostHogCaptureEvents", () => {
     expect(event.properties.device).toBeUndefined();
   });
 
-  it("includes userIntent as MCP context properties", () => {
+  it("maps userIntent to the MCP intent property", () => {
     const [event] = buildPostHogCaptureEvents(
       makeEvent({ userIntent: "Check the weather in London" })
     );
 
-    expect(event.properties.$mcp_user_intent).toBe(
-      "Check the weather in London"
-    );
-    expect(event.properties.$mcp_context).toBe("Check the weather in London");
+    expect(event.properties.$mcp_intent).toBe("Check the weather in London");
   });
 
   it("emits $ai_span alongside regular event for tool calls when enableAITracing is true", () => {
@@ -282,6 +279,11 @@ describe("buildPostHogCaptureEvents", () => {
     expect(span?.properties.$mcp_source).toBe("posthog_mcp_analytics");
     expect(span?.properties.$mcp_server_name).toBe("weather-server");
     expect(span?.properties.$mcp_client_name).toBe("claude-desktop");
+
+    expect(regular?.properties.$ai_trace_id).toBe(
+      span?.properties.$ai_trace_id
+    );
+    expect(regular?.properties.$ai_span_id).toBe(span?.properties.$ai_span_id);
   });
 
   it("generates deterministic UUIDs for $ai_span trace and span IDs", () => {

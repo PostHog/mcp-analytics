@@ -1,6 +1,6 @@
 # Contributing
 
-This repository contains the TypeScript SDK for PostHog MCP analytics.
+This repository contains the TypeScript SDK for PostHog MCP instrumentation.
 
 ## Setup
 
@@ -23,7 +23,8 @@ pnpm build
 pnpm test
 pnpm typecheck
 pnpm typecheck:tsc6
-pnpm format
+pnpm check
+pnpm fix
 ```
 
 ## Commits

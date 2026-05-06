@@ -8,7 +8,7 @@ import type {
   UnredactedEvent,
 } from "../types.js";
 import { getMCPCompatibleErrorMessage } from "./compatibility.js";
-import { buildPostHogCaptureEvents } from "./exporters/posthog.js";
+import { buildPostHogCaptureEvents } from "./posthog-events.js";
 import { getServerTrackingData } from "./internal.js";
 import { writeToLog } from "./logging.js";
 import { redactEvent } from "./redaction.js";

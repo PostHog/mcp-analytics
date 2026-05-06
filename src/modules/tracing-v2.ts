@@ -17,6 +17,7 @@ import {
   resolveEventTags,
 } from "./internal.js";
 import { writeToLog } from "./logging.js";
+import { buildCapturedMcpParameters } from "./mcp-payloads.js";
 import {
   createWrappedTool,
   getLiteralValue,
@@ -362,7 +363,7 @@ async function initializeToolCallEvent(
     const event: UnredactedEvent = {
       sessionId: getServerSessionId(server, extra),
       resourceName: request.params?.name || "Unknown Tool",
-      parameters: { request, extra },
+      parameters: buildCapturedMcpParameters(request),
       eventType: MCPAnalyticsEventType.mcpToolsCall,
       timestamp: startTime,
       redactionFn: data.options.redactSensitiveInformation,

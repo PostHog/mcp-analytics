@@ -1,7 +1,7 @@
 {
-  "name": "@posthog/mcp-analytics",
-  "version": "0.0.0",
-  "description": "PostHog analytics for MCP servers",
+  "name": "@posthog/mcp",
+  "version": "0.0.1",
+  "description": "PostHog SDK for MCP servers",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
@@ -35,7 +35,6 @@
     "ai-agents",
     "analytics",
     "mcp",
-    "mcp-analytics",
     "mcp-server",
     "model-context-protocol",
     "observability",
@@ -56,8 +55,11 @@
     "README.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
-    "node": "^20.20.0 || >=22.22.0"
+    "node": ">=22.22.0"
   },
   "packageManager": "pnpm@10.33.2",
   "devDependencies": {

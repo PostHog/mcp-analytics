@@ -26,6 +26,7 @@ import {
   resolveEventTags,
 } from "./internal.js";
 import { writeToLog } from "./logging.js";
+import { buildCapturedMcpParameters } from "./mcp-payloads.js";
 import { getServerSessionId } from "./session.js";
 import {
   GET_MORE_TOOLS_NAME,
@@ -110,10 +111,7 @@ async function handleListToolsRequest(
   const data = getServerTrackingData(server);
   const event: UnredactedEvent = {
     sessionId: getServerSessionId(server, extra),
-    parameters: {
-      request,
-      extra,
-    },
+    parameters: buildCapturedMcpParameters(request),
     eventType: MCPAnalyticsEventType.mcpToolsList,
     timestamp: new Date(),
     redactionFn: data?.options.redactSensitiveInformation,
@@ -227,10 +225,7 @@ export function setupInitializeTracing(
           sessionId,
           resourceName: request.params?.name || "Unknown Tool Name",
           eventType: MCPAnalyticsEventType.mcpInitialize,
-          parameters: {
-            request,
-            extra,
-          },
+          parameters: buildCapturedMcpParameters(request),
           timestamp: new Date(),
           redactionFn: data.options.redactSensitiveInformation,
         };
@@ -285,10 +280,7 @@ export function setupToolCallTracing(server: MCPServerLike): void {
             sessionId,
             resourceName: request.params?.name || "Unknown Tool Name",
             eventType: MCPAnalyticsEventType.mcpInitialize,
-            parameters: {
-              request,
-              extra,
-            },
+            parameters: buildCapturedMcpParameters(request),
             timestamp: new Date(),
             redactionFn: data.options.redactSensitiveInformation,
           };
@@ -347,10 +339,7 @@ async function handleToolCallRequest(
   const event: UnredactedEvent = {
     sessionId: getServerSessionId(server, extra),
     resourceName: request.params?.name || "Unknown Tool Name",
-    parameters: {
-      request,
-      extra,
-    },
+    parameters: buildCapturedMcpParameters(request),
     eventType: MCPAnalyticsEventType.mcpToolsCall,
     timestamp: new Date(),
     redactionFn: data.options.redactSensitiveInformation,

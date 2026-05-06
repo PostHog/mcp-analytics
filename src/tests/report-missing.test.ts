@@ -3,10 +3,10 @@ import {
   CallToolResultSchema,
   ListToolsResultSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { track } from "../index";
 import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "../modules/constants";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { getServerTrackingData } from "../modules/internal";
 import { EventCapture } from "./test-utils";
 import {
@@ -172,9 +172,7 @@ describe("Report Missing Tool", () => {
       );
 
       expect(reportEvent).toBeDefined();
-      expect(
-        (reportEvent?.parameters as any).request.params.arguments.context
-      ).toBe(missingDescription);
+      expect(reportEvent?.userIntent).toBe(missingDescription);
 
       await eventCapture.stop();
     });
@@ -222,9 +220,7 @@ describe("Report Missing Tool", () => {
       );
 
       expect(reportEvent).toBeDefined();
-      expect(
-        (reportEvent?.parameters as any).request.params.arguments.context
-      ).toBe(additionalContext);
+      expect(reportEvent?.userIntent).toBe(additionalContext);
 
       await eventCapture.stop();
     });
@@ -269,7 +265,6 @@ describe("Report Missing Tool", () => {
       // Enable tracking
       track(server, { apiKey: "proj_abc123xyz" });
 
-      const description = "Need file system watcher tool";
       const context = "User wants to monitor file changes in real-time";
 
       // Call report_missing
@@ -307,14 +302,9 @@ describe("Report Missing Tool", () => {
         "get_more_tools"
       );
       expect((reportEvent?.parameters as any).request.params.arguments).toEqual(
-        {
-          context,
-        }
+        {}
       );
-
-      // Since report_missing has its own context parameter, it should NOT have userIntent
-      // The context is captured in the arguments, not as userIntent
-      expect(reportEvent?.userIntent).toBeDefined();
+      expect(reportEvent?.userIntent).toBe(context);
 
       await eventCapture.stop();
     });
@@ -515,9 +505,7 @@ describe("Report Missing Tool", () => {
 
       // Each event should have structured data for analysis
       reportEvents.forEach((event, index) => {
-        expect((event.parameters as any).request.params.arguments.context).toBe(
-          reports[index].context
-        );
+        expect(event.userIntent).toBe(reports[index].context);
         expect(event.sessionId).toBeDefined();
         expect(event.timestamp).toBeDefined();
       });
@@ -603,9 +591,7 @@ describe("Report Missing Tool", () => {
       expect(new Set(sessionIds).size).toBe(2);
 
       // Similar content (OAuth) from different sessions indicates a pattern
-      const contexts = reportEvents.map(
-        (e) => (e.parameters as any).request.params.arguments?.context
-      );
+      const contexts = reportEvents.map((e) => e.userIntent);
       expect(contexts[0]).toContain("OAuth");
       expect(contexts[1]).toContain("OAuth");
 
