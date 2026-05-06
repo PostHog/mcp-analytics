@@ -3,19 +3,24 @@
   "version": "0.0.0",
   "description": "PostHog analytics for MCP servers",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs",
   "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
+  "types": "dist/index.d.mts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
     "test": "vitest",
     "test:compatibility": "vitest run src/tests/mcp-version-compatibility.test.ts",
     "format": "biome format --write .",
@@ -27,22 +32,14 @@
     "prepublishOnly": "pnpm verify"
   },
   "keywords": [
-    "ai",
-    "authentication",
-    "mcp",
-    "observability",
     "ai-agents",
-    "ai-platform",
-    "ai-agent",
-    "mcps",
-    "aiagents",
-    "ai-agent-tools",
-    "mcp-servers",
+    "analytics",
+    "mcp",
+    "mcp-analytics",
     "mcp-server",
-    "mcp-tools",
-    "agent-runtime",
-    "mcp-framework",
-    "mcp-analytics"
+    "model-context-protocol",
+    "observability",
+    "posthog"
   ],
   "author": "PostHog",
   "license": "MIT",
@@ -65,7 +62,7 @@
     "@vitest/coverage-v8": "^4.0.14",
     "@vitest/ui": "^4.0.14",
     "husky": "^9.1.7",
-    "tsup": "^8.5.0",
+    "tsdown": "^0.21.10",
     "typescript": "npm:@typescript/typescript6@^6.0.0",
     "ultracite": "7.6.3",
     "uuid": "^13.0.0",
