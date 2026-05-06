@@ -464,7 +464,7 @@ describe("truncateEvent - edge cases", () => {
     const event = makeEvent({
       id: "evt_abc123",
       sessionId: "ses_xyz789",
-      projectId: "proj_test",
+      apiKey: "proj_test",
       eventType: "mcp:tools/call",
       timestamp: ts,
       duration: 342,
@@ -476,7 +476,7 @@ describe("truncateEvent - edge cases", () => {
     const result = truncateEvent(event);
     expect(result.id).toBe("evt_abc123");
     expect(result.sessionId).toBe("ses_xyz789");
-    expect(result.projectId).toBe("proj_test");
+    expect(result.apiKey).toBe("proj_test");
     expect(result.eventType).toBe("mcp:tools/call");
     expect(result.timestamp).toBe(ts);
     expect(result.duration).toBe(342);

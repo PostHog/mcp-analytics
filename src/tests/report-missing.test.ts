@@ -34,7 +34,8 @@ describe("Report Missing Tool", () => {
   describe("1. Tool Injection Tests", () => {
     it("should add report_missing to tools list when enableReportMissing is true", async () => {
       // Enable tracking with report_missing enabled
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableReportMissing: true,
         enableTracing: true,
       });
@@ -66,7 +67,8 @@ describe("Report Missing Tool", () => {
 
     it("should NOT add get_more_tools when enableReportMissing is false", async () => {
       // Enable tracking with get_more_tools disabled
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableReportMissing: false,
         enableTracing: true,
       });
@@ -90,7 +92,8 @@ describe("Report Missing Tool", () => {
 
     it("should add report_missing WITHOUT context injection even when enableToolCallContext is true", async () => {
       // Enable tracking with both features enabled
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableReportMissing: true,
         enableToolCallContext: true,
         enableTracing: true,
@@ -131,7 +134,8 @@ describe("Report Missing Tool", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableReportMissing: true,
         enableTracing: true,
       });
@@ -180,7 +184,8 @@ describe("Report Missing Tool", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableReportMissing: true,
         enableTracing: true,
       });
@@ -229,7 +234,8 @@ describe("Report Missing Tool", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableReportMissing: true,
         enableTracing: true,
       });
@@ -261,7 +267,7 @@ describe("Report Missing Tool", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "proj_abc123xyz");
+      track(server, { apiKey: "proj_abc123xyz" });
 
       const description = "Need file system watcher tool";
       const context = "User wants to monitor file changes in real-time";
@@ -320,7 +326,8 @@ describe("Report Missing Tool", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableReportMissing: true,
         enableTracing: true,
       });
@@ -403,7 +410,8 @@ describe("Report Missing Tool", () => {
       };
 
       // Enable tracking with identify
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableReportMissing: true,
         enableTracing: true,
         identify: async () => ({
@@ -458,7 +466,8 @@ describe("Report Missing Tool", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableReportMissing: true,
         enableTracing: true,
       });
@@ -528,7 +537,8 @@ describe("Report Missing Tool", () => {
       // First session
       {
         const setup1 = await setupTestServerAndClient();
-        track(setup1.server, "test-project", {
+        track(setup1.server, {
+          apiKey: "test-project",
           enableReportMissing: true,
           enableTracing: true,
         });
@@ -552,7 +562,8 @@ describe("Report Missing Tool", () => {
       // Second session
       {
         const setup2 = await setupTestServerAndClient();
-        track(setup2.server, "test-project", {
+        track(setup2.server, {
+          apiKey: "test-project",
           enableReportMissing: true,
           enableTracing: true,
         });
@@ -606,7 +617,8 @@ describe("Report Missing Tool", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableReportMissing: true,
         enableTracing: true,
       });

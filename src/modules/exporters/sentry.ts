@@ -271,9 +271,6 @@ export class SentryExporter implements Exporter {
     if (event.sessionId) {
       attributes.sessionId = { value: event.sessionId, type: "string" };
     }
-    if (event.projectId) {
-      attributes.projectId = { value: event.projectId, type: "string" };
-    }
     if (event.duration !== undefined) {
       attributes.duration_ms = { value: event.duration, type: "double" };
     }
@@ -410,9 +407,6 @@ export class SentryExporter implements Exporter {
 
     if (event.sessionId) {
       extra.session_id = event.sessionId;
-    }
-    if (event.projectId) {
-      extra.project_id = event.projectId;
     }
     if (event.userIntent) {
       extra.user_intent = event.userIntent;

@@ -52,7 +52,7 @@ describe("MCP SDK callback/handler compatibility", () => {
     const originalPropName = getToolFunctionPropertyName(toolBefore);
 
     // Call track() to apply PostHog MCP analytics's tracing
-    track(server, "test-project-id");
+    track(server, { apiKey: "test-project-id" });
 
     const toolsAfter = (server as any)._registeredTools;
     const toolAfter = toolsAfter["test_tool"];
@@ -81,7 +81,7 @@ describe("MCP SDK callback/handler compatibility", () => {
     );
 
     // Call track() first
-    track(server, "test-project-id");
+    track(server, { apiKey: "test-project-id" });
 
     // Then register a tool after track()
     server.tool("late_tool", { b: z.string() }, async ({ b }) => ({

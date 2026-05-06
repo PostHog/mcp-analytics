@@ -56,9 +56,9 @@
     "@biomejs/biome": "2.4.14",
     "@changesets/cli": "^2.29.8",
     "@modelcontextprotocol/sdk": "~1.24.2",
-    "@typescript/native-preview": "beta",
     "@types/node": "^22.15.21",
     "@types/uuid": "^11.0.0",
+    "@typescript/native-preview": "beta",
     "@vitest/coverage-v8": "^4.0.14",
     "@vitest/ui": "^4.0.14",
     "husky": "^9.1.7",
@@ -87,5 +87,8 @@
       "body-parser": "Fixes GHSA-wqch-xfxh-vrr4 (DoS via url encoding) - via @modelcontextprotocol/sdk",
       "brace-expansion": "Fixes GHSA-v6h2-p8h4-qcjw (ReDoS vulnerability) - via eslint"
     }
+  },
+  "dependencies": {
+    "posthog-node": "^5.33.3"
   }
 }

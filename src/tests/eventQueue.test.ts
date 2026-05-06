@@ -42,7 +42,7 @@ describe("EventQueue", () => {
 
     // Mock server tracking data
     (getServerTrackingData as any).mockReturnValue({
-      projectId: "test-project",
+      apiKey: "test-project",
       sessionId: "test-session",
       options: { enableTracing: true },
     });
@@ -106,7 +106,7 @@ describe("EventQueue", () => {
 
     it("should not publish event when enableTracing is false", () => {
       (getServerTrackingData as any).mockReturnValue({
-        projectId: "test-project",
+        apiKey: "test-project",
         sessionId: "test-session",
         options: { enableTracing: false },
       });
@@ -184,6 +184,48 @@ describe("EventQueue", () => {
 
       // This should not throw an error
       expect(() => eventQueue.add(event)).not.toThrow();
+    });
+
+    it("should capture mapped events through an injected PostHog client", async () => {
+      const capture = vi.fn();
+      const posthogClient = {
+        capture,
+        flush: vi.fn().mockResolvedValue(undefined),
+        shutdown: vi.fn().mockResolvedValue(undefined),
+      };
+
+      eventQueue.add(
+        {
+          eventType: "mcp:tools/call",
+          identifyActorGivenId: "user-123",
+          resourceName: "create_insight",
+          sessionId: "ses_test123",
+          timestamp: new Date("2026-05-06T10:00:00.000Z"),
+          userIntent: "Create a trend insight for weekly active users",
+        },
+        posthogClient
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(capture).toHaveBeenCalledWith(
+        expect.objectContaining({
+          distinctId: "user-123",
+          event: "mcp_tool_call",
+          timestamp: new Date("2026-05-06T10:00:00.000Z"),
+        })
+      );
+      expect(capture.mock.calls[0][0].properties).toEqual(
+        expect.objectContaining({
+          resource_name: "create_insight",
+          source: "posthog_mcp_analytics",
+          tool_name: "create_insight",
+          user_intent: "Create a trend insight for weekly active users",
+        })
+      );
+      expect(capture.mock.calls[0][0].properties).not.toHaveProperty(
+        "project_id"
+      );
     });
 
     it("should handle destroy method without errors", async () => {

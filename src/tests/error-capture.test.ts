@@ -28,7 +28,7 @@ describe("Error Capture Integration Tests", () => {
     try {
       // Track the server with mcpAnalytics (uses default settings including context parameters)
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -93,7 +93,7 @@ describe("Error Capture Integration Tests", () => {
 
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -158,7 +158,7 @@ describe("Error Capture Integration Tests", () => {
 
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -208,7 +208,7 @@ describe("Error Capture Integration Tests", () => {
 
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -254,7 +254,7 @@ describe("Error Capture Integration Tests", () => {
     try {
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -304,7 +304,7 @@ describe("Error Capture Integration Tests", () => {
     try {
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -337,7 +337,7 @@ describe("Error Capture Integration Tests", () => {
     try {
       // Track with an identify function that throws
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => {
           throw new Error("Identify error");
@@ -385,7 +385,7 @@ describe("Error Capture Integration Tests", () => {
     try {
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -440,7 +440,7 @@ describe("Error Capture Integration Tests", () => {
 
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -508,7 +508,7 @@ describe("Error Capture Integration Tests", () => {
     try {
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -569,7 +569,7 @@ describe("Error Capture Integration Tests", () => {
     try {
       // add_todo requires 'text' parameter
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -622,7 +622,7 @@ describe("Error Capture Integration Tests", () => {
 
     try {
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 

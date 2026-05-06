@@ -1,7 +1,14 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { EventMessage, PostHogOptions } from "posthog-node";
+
+export interface PostHogCaptureClient {
+  capture(props: EventMessage): void;
+  flush?(): Promise<void>;
+  shutdown?(shutdownTimeoutMs?: number): Promise<void>;
+}
 
 export interface MCPAnalyticsOptions {
-  apiBaseUrl?: string;
+  apiKey?: string | null;
   customContextDescription?: string;
   enableReportMissing?: boolean;
   enableToolCallContext?: boolean;
@@ -15,10 +22,23 @@ export interface MCPAnalyticsOptions {
     extra?: CompatibleRequestHandlerExtra
   ) => Record<string, string> | null | Promise<Record<string, string> | null>;
   exporters?: Record<string, ExporterConfig>;
+  host?: string;
   identify?: (
     request: any,
     extra?: CompatibleRequestHandlerExtra
   ) => Promise<UserIdentity | null>;
+  posthogClient?: PostHogCaptureClient;
+  posthogOptions?: Pick<
+    PostHogOptions,
+    | "fetch"
+    | "flushAt"
+    | "flushInterval"
+    | "host"
+    | "requestTimeout"
+    | "waitUntil"
+    | "waitUntilDebounceMs"
+    | "waitUntilMaxWaitMs"
+  >;
   redactSensitiveInformation?: RedactFunction;
 }
 
@@ -58,8 +78,8 @@ export enum MCPAnalyticsIDPrefixes {
 }
 
 export interface Event {
-  // Legacy fields for PostHog MCP analytics API compatibility
   actorId?: string; // Maps to identifyActorGivenId in some contexts
+  apiKey?: string; // PostHog project API key used by the default ingestion client.
   clientName?: string;
   clientVersion?: string;
   duration?: number;
@@ -84,7 +104,6 @@ export interface Event {
   isError?: boolean;
   sdkVersion?: string;
   parameters?: any;
-  projectId?: string; // Optional for telemetry-only mode
   properties?: Record<string, any> | null;
 
   // Event-specific data
@@ -176,11 +195,11 @@ export interface SessionInfo {
 }
 
 export interface MCPAnalyticsData {
+  apiKey: string;
   identifiedSessions: Map<string, UserIdentity>;
   lastActivity: Date; // Last activity timestamp
   lastMcpSessionId?: string; // Track the last MCP sessionId we saw
   options: MCPAnalyticsOptions;
-  projectId: string; // Project ID for PostHog MCP analytics
   sessionId: string; // Unique identifier for the session (KSUID with ses prefix)
   sessionInfo: SessionInfo;
   sessionSource: "generated" | "mcp"; // Track whether session ID came from MCP protocol or SDK generation
@@ -215,11 +234,13 @@ export interface ErrorData {
 
 // Custom event types for publishCustomEvent function
 export interface CustomEventData {
+  apiKey?: string | null;
   duration?: number;
   error?: any;
   isError?: boolean;
   message?: string;
   parameters?: any;
+  posthogClient?: PostHogCaptureClient;
   properties?: Record<string, any>;
   resourceName?: string;
   response?: any;

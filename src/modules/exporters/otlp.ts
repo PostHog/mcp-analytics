@@ -110,10 +110,6 @@ export class OTLPExporter implements Exporter {
           value: { stringValue: event.sessionId || "" },
         },
         {
-          key: "mcp.project_id",
-          value: { stringValue: event.projectId || "" },
-        },
-        {
           key: "mcp.resource_name",
           value: { stringValue: event.resourceName || "" },
         },

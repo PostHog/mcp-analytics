@@ -31,7 +31,7 @@ describe("PostHogExporter", () => {
     return {
       id: "evt_test123",
       sessionId: "ses_session456",
-      projectId: "proj_1",
+      apiKey: "proj_1",
       eventType: MCPAnalyticsEventType.mcpToolsCall,
       timestamp: new Date("2025-01-15T10:00:00Z"),
       resourceName: "get_weather",
@@ -79,7 +79,7 @@ describe("PostHogExporter", () => {
     expect(event.properties.server_version).toBe("1.0.0");
     expect(event.properties.client_name).toBe("claude-desktop");
     expect(event.properties.client_version).toBe("2.0.0");
-    expect(event.properties.project_id).toBe("proj_1");
+    expect(event.properties).not.toHaveProperty("project_id");
     expect(event.properties.is_error).toBe(false);
   });
 

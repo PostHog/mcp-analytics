@@ -18,7 +18,8 @@ describe("E2E Truncation - real MCP tool calls", () => {
 
     try {
       const { track } = await import("../index.js");
-      await track(server, "test-truncation", {
+      await track(server, {
+        apiKey: "test-truncation",
         enableToolCallContext: false,
         enableTracing: true,
       });
@@ -79,7 +80,8 @@ describe("E2E Truncation - real MCP tool calls", () => {
 
     try {
       const { track } = await import("../index.js");
-      await track(server, "test-truncation-params", {
+      await track(server, {
+        apiKey: "test-truncation-params",
         enableToolCallContext: false,
         enableTracing: true,
       });
@@ -141,7 +143,8 @@ describe("E2E Truncation - real MCP tool calls", () => {
 
     try {
       const { track } = await import("../index.js");
-      await track(server, "test-truncation-mixed", {
+      await track(server, {
+        apiKey: "test-truncation-mixed",
         enableToolCallContext: false,
         enableTracing: true,
       });
@@ -213,7 +216,8 @@ describe("E2E Truncation - real MCP tool calls", () => {
 
     try {
       const { track } = await import("../index.js");
-      await track(server, "test-sanitize-then-truncate", {
+      await track(server, {
+        apiKey: "test-sanitize-then-truncate",
         enableToolCallContext: false,
         enableTracing: true,
       });

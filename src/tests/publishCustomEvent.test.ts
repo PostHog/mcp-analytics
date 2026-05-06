@@ -48,8 +48,8 @@ describe("publishCustomEvent", () => {
 
     // Mock deriveSessionIdFromMCPSession
     (deriveSessionIdFromMCPSession as any).mockImplementation(
-      (sessionId: string, projectId: string) =>
-        `ses_derived_${sessionId}_${projectId}`
+      (sessionId: string, apiKey: string) =>
+        `ses_derived_${sessionId}_${apiKey}`
     );
 
     // Mock publishEventToQueue
@@ -62,14 +62,14 @@ describe("publishCustomEvent", () => {
 
   describe("with tracked server", () => {
     let mockServer: MCPServerLike;
-    const projectId = "proj_test123";
+    const apiKey = "phc_test123";
 
     beforeEach(() => {
       mockServer = {} as any;
 
       // Mock server tracking data
       (getServerTrackingData as any).mockReturnValue({
-        projectId: "proj_tracked",
+        apiKey: "phc_tracked",
         sessionId: "ses_tracked123",
         options: {},
       });
@@ -82,14 +82,14 @@ describe("publishCustomEvent", () => {
         message: "Testing custom event",
       };
 
-      await publishCustomEvent(mockServer, projectId, eventData);
+      await publishCustomEvent(mockServer, eventData);
 
       expect(getServerTrackingData).toHaveBeenCalledWith(mockServer);
       expect(publishEventToQueue).toHaveBeenCalledWith(
         mockServer,
         expect.objectContaining({
           sessionId: "ses_tracked123",
-          projectId,
+          apiKey: "phc_tracked",
           eventType: "posthog:custom",
           resourceName: "custom-action",
           parameters: { action: "test" },
@@ -107,7 +107,7 @@ describe("publishCustomEvent", () => {
         error: { message: "Test error", code: "ERR_001" },
       };
 
-      await publishCustomEvent(mockServer, projectId, eventData);
+      await publishCustomEvent(mockServer, eventData);
 
       expect(publishEventToQueue).toHaveBeenCalledWith(
         mockServer,
@@ -121,7 +121,7 @@ describe("publishCustomEvent", () => {
     it("should throw error if server is not tracked", async () => {
       (getServerTrackingData as any).mockReturnValue(undefined);
 
-      await expect(publishCustomEvent(mockServer, projectId)).rejects.toThrow(
+      await expect(publishCustomEvent(mockServer)).rejects.toThrow(
         "Server is not tracked"
       );
     });
@@ -131,7 +131,7 @@ describe("publishCustomEvent", () => {
         server: mockServer,
       };
 
-      await publishCustomEvent(highLevelServer, projectId);
+      await publishCustomEvent(highLevelServer);
 
       expect(getServerTrackingData).toHaveBeenCalledWith(mockServer);
     });
@@ -139,24 +139,25 @@ describe("publishCustomEvent", () => {
 
   describe("with custom session ID", () => {
     const customSessionId = "user-session-12345";
-    const projectId = "proj_test123";
+    const apiKey = "phc_test123";
 
     it("should publish custom event with derived session ID", async () => {
       const eventData: CustomEventData = {
+        apiKey,
         resourceName: "custom-action",
         parameters: { action: "test" },
       };
 
-      await publishCustomEvent(customSessionId, projectId, eventData);
+      await publishCustomEvent(customSessionId, eventData);
 
       expect(deriveSessionIdFromMCPSession).toHaveBeenCalledWith(
         customSessionId,
-        projectId
+        apiKey
       );
       expect(mockEventQueue.add).toHaveBeenCalledWith(
         expect.objectContaining({
-          sessionId: `ses_derived_${customSessionId}_${projectId}`,
-          projectId,
+          sessionId: `ses_derived_${customSessionId}_${apiKey}`,
+          apiKey,
           eventType: "posthog:custom",
           resourceName: "custom-action",
           parameters: { action: "test" },
@@ -166,6 +167,7 @@ describe("publishCustomEvent", () => {
 
     it("should handle all event data fields", async () => {
       const eventData: CustomEventData = {
+        apiKey,
         resourceName: "full-test",
         parameters: { key: "value" },
         response: { result: "success" },
@@ -175,7 +177,7 @@ describe("publishCustomEvent", () => {
         error: null,
       };
 
-      await publishCustomEvent(customSessionId, projectId, eventData);
+      await publishCustomEvent(customSessionId, eventData);
 
       expect(mockEventQueue.add).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -192,32 +194,26 @@ describe("publishCustomEvent", () => {
   });
 
   describe("parameter validation", () => {
-    it("should throw error if projectId is not provided", async () => {
-      await expect(publishCustomEvent("session-id", "")).rejects.toThrow(
-        "projectId is required"
+    it("should throw error if apiKey is not provided for a session ID", async () => {
+      await expect(publishCustomEvent("session-id")).rejects.toThrow(
+        "apiKey or posthogClient is required"
       );
 
-      await expect(
-        publishCustomEvent("session-id", null as any)
-      ).rejects.toThrow("projectId is required");
-
-      await expect(
-        publishCustomEvent("session-id", undefined as any)
-      ).rejects.toThrow("projectId is required");
+      await expect(publishCustomEvent("session-id", {})).rejects.toThrow(
+        "apiKey or posthogClient is required"
+      );
     });
 
     it("should throw error if first parameter is invalid", async () => {
-      await expect(publishCustomEvent(123 as any, "proj_123")).rejects.toThrow(
+      await expect(publishCustomEvent(123 as any, {})).rejects.toThrow(
         "First parameter must be either an MCP server object or a session ID string"
       );
 
-      await expect(publishCustomEvent(null as any, "proj_123")).rejects.toThrow(
+      await expect(publishCustomEvent(null as any, {})).rejects.toThrow(
         "First parameter must be either an MCP server object or a session ID string"
       );
 
-      await expect(
-        publishCustomEvent(undefined as any, "proj_123")
-      ).rejects.toThrow(
+      await expect(publishCustomEvent(undefined as any, {})).rejects.toThrow(
         "First parameter must be either an MCP server object or a session ID string"
       );
     });
@@ -226,9 +222,9 @@ describe("publishCustomEvent", () => {
   describe("event structure", () => {
     it("should always use 'posthog:custom' as event type", async () => {
       const customSessionId = "test-session";
-      const projectId = "proj_test";
+      const apiKey = "phc_test";
 
-      await publishCustomEvent(customSessionId, projectId);
+      await publishCustomEvent(customSessionId, { apiKey });
 
       expect(mockEventQueue.add).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -239,10 +235,10 @@ describe("publishCustomEvent", () => {
 
     it("should include timestamp", async () => {
       const customSessionId = "test-session";
-      const projectId = "proj_test";
+      const apiKey = "phc_test";
       const beforeTime = new Date();
 
-      await publishCustomEvent(customSessionId, projectId);
+      await publishCustomEvent(customSessionId, { apiKey });
 
       const afterTime = new Date();
 
@@ -261,11 +257,11 @@ describe("publishCustomEvent", () => {
       );
     });
 
-    it("should handle undefined event data gracefully", async () => {
+    it("should handle minimal event data gracefully", async () => {
       const customSessionId = "test-session";
-      const projectId = "proj_test";
+      const apiKey = "phc_test";
 
-      await publishCustomEvent(customSessionId, projectId, undefined);
+      await publishCustomEvent(customSessionId, { apiKey });
 
       expect(mockEventQueue.add).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -282,9 +278,9 @@ describe("publishCustomEvent", () => {
 
     it("should handle empty event data object", async () => {
       const customSessionId = "test-session";
-      const projectId = "proj_test";
+      const apiKey = "phc_test";
 
-      await publishCustomEvent(customSessionId, projectId, {});
+      await publishCustomEvent(customSessionId, { apiKey });
 
       expect(mockEventQueue.add).toHaveBeenCalledWith(
         expect.objectContaining({

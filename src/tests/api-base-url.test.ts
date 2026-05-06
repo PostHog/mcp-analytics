@@ -2,17 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MCPAnalyticsOptions } from "../types.js";
 import { setupTestHooks } from "./test-utils.js";
 
-describe("MCPAnalyticsOptions apiBaseUrl", () => {
-  it("should accept apiBaseUrl as an optional string property", () => {
+describe("MCPAnalyticsOptions host", () => {
+  it("should accept host as an optional string property", () => {
     const options: MCPAnalyticsOptions = {
-      apiBaseUrl: "https://custom.example.com",
+      host: "https://custom.example.com",
     };
-    expect(options.apiBaseUrl).toBe("https://custom.example.com");
+    expect(options.host).toBe("https://custom.example.com");
   });
 
   it("should be undefined when not set", () => {
     const options: MCPAnalyticsOptions = {};
-    expect(options.apiBaseUrl).toBeUndefined();
+    expect(options.host).toBeUndefined();
   });
 });
 
@@ -65,7 +65,7 @@ const { track } = await import("../index.js");
 describe("track() URL resolution", () => {
   setupTestHooks();
 
-  const savedEnv = process.env.POSTHOG_MCP_ANALYTICS_API_URL;
+  const savedEnv = process.env.POSTHOG_MCP_ANALYTICS_HOST;
 
   // Create a mock server object that passes isCompatibleServerType
   const mockServer = {
@@ -77,7 +77,7 @@ describe("track() URL resolution", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env.POSTHOG_MCP_ANALYTICS_API_URL;
+    delete process.env.POSTHOG_MCP_ANALYTICS_HOST;
 
     // Setup compatibility mocks: return the server as-is (low-level server)
     (isCompatibleServerType as any).mockReturnValue(mockServer);
@@ -97,15 +97,16 @@ describe("track() URL resolution", () => {
     vi.restoreAllMocks();
     // Restore env var
     if (savedEnv === undefined) {
-      delete process.env.POSTHOG_MCP_ANALYTICS_API_URL;
+      delete process.env.POSTHOG_MCP_ANALYTICS_HOST;
     } else {
-      process.env.POSTHOG_MCP_ANALYTICS_API_URL = savedEnv;
+      process.env.POSTHOG_MCP_ANALYTICS_HOST = savedEnv;
     }
   });
 
-  it("should call configure() when apiBaseUrl option is provided", () => {
-    track(mockServer, "proj_test123", {
-      apiBaseUrl: "https://custom-api.example.com",
+  it("should call configure() when host option is provided", () => {
+    track(mockServer, {
+      apiKey: "phc_test123",
+      host: "https://custom-api.example.com",
     });
 
     expect(eventQueue.configure).toHaveBeenCalledWith(
@@ -113,21 +114,22 @@ describe("track() URL resolution", () => {
     );
   });
 
-  it("should call configure() with POSTHOG_MCP_ANALYTICS_API_URL env var when no option is set", () => {
-    process.env.POSTHOG_MCP_ANALYTICS_API_URL = "https://env-api.example.com";
+  it("should call configure() with POSTHOG_MCP_ANALYTICS_HOST env var when no option is set", () => {
+    process.env.POSTHOG_MCP_ANALYTICS_HOST = "https://env-api.example.com";
 
-    track(mockServer, "proj_test123", {});
+    track(mockServer, { apiKey: "phc_test123" });
 
     expect(eventQueue.configure).toHaveBeenCalledWith(
       "https://env-api.example.com"
     );
   });
 
-  it("should prioritize apiBaseUrl option over POSTHOG_MCP_ANALYTICS_API_URL env var", () => {
-    process.env.POSTHOG_MCP_ANALYTICS_API_URL = "https://env-api.example.com";
+  it("should prioritize host option over POSTHOG_MCP_ANALYTICS_HOST env var", () => {
+    process.env.POSTHOG_MCP_ANALYTICS_HOST = "https://env-api.example.com";
 
-    track(mockServer, "proj_test123", {
-      apiBaseUrl: "https://option-api.example.com",
+    track(mockServer, {
+      apiKey: "phc_test123",
+      host: "https://option-api.example.com",
     });
 
     expect(eventQueue.configure).toHaveBeenCalledWith(
@@ -137,9 +139,9 @@ describe("track() URL resolution", () => {
   });
 
   it("should not call configure() when neither option nor env var is set", () => {
-    delete process.env.POSTHOG_MCP_ANALYTICS_API_URL;
+    delete process.env.POSTHOG_MCP_ANALYTICS_HOST;
 
-    track(mockServer, "proj_test123", {});
+    track(mockServer, { apiKey: "phc_test123" });
 
     expect(eventQueue.configure).not.toHaveBeenCalled();
   });

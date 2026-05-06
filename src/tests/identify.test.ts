@@ -42,7 +42,8 @@ describe("Identify Feature", () => {
       };
 
       // Enable tracking with identify function
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async (request, extra) => {
           identifyCalled = true;
@@ -108,7 +109,8 @@ describe("Identify Feature", () => {
       await eventCapture.start();
 
       // Enable tracking with identify function
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => {
           identifyCallCount++;
@@ -199,7 +201,8 @@ describe("Identify Feature", () => {
       };
 
       // Enable tracking with identify function FIRST
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         enableToolCallContext: true,
         identify: async (request, extra) => {
@@ -303,7 +306,8 @@ describe("Identify Feature", () => {
       };
 
       // Enable tracking with identify function
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => ({
           userId: testUserId,
@@ -385,7 +389,8 @@ describe("Identify Feature", () => {
       await eventCapture.start();
 
       // Enable tracking with identify function that returns null
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => null,
       });
@@ -433,7 +438,8 @@ describe("Identify Feature", () => {
       await eventCapture.start();
 
       // Enable tracking WITHOUT identify function
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         // No identify function provided
       });
@@ -500,7 +506,8 @@ describe("Identify Feature", () => {
       };
 
       // Enable tracking with identify function
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => ({
           userId: testUserId,
@@ -546,7 +553,8 @@ describe("Identify Feature", () => {
       };
 
       // Enable tracking with identify function
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => ({
           userId: testUserId,
@@ -599,7 +607,8 @@ describe("Identify Feature", () => {
       let asyncOperationCompleted = false;
 
       // Enable tracking with async identify function
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async (request, extra) => {
           // Simulate async operation (e.g., database lookup, API call)
@@ -656,7 +665,8 @@ describe("Identify Feature", () => {
       const errorMessage = "Failed to identify user";
 
       // Enable tracking with identify function that throws
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => {
           throw new Error(errorMessage);
@@ -706,7 +716,8 @@ describe("Identify Feature", () => {
       await eventCapture.start();
 
       // Enable tracking with identify function that returns invalid structure
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => {
           // Return invalid structure (missing required fields)

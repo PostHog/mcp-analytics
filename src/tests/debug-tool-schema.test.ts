@@ -49,7 +49,8 @@ describe("Debug Tool Schema Structure", () => {
     }
 
     // Now call track()
-    await track(server, "test-project", {
+    await track(server, {
+      apiKey: "test-project",
       enableToolCallContext: true,
       enableTracing: true,
     });

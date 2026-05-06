@@ -320,7 +320,7 @@ describe("sanitizeEvent - integration", () => {
     const largeBase64 = makeLargeBase64();
 
     const event = makeEvent({
-      projectId: "proj_1",
+      apiKey: "proj_1",
       resourceName: "my-tool",
       parameters: {
         imageData: largeBase64,
@@ -352,7 +352,7 @@ describe("sanitizeEvent - integration", () => {
 
     expect(result.id).toBe("evt_1");
     expect(result.sessionId).toBe("ses_1");
-    expect(result.projectId).toBe("proj_1");
+    expect(result.apiKey).toBe("proj_1");
     expect(result.resourceName).toBe("my-tool");
   });
 

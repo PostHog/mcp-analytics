@@ -37,11 +37,12 @@ import type {
 } from "./types.js";
 
 /**
- * Integrates PostHog MCP analytics analytics into an MCP server to track tool usage patterns and user interactions.
+ * Integrates PostHog MCP analytics into an MCP server to track tool usage patterns and user interactions.
  *
  * @param server - The MCP server instance to track. Must be a compatible MCP server implementation.
- * @param projectId - Your PostHog MCP analytics project ID obtained from posthog.com when creating an account. Pass null for telemetry-only mode.
- * @param options - Optional configuration to customize tracking behavior.
+ * @param options - Configuration to customize tracking behavior.
+ * @param options.apiKey - PostHog project API key (`phc_...`). Optional when using an injected `posthogClient` or telemetry-only mode.
+ * @param options.host - Custom PostHog ingestion host. Defaults to `https://us.i.posthog.com`.
  * @param options.enableReportMissing - Adds a "get_more_tools" tool that allows LLMs to automatically report missing functionality.
  * @param options.enableTracing - Enables tracking of tool calls and usage patterns.
  * @param options.enableToolCallContext - Injects a "context" parameter to existing tools to capture user intent.
@@ -50,7 +51,8 @@ import type {
  * @param options.redactSensitiveInformation - Function to redact sensitive data before sending to PostHog MCP analytics.
  * @param options.eventTags - Callback invoked on every auto-captured event (tool calls, tool lists, initialize) to attach string key-value tags. Tags are intended to be indexed and queryable in the PostHog MCP analytics dashboard — use them for structured metadata you'll want to filter or group by (e.g., trace IDs, environments, regions). Tags are validated client-side: keys must be ≤32 chars matching `[a-zA-Z0-9$_.:\- ]`, values must be strings ≤200 chars with no newlines, max 50 entries per event. Invalid entries are silently dropped with a warning logged to `~/posthog-mcp-analytics.log`. If the callback throws or returns null, tags are omitted. Receives the same `(request, extra)` arguments as `identify`.
  * @param options.eventProperties - Callback invoked on every auto-captured event to attach flexible JSON metadata (device info, feature flags, nested context). No constraints beyond standard JSON types. If the callback throws or returns null, properties are omitted. Receives the same `(request, extra)` arguments as `identify`.
- * @param options.apiBaseUrl - Custom API base URL for sending events. Falls back to the `POSTHOG_MCP_ANALYTICS_API_URL` environment variable if not set, then to the default `https://api.posthog.com`.
+ * @param options.posthogClient - Optional existing posthog-node compatible client. If provided, MCP analytics events are captured with that client instead of creating a new one.
+ * @param options.posthogOptions - Optional posthog-node options used when the SDK creates its own client.
  * @param options.exporters - Configure telemetry exporters to send events to external systems. Available exporters:
  *   - `otlp`: OpenTelemetry Protocol exporter (see {@link ../modules/exporters/otlp.OTLPExporter})
  *   - `datadog`: Datadog APM exporter (see {@link ../modules/exporters/datadog.DatadogExporter})
@@ -71,7 +73,7 @@ import type {
  * const mcpServer = new Server({ name: "my-mcp-server", version: "1.0.0" });
  *
  * // Track the server with PostHog MCP analytics
- * mcpAnalytics.track(mcpServer, "proj_abc123xyz");
+ * mcpAnalytics.track(mcpServer, { apiKey: "phc_abc123xyz" });
  *
  * // Register your tools
  * mcpServer.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -82,7 +84,8 @@ import type {
  * @example
  * ```typescript
  * // With user identification
- * mcpAnalytics.track(mcpServer, "proj_abc123xyz", {
+ * mcpAnalytics.track(mcpServer, {
+ *   apiKey: "phc_abc123xyz",
  *   identify: async (request, extra) => {
  *     const user = await getUserFromToken(request.params.arguments.token);
  *     return {
@@ -96,7 +99,8 @@ import type {
  * @example
  * ```typescript
  * // With custom context description
- * mcpAnalytics.track(mcpServer, "proj_abc123xyz", {
+ * mcpAnalytics.track(mcpServer, {
+ *   apiKey: "phc_abc123xyz",
  *   enableToolCallContext: true,
  *   customContextDescription: "Explain why you're calling this tool and what business objective it helps achieve"
  * });
@@ -105,7 +109,8 @@ import type {
  * @example
  * ```typescript
  * // With sensitive data redaction
- * mcpAnalytics.track(mcpServer, "proj_abc123xyz", {
+ * mcpAnalytics.track(mcpServer, {
+ *   apiKey: "phc_abc123xyz",
  *   redactSensitiveInformation: async (text) => {
  *     return text.replace(/api_key_\w+/g, "[REDACTED]");
  *   }
@@ -115,7 +120,8 @@ import type {
  * @example
  * ```typescript
  * // With event tags and properties
- * mcpAnalytics.track(mcpServer, "proj_abc123xyz", {
+ * mcpAnalytics.track(mcpServer, {
+ *   apiKey: "phc_abc123xyz",
  *   eventTags: async (request, extra) => ({
  *     trace_id: extra?.requestContext?.traceId,
  *     env: process.env.NODE_ENV,
@@ -132,7 +138,7 @@ import type {
  * @example
  * ```typescript
  * // Telemetry-only mode (no PostHog MCP analytics account required)
- * mcpAnalytics.track(mcpServer, null, {
+ * mcpAnalytics.track(mcpServer, {
  *   exporters: {
  *     otlp: {
  *       type: "otlp",
@@ -145,7 +151,8 @@ import type {
  * @example
  * ```typescript
  * // Dual mode - send to both PostHog MCP analytics and telemetry exporters
- * mcpAnalytics.track(mcpServer, "proj_abc123xyz", {
+ * mcpAnalytics.track(mcpServer, {
+ *   apiKey: "phc_abc123xyz",
  *   exporters: {
  *     datadog: {
  *       type: "datadog",
@@ -156,19 +163,16 @@ import type {
  * });
  * ```
  */
-function track(
-  server: any,
-  projectId: string | null,
-  options: MCPAnalyticsOptions = {}
-): any {
+function track(server: any, options: MCPAnalyticsOptions = {}): any {
   try {
     const validatedServer = isCompatibleServerType(server);
 
-    // Resolve API base URL: option > env var > default
-    const apiBaseUrl =
-      options.apiBaseUrl || process.env.POSTHOG_MCP_ANALYTICS_API_URL;
-    if (apiBaseUrl) {
-      eventQueue.configure(apiBaseUrl);
+    const host = options.host || process.env.POSTHOG_MCP_ANALYTICS_HOST;
+    if (options.posthogOptions) {
+      eventQueue.configurePostHogOptions(options.posthogOptions);
+    }
+    if (host) {
+      eventQueue.configure(host);
     }
 
     // For high-level servers, we need to pass the underlying server to some functions
@@ -196,16 +200,15 @@ function track(
       );
     }
 
-    // If projectId is null and no exporters, warn the user
-    if (!(projectId || options.exporters)) {
+    if (!(options.apiKey || options.exporters || options.posthogClient)) {
       writeToLog(
-        "Warning: No projectId provided and no exporters configured. Events will not be sent anywhere."
+        "Warning: No PostHog API key, PostHog client, or exporters configured. Events will not be sent anywhere."
       );
     }
 
     const sessionInfo = getSessionInfo(lowLevelServer, undefined);
     const mcpAnalyticsData: MCPAnalyticsData = {
-      projectId: projectId || "", // Use empty string for null projectId
+      apiKey: options.apiKey || "",
       sessionId: newSessionId(),
       lastActivity: new Date(),
       identifiedSessions: new Map<string, UserIdentity>(),
@@ -219,6 +222,9 @@ function track(
         redactSensitiveInformation: options.redactSensitiveInformation,
         eventTags: options.eventTags,
         eventProperties: options.eventProperties,
+        host: options.host,
+        posthogClient: options.posthogClient,
+        posthogOptions: options.posthogOptions,
       },
       sessionSource: "generated", // Changes to "mcp" if MCP sessionId is provided in requests
     };
@@ -257,8 +263,7 @@ function track(
  * Publishes a custom event to PostHog MCP analytics with flexible session management.
  *
  * @param serverOrSessionId - Either a tracked MCP server instance or a MCP session ID string
- * @param projectId - Your PostHog MCP analytics project ID (required)
- * @param eventData - Optional event data to include with the custom event
+ * @param eventData - Event data to include with the custom event. `apiKey` is required when publishing against a raw session ID.
  *
  * @returns Promise that resolves when the event is queued for publishing
  *
@@ -267,7 +272,6 @@ function track(
  * // With a tracked server
  * await mcpAnalytics.publishCustomEvent(
  *   server,
- *   "proj_abc123xyz",
  *   {
  *     resourceName: "custom-action",
  *     parameters: { action: "user-feedback", rating: 5 },
@@ -281,8 +285,8 @@ function track(
  * // With a MCP session ID
  * await mcpAnalytics.publishCustomEvent(
  *   "user-session-12345",
- *   "proj_abc123xyz",
  *   {
+ *     apiKey: "phc_abc123xyz",
  *     isError: true,
  *     error: { message: "Custom error occurred", code: "ERR_001" }
  *   }
@@ -293,7 +297,6 @@ function track(
  * ```typescript
  * await mcpAnalytics.publishCustomEvent(
  *   server,
- *   "proj_abc123xyz",
  *   {
  *     resourceName: "feature-usage",
  *   }
@@ -302,20 +305,16 @@ function track(
  */
 export async function publishCustomEvent(
   serverOrSessionId: any | string,
-  projectId: string,
-  eventData?: CustomEventData
+  eventData: CustomEventData = {}
 ): Promise<void> {
-  // Validate required parameters
-  if (!projectId) {
-    throw new Error("projectId is required for publishCustomEvent");
-  }
-
   let sessionId: string;
+  let apiKey = eventData.apiKey || "";
 
   // Determine if the first parameter is a tracked server or a session ID string
   const isServer =
     typeof serverOrSessionId === "object" && serverOrSessionId !== null;
   let lowLevelServer: MCPServerLike | null = null;
+  let posthogClient: MCPAnalyticsOptions["posthogClient"];
 
   if (isServer) {
     // Try to get tracking data for the server
@@ -327,6 +326,8 @@ export async function publishCustomEvent(
     if (trackingData) {
       // Use the tracked server's session ID and configuration
       sessionId = trackingData.sessionId;
+      apiKey = trackingData.apiKey;
+      posthogClient = trackingData.options.posthogClient;
     } else {
       // Server is not tracked - treat it as an error
       throw new Error(
@@ -334,8 +335,14 @@ export async function publishCustomEvent(
       );
     }
   } else if (typeof serverOrSessionId === "string") {
+    if (!apiKey && !eventData.posthogClient) {
+      throw new Error(
+        "apiKey or posthogClient is required when publishing with a session ID"
+      );
+    }
     // Custom session ID provided - derive a deterministic session ID
-    sessionId = deriveSessionIdFromMCPSession(serverOrSessionId, projectId);
+    sessionId = deriveSessionIdFromMCPSession(serverOrSessionId, apiKey);
+    posthogClient = eventData.posthogClient;
   } else {
     throw new Error(
       "First parameter must be either an MCP server object or a session ID string"
@@ -346,7 +353,7 @@ export async function publishCustomEvent(
   const event: UnredactedEvent = {
     // Core fields
     sessionId,
-    projectId,
+    apiKey,
 
     // Fixed event type for custom events
     eventType: MCPAnalyticsEventType.custom,
@@ -378,7 +385,11 @@ export async function publishCustomEvent(
     publishEventToQueue(lowLevelServer, event);
   } else {
     // For custom sessions, we need to import and use the event queue directly
-    eventQueue.add(event);
+    if (posthogClient) {
+      eventQueue.add(event, posthogClient);
+    } else {
+      eventQueue.add(event);
+    }
   }
 
   writeToLog(

@@ -81,12 +81,236 @@ export interface PostHogExporterConfig {
   type: "posthog";
 }
 
-interface PostHogCaptureEvent {
+export interface PostHogCaptureEvent {
   distinct_id: string;
   event: string;
   properties: Record<string, any>;
   timestamp: string;
   type: "capture";
+}
+
+export interface BuildPostHogCaptureEventsOptions {
+  enableAITracing?: boolean;
+}
+
+export function buildPostHogCaptureEvents(
+  event: Event,
+  options: BuildPostHogCaptureEventsOptions = {}
+): PostHogCaptureEvent[] {
+  const batch = [buildCaptureEvent(event, options)];
+
+  if (event.isError && event.error) {
+    batch.push(buildExceptionEvent(event));
+  }
+
+  if (
+    options.enableAITracing &&
+    event.eventType === MCPAnalyticsEventType.mcpToolsCall
+  ) {
+    batch.push(buildAISpanEvent(event));
+  }
+
+  return batch;
+}
+
+function buildCaptureEvent(
+  event: Event,
+  options: BuildPostHogCaptureEventsOptions
+): PostHogCaptureEvent {
+  const distinctId = getDistinctId(event);
+  const eventName = mapEventType(event.eventType);
+  const timestamp = getTimestamp(event);
+
+  const properties: Record<string, any> = {
+    $session_id: toUUIDv7(event.sessionId),
+    source: POSTHOG_MCP_ANALYTICS_SOURCE,
+  };
+
+  if (event.resourceName) {
+    properties.resource_name = event.resourceName;
+    if (event.eventType === MCPAnalyticsEventType.mcpToolsCall) {
+      properties.tool_name = event.resourceName;
+    }
+  }
+  if (event.duration !== undefined) {
+    properties.duration_ms = event.duration;
+  }
+  if (event.serverName) {
+    properties.server_name = event.serverName;
+  }
+  if (event.serverVersion) {
+    properties.server_version = event.serverVersion;
+  }
+  if (event.clientName) {
+    properties.client_name = event.clientName;
+  }
+  if (event.clientVersion) {
+    properties.client_version = event.clientVersion;
+  }
+  if (event.userIntent) {
+    properties.user_intent = event.userIntent;
+  }
+  if (event.isError !== undefined) {
+    properties.is_error = event.isError;
+  }
+
+  if (event.parameters !== undefined) {
+    properties.parameters = event.parameters;
+  }
+  if (event.response !== undefined) {
+    properties.response = event.response;
+  }
+
+  const $set: Record<string, any> = {};
+  if (event.identifyActorName) {
+    $set.name = event.identifyActorName;
+  }
+  if (event.identifyActorData) {
+    Object.assign($set, event.identifyActorData);
+  }
+  if (Object.keys($set).length > 0) {
+    properties.$set = $set;
+  }
+
+  if (event.tags) {
+    for (const [key, value] of Object.entries(event.tags)) {
+      properties[key] = value;
+    }
+  }
+
+  if (event.properties) {
+    for (const [key, value] of Object.entries(event.properties)) {
+      properties[key] = value;
+    }
+  }
+
+  return {
+    event: eventName,
+    distinct_id: distinctId,
+    properties,
+    timestamp,
+    type: "capture",
+  };
+}
+
+function buildExceptionEvent(event: Event): PostHogCaptureEvent {
+  const distinctId = getDistinctId(event);
+  const timestamp = getTimestamp(event);
+
+  const properties: Record<string, any> = {
+    $exception_source: "backend",
+    $session_id: toUUIDv7(event.sessionId),
+  };
+
+  if (event.error) {
+    if (event.error.message) {
+      properties.$exception_message = event.error.message;
+    }
+    if (event.error.type) {
+      properties.$exception_type = event.error.type;
+    }
+    if (event.error.stack) {
+      properties.$exception_stacktrace = event.error.stack;
+    }
+  }
+
+  if (event.resourceName) {
+    properties.resource_name = event.resourceName;
+    if (event.eventType === MCPAnalyticsEventType.mcpToolsCall) {
+      properties.tool_name = event.resourceName;
+    }
+  }
+  if (event.serverName) {
+    properties.server_name = event.serverName;
+  }
+  if (event.serverVersion) {
+    properties.server_version = event.serverVersion;
+  }
+  if (event.clientName) {
+    properties.client_name = event.clientName;
+  }
+  if (event.clientVersion) {
+    properties.client_version = event.clientVersion;
+  }
+
+  return {
+    event: "$exception",
+    distinct_id: distinctId,
+    properties,
+    timestamp,
+    type: "capture",
+  };
+}
+
+function buildAISpanEvent(event: Event): PostHogCaptureEvent {
+  const distinctId = getDistinctId(event);
+  const timestamp = getTimestamp(event);
+
+  const properties: Record<string, any> = {
+    $ai_session_id: `posthog_mcp_analytics_${event.sessionId}`,
+    $ai_trace_id: toUUIDv7(event.sessionId),
+    $ai_span_id: toUUIDv7(event.id),
+    $ai_span_name: event.resourceName || "unknown_tool",
+    $ai_is_error: event.isError,
+    $session_id: toUUIDv7(event.sessionId),
+    source: POSTHOG_MCP_ANALYTICS_SOURCE,
+  };
+
+  if (event.duration !== undefined) {
+    properties.$ai_latency = event.duration / 1000;
+  }
+  if (event.isError && event.error) {
+    properties.$ai_error = event.error;
+  }
+  if (event.parameters !== undefined) {
+    properties.$ai_input_state = event.parameters;
+  }
+  if (event.response !== undefined) {
+    properties.$ai_output_state = event.response;
+  }
+  if (event.serverName) {
+    properties.server_name = event.serverName;
+  }
+  if (event.clientName) {
+    properties.client_name = event.clientName;
+  }
+
+  if (event.tags) {
+    for (const [key, value] of Object.entries(event.tags)) {
+      properties[key] = value;
+    }
+  }
+
+  if (event.properties) {
+    for (const [key, value] of Object.entries(event.properties)) {
+      properties[key] = value;
+    }
+  }
+
+  return {
+    event: "$ai_span",
+    distinct_id: distinctId,
+    properties,
+    timestamp,
+    type: "capture",
+  };
+}
+
+function mapEventType(eventType: string): string {
+  const mapping: Record<string, string> = {
+    [MCPAnalyticsEventType.mcpToolsCall]: "mcp_tool_call",
+    [MCPAnalyticsEventType.mcpToolsList]: "mcp_tools_list",
+    [MCPAnalyticsEventType.mcpInitialize]: "mcp_initialize",
+    [MCPAnalyticsEventType.mcpResourcesRead]: "mcp_resource_read",
+    [MCPAnalyticsEventType.mcpResourcesList]: "mcp_resources_list",
+    [MCPAnalyticsEventType.mcpPromptsGet]: "mcp_prompt_get",
+    [MCPAnalyticsEventType.mcpPromptsList]: "mcp_prompts_list",
+  };
+
+  return (
+    mapping[eventType] ||
+    `mcp_${eventType.replace(/^mcp:/, "").replace(/\//g, "_")}`
+  );
 }
 
 export class PostHogExporter implements Exporter {
@@ -105,23 +329,9 @@ export class PostHogExporter implements Exporter {
 
   async export(event: Event): Promise<void> {
     try {
-      const batch: PostHogCaptureEvent[] = [];
-
-      // Always send the regular event
-      batch.push(this.buildCaptureEvent(event));
-
-      // Send $exception event alongside if this is an error
-      if (event.isError && event.error) {
-        batch.push(this.buildExceptionEvent(event));
-      }
-
-      // Send $ai_span for tool calls when AI tracing is enabled
-      if (
-        this.config.enableAITracing &&
-        event.eventType === MCPAnalyticsEventType.mcpToolsCall
-      ) {
-        batch.push(this.buildAISpanEvent(event));
-      }
+      const batch = buildPostHogCaptureEvents(event, {
+        enableAITracing: this.config.enableAITracing,
+      });
 
       writeToLog(
         `PostHogExporter: Sending ${batch.length} event(s) for ${event.id}`
@@ -149,212 +359,5 @@ export class PostHogExporter implements Exporter {
     } catch (error) {
       writeToLog(`PostHog export error: ${error}`);
     }
-  }
-
-  private buildCaptureEvent(event: Event): PostHogCaptureEvent {
-    const distinctId = getDistinctId(event);
-    const eventName = this.mapEventType(event.eventType);
-    const timestamp = getTimestamp(event);
-
-    const properties: Record<string, any> = {
-      $session_id: toUUIDv7(event.sessionId),
-      source: POSTHOG_MCP_ANALYTICS_SOURCE,
-    };
-
-    if (event.resourceName) {
-      properties.resource_name = event.resourceName;
-      if (event.eventType === MCPAnalyticsEventType.mcpToolsCall) {
-        properties.tool_name = event.resourceName;
-      }
-    }
-    if (event.duration !== undefined) {
-      properties.duration_ms = event.duration;
-    }
-    if (event.serverName) {
-      properties.server_name = event.serverName;
-    }
-    if (event.serverVersion) {
-      properties.server_version = event.serverVersion;
-    }
-    if (event.clientName) {
-      properties.client_name = event.clientName;
-    }
-    if (event.clientVersion) {
-      properties.client_version = event.clientVersion;
-    }
-    if (event.projectId) {
-      properties.project_id = event.projectId;
-    }
-    if (event.userIntent) {
-      properties.user_intent = event.userIntent;
-    }
-    if (event.isError !== undefined) {
-      properties.is_error = event.isError;
-    }
-
-    if (event.parameters !== undefined) {
-      properties.parameters = event.parameters;
-    }
-    if (event.response !== undefined) {
-      properties.response = event.response;
-    }
-
-    // Set person properties from identity data
-    const $set: Record<string, any> = {};
-    if (event.identifyActorName) {
-      $set.name = event.identifyActorName;
-    }
-    if (event.identifyActorData) {
-      Object.assign($set, event.identifyActorData);
-    }
-    if (Object.keys($set).length > 0) {
-      properties.$set = $set;
-    }
-
-    // Spread customer-defined tags directly (can override PostHog MCP analytics defaults)
-    if (event.tags) {
-      for (const [key, value] of Object.entries(event.tags)) {
-        properties[key] = value;
-      }
-    }
-
-    // Spread customer-defined properties directly (can override PostHog MCP analytics defaults)
-    if (event.properties) {
-      for (const [key, value] of Object.entries(event.properties)) {
-        properties[key] = value;
-      }
-    }
-
-    return {
-      event: eventName,
-      distinct_id: distinctId,
-      properties,
-      timestamp,
-      type: "capture",
-    };
-  }
-
-  private buildExceptionEvent(event: Event): PostHogCaptureEvent {
-    const distinctId = getDistinctId(event);
-    const timestamp = getTimestamp(event);
-
-    const properties: Record<string, any> = {
-      $exception_source: "backend",
-      $session_id: toUUIDv7(event.sessionId),
-    };
-
-    if (event.error) {
-      if (event.error.message) {
-        properties.$exception_message = event.error.message;
-      }
-      if (event.error.type) {
-        properties.$exception_type = event.error.type;
-      }
-      if (event.error.stack) {
-        properties.$exception_stacktrace = event.error.stack;
-      }
-    }
-
-    // Add tool/resource context
-    if (event.resourceName) {
-      properties.resource_name = event.resourceName;
-      if (event.eventType === MCPAnalyticsEventType.mcpToolsCall) {
-        properties.tool_name = event.resourceName;
-      }
-    }
-    if (event.serverName) {
-      properties.server_name = event.serverName;
-    }
-    if (event.serverVersion) {
-      properties.server_version = event.serverVersion;
-    }
-    if (event.clientName) {
-      properties.client_name = event.clientName;
-    }
-    if (event.clientVersion) {
-      properties.client_version = event.clientVersion;
-    }
-
-    return {
-      event: "$exception",
-      distinct_id: distinctId,
-      properties,
-      timestamp,
-      type: "capture",
-    };
-  }
-
-  private buildAISpanEvent(event: Event): PostHogCaptureEvent {
-    const distinctId = getDistinctId(event);
-    const timestamp = getTimestamp(event);
-
-    const properties: Record<string, any> = {
-      $ai_session_id: `posthog_mcp_analytics_${event.sessionId}`,
-      $ai_trace_id: toUUIDv7(event.sessionId),
-      $ai_span_id: toUUIDv7(event.id),
-      $ai_span_name: event.resourceName || "unknown_tool",
-      $ai_is_error: event.isError,
-      $session_id: toUUIDv7(event.sessionId),
-      source: POSTHOG_MCP_ANALYTICS_SOURCE,
-    };
-
-    if (event.duration !== undefined) {
-      properties.$ai_latency = event.duration / 1000;
-    }
-    if (event.isError && event.error) {
-      properties.$ai_error = event.error;
-    }
-    if (event.parameters !== undefined) {
-      properties.$ai_input_state = event.parameters;
-    }
-    if (event.response !== undefined) {
-      properties.$ai_output_state = event.response;
-    }
-    if (event.serverName) {
-      properties.server_name = event.serverName;
-    }
-    if (event.clientName) {
-      properties.client_name = event.clientName;
-    }
-
-    // Spread customer tags directly (can override PostHog MCP analytics defaults)
-    if (event.tags) {
-      for (const [key, value] of Object.entries(event.tags)) {
-        properties[key] = value;
-      }
-    }
-
-    // Spread customer properties directly (can override PostHog MCP analytics defaults)
-    if (event.properties) {
-      for (const [key, value] of Object.entries(event.properties)) {
-        properties[key] = value;
-      }
-    }
-
-    return {
-      event: "$ai_span",
-      distinct_id: distinctId,
-      properties,
-      timestamp,
-      type: "capture",
-    };
-  }
-
-  private mapEventType(eventType: string): string {
-    // Map PostHog MCP analytics event types to PostHog event names
-    const mapping: Record<string, string> = {
-      [MCPAnalyticsEventType.mcpToolsCall]: "mcp_tool_call",
-      [MCPAnalyticsEventType.mcpToolsList]: "mcp_tools_list",
-      [MCPAnalyticsEventType.mcpInitialize]: "mcp_initialize",
-      [MCPAnalyticsEventType.mcpResourcesRead]: "mcp_resource_read",
-      [MCPAnalyticsEventType.mcpResourcesList]: "mcp_resources_list",
-      [MCPAnalyticsEventType.mcpPromptsGet]: "mcp_prompt_get",
-      [MCPAnalyticsEventType.mcpPromptsList]: "mcp_prompts_list",
-    };
-
-    return (
-      mapping[eventType] ||
-      `mcp_${eventType.replace(/^mcp:/, "").replace(/\//g, "_")}`
-    );
   }
 }

@@ -33,7 +33,8 @@ describe("Custom Context Description", () => {
     const customDescription = "Explain your reasoning for this action";
 
     // Enable tracking with custom context description
-    track(server, "test-project", {
+    track(server, {
+      apiKey: "test-project",
       enableToolCallContext: true,
       customContextDescription: customDescription,
     });
@@ -66,7 +67,8 @@ describe("Custom Context Description", () => {
     const customDescription = "Provide context about why you're doing this";
 
     // Enable tracking with custom context description
-    track(server, "test-project", {
+    track(server, {
+      apiKey: "test-project",
       enableToolCallContext: true,
       customContextDescription: customDescription,
     });
@@ -96,7 +98,8 @@ describe("Custom Context Description", () => {
     const customDescription = "Why are you calling this tool?";
 
     // Enable tracking with custom context description
-    track(server, "test-project", {
+    track(server, {
+      apiKey: "test-project",
       enableToolCallContext: true,
       customContextDescription: customDescription,
     });
@@ -132,7 +135,8 @@ describe("Custom Context Description", () => {
     await eventCapture.start();
 
     // Enable tracking with custom context description
-    track(server, "test-project", {
+    track(server, {
+      apiKey: "test-project",
       enableToolCallContext: true,
       enableTracing: true,
       customContextDescription: customDescription,
@@ -175,9 +179,7 @@ describe("Custom Context Description", () => {
 
   it("should use default description when customContextDescription is not provided", async () => {
     // Enable tracking WITHOUT custom context description
-    track(server, "test-project", {
-      enableToolCallContext: true,
-    });
+    track(server, { apiKey: "test-project", enableToolCallContext: true });
 
     // Get the tools list
     const toolsResponse = await client.request(
@@ -206,7 +208,8 @@ describe("Custom Context Description", () => {
     await eventCapture.start();
 
     // Enable tracking with custom context description
-    track(server, "test-project", {
+    track(server, {
+      apiKey: "test-project",
       enableToolCallContext: true,
       enableTracing: true,
       customContextDescription: customDescription,
@@ -303,7 +306,8 @@ describe("Custom Context Description", () => {
       "Please provide a comprehensive explanation of your reasoning, including the broader context of this action within your workflow, the expected outcomes, and how this contributes to your overall objectives. Be as detailed as possible.";
 
     // Enable tracking with long custom context description
-    track(server, "test-project", {
+    track(server, {
+      apiKey: "test-project",
       enableToolCallContext: true,
       customContextDescription: customDescription,
     });
@@ -330,7 +334,8 @@ describe("Custom Context Description", () => {
     const customDescription = 'Why? (explain in detail) - "Be specific!"';
 
     // Enable tracking with special characters in description
-    track(server, "test-project", {
+    track(server, {
+      apiKey: "test-project",
       enableToolCallContext: true,
       customContextDescription: customDescription,
     });

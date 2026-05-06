@@ -8,7 +8,7 @@ import type { Event, RedactFunction, UnredactedEvent } from "../types.js";
 const PROTECTED_FIELDS = new Set([
   "sessionId",
   "id",
-  "projectId",
+  "apiKey",
   "server",
   "identifyActorGivenId",
   "identifyActorName",

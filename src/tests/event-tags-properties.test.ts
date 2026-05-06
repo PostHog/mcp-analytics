@@ -32,7 +32,8 @@ describe("Event Tags & Properties", () => {
 
   describe("eventTags callback", () => {
     it("should attach tags to tool call events", async () => {
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         eventTags: async () => ({
           env: "test",
           trace_id: "abc-123",
@@ -60,7 +61,8 @@ describe("Event Tags & Properties", () => {
     });
 
     it("should not block tool calls when callback throws", async () => {
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         eventTags: async () => {
           throw new Error("Tags callback failed");
         },
@@ -90,9 +92,7 @@ describe("Event Tags & Properties", () => {
     });
 
     it("should handle null return from callback", async () => {
-      track(server, "test-project", {
-        eventTags: async () => null,
-      });
+      track(server, { apiKey: "test-project", eventTags: async () => null });
 
       await client.request(
         {
@@ -115,7 +115,8 @@ describe("Event Tags & Properties", () => {
     });
 
     it("should validate tags from callback", async () => {
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         eventTags: async () => ({
           valid: "value",
           "invalid!": "value",
@@ -144,7 +145,8 @@ describe("Event Tags & Properties", () => {
 
   describe("eventProperties callback", () => {
     it("should attach properties to tool call events", async () => {
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         eventProperties: async () => ({
           device: "desktop",
           feature_flags: ["dark_mode"],
@@ -177,7 +179,8 @@ describe("Event Tags & Properties", () => {
     });
 
     it("should not block tool calls when callback throws", async () => {
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         eventProperties: async () => {
           throw new Error("Properties callback failed");
         },
@@ -198,7 +201,8 @@ describe("Event Tags & Properties", () => {
     });
 
     it("should handle null return from callback", async () => {
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         eventProperties: async () => null,
       });
 
@@ -225,7 +229,8 @@ describe("Event Tags & Properties", () => {
 
   describe("both callbacks configured", () => {
     it("should attach both tags and properties to the same event", async () => {
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         eventTags: async () => ({ env: "test" }),
         eventProperties: async () => ({ device: "mobile" }),
       });
@@ -253,9 +258,10 @@ describe("Event Tags & Properties", () => {
 
   describe("publishCustomEvent", () => {
     it("should include tags and properties passed directly", async () => {
-      track(server, "test-project", {});
+      track(server, { apiKey: "test-project" });
 
-      await publishCustomEvent(server, "test-project", {
+      await publishCustomEvent(server, {
+        apiKey: "test-project",
         resourceName: "custom-action",
         tags: { env: "production", trace_id: "xyz" },
         properties: { device: "mobile", feature_flags: ["beta"] },
@@ -275,9 +281,10 @@ describe("Event Tags & Properties", () => {
     });
 
     it("should validate tags passed directly", async () => {
-      track(server, "test-project", {});
+      track(server, { apiKey: "test-project" });
 
-      await publishCustomEvent(server, "test-project", {
+      await publishCustomEvent(server, {
+        apiKey: "test-project",
         resourceName: "custom-action",
         tags: { valid: "value", "bad!key": "value" },
       });
@@ -291,9 +298,10 @@ describe("Event Tags & Properties", () => {
     });
 
     it("should normalize empty properties to omission", async () => {
-      track(server, "test-project", {});
+      track(server, { apiKey: "test-project" });
 
-      await publishCustomEvent(server, "test-project", {
+      await publishCustomEvent(server, {
+        apiKey: "test-project",
         resourceName: "custom-action",
         properties: {},
       });
@@ -309,7 +317,7 @@ describe("Event Tags & Properties", () => {
 
   describe("no callbacks configured", () => {
     it("should not add tags or properties when not configured", async () => {
-      track(server, "test-project", {});
+      track(server, { apiKey: "test-project" });
 
       await client.request(
         {
@@ -369,7 +377,8 @@ describe("Event Tags & Properties", () => {
       );
 
       // Track BEFORE connecting
-      track(freshServer, "test-project", {
+      track(freshServer, {
+        apiKey: "test-project",
         eventTags: async () => ({ env: "test", source: "init" }),
         eventProperties: async () => ({ device: "desktop" }),
       });
@@ -403,7 +412,8 @@ describe("Event Tags & Properties", () => {
 
   describe("tags/properties on tools/list event", () => {
     it("should attach tags and properties to tools/list events", async () => {
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         eventTags: async () => ({ env: "test", action: "list" }),
         eventProperties: async () => ({ source: "list-test" }),
       });
@@ -430,7 +440,8 @@ describe("Event Tags & Properties", () => {
 
   describe("redaction bypass", () => {
     it("should not redact tags or properties when redactSensitiveInformation is configured", async () => {
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         redactSensitiveInformation: async () => "[REDACTED]",
         eventTags: async () => ({
           env: "production",
@@ -479,7 +490,8 @@ describe("Event Tags & Properties", () => {
       let capturedRequest: any;
       let capturedExtra: any;
 
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         eventTags: async (request, extra) => {
           capturedRequest = request;
           capturedExtra = extra;
@@ -511,7 +523,8 @@ describe("Event Tags & Properties", () => {
       let capturedRequest: any;
       let capturedExtra: any;
 
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         eventProperties: async (request, extra) => {
           capturedRequest = request;
           capturedExtra = extra;

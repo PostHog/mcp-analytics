@@ -140,7 +140,8 @@ describe("Context Parameters", () => {
       await eventCapture.start();
 
       // Enable tracking on the server
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableReportMissing: true,
         enableTracing: true,
         enableToolCallContext: true,
@@ -187,9 +188,7 @@ describe("Context Parameters", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
-        enableToolCallContext: true,
-      });
+      track(server, { apiKey: "test-project", enableToolCallContext: true });
 
       // Call complete_todo with context
       // First add a todo
@@ -248,9 +247,7 @@ describe("Context Parameters", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
-        enableToolCallContext: true,
-      });
+      track(server, { apiKey: "test-project", enableToolCallContext: true });
 
       // Call list_todos without context - should succeed but have no userIntent
       // Note: Context is advertised as required in JSON Schema (for client/LLM),
@@ -312,9 +309,7 @@ describe("Context Parameters", () => {
 
     it("should inject context into tool schemas when listing tools", async () => {
       // Enable tracking
-      track(server, "test-project", {
-        enableToolCallContext: true,
-      });
+      track(server, { apiKey: "test-project", enableToolCallContext: true });
 
       // Get the tools list
       const toolsResponse = await client.request(
@@ -351,9 +346,7 @@ describe("Context Parameters", () => {
 
     it("should use default context description when no custom description is provided", async () => {
       // Enable tracking WITHOUT customContextDescription
-      track(server, "test-project", {
-        enableToolCallContext: true,
-      });
+      track(server, { apiKey: "test-project", enableToolCallContext: true });
 
       // Get the tools list
       const toolsResponse = await client.request(
@@ -409,7 +402,7 @@ describe("Context Parameters", () => {
 
       // Enable tracking with context parameters
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 

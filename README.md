@@ -10,6 +10,35 @@ This package is in early development. The initial goal is to help MCP server own
 pnpm add @posthog/mcp-analytics
 ```
 
+## Usage
+
+```ts
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { track } from "@posthog/mcp-analytics";
+
+const server = new Server({ name: "my-mcp-server", version: "1.0.0" });
+
+track(server, {
+  apiKey: process.env.POSTHOG_API_KEY,
+  host: "https://us.i.posthog.com",
+});
+```
+
+The SDK sends events through `posthog-node`, so it uses the same PostHog ingestion client, batching, retry, flush, and shutdown behavior as the existing Node SDK.
+
+If your application already owns a PostHog client, pass it in instead:
+
+```ts
+import { PostHog } from "posthog-node";
+import { track } from "@posthog/mcp-analytics";
+
+const posthog = new PostHog(process.env.POSTHOG_API_KEY ?? "");
+
+track(server, {
+  posthogClient: posthog,
+});
+```
+
 ## Development
 
 ```bash

@@ -141,7 +141,8 @@ describe("Basic Server Test", () => {
       const { track } = await import("../index.js");
 
       // Call track first with a project ID
-      await track(server, "test-project", {
+      await track(server, {
+        apiKey: "test-project",
         enableToolCallContext: true,
         enableTracing: true,
       });
@@ -217,7 +218,8 @@ describe("Basic Server Test", () => {
       const { track } = await import("../index.js");
 
       // Call track first with a project ID
-      await track(server, "test-project", {
+      await track(server, {
+        apiKey: "test-project",
         enableToolCallContext: true,
         enableTracing: true,
       });
@@ -292,7 +294,8 @@ describe("Basic Server Test", () => {
       const { track } = await import("../index.js");
 
       // Call track with tracing enabled
-      await track(server, "test-dedup-project", {
+      await track(server, {
+        apiKey: "test-dedup-project",
         enableToolCallContext: true,
         enableTracing: true,
       });
@@ -465,7 +468,8 @@ describe("Basic Server Test", () => {
       const { track } = await import("../index.js");
 
       // NOW call track - after tools are already defined
-      await track(server, "test-project", {
+      await track(server, {
+        apiKey: "test-project",
         enableToolCallContext: true,
         enableTracing: true,
       });

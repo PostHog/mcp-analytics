@@ -16,19 +16,19 @@ export function newSessionId(): string {
 }
 
 /**
- * Creates a deterministic KSUID session ID from an MCP sessionId and optional projectId.
+ * Creates a deterministic KSUID session ID from an MCP sessionId and optional API key.
  * The same inputs will always produce the same session ID, enabling correlation across server restarts.
  *
  * @param mcpSessionId - The session ID from the MCP protocol
- * @param projectId - Optional PostHog MCP analytics project ID to include in the hash
+ * @param apiKey - Optional PostHog project API key to include in the hash
  * @returns A KSUID with "ses" prefix derived deterministically from the inputs
  */
 export function deriveSessionIdFromMCPSession(
   mcpSessionId: string,
-  projectId?: string
+  apiKey?: string
 ): string {
   // Create input string for hashing
-  const input = projectId ? `${mcpSessionId}:${projectId}` : mcpSessionId;
+  const input = apiKey ? `${mcpSessionId}:${apiKey}` : mcpSessionId;
 
   // Hash the input with SHA-256
   const hash = createHash("sha256").update(input).digest();
@@ -71,7 +71,7 @@ export function getServerSessionId(
     // Derive deterministic KSUID from MCP sessionId
     data.sessionId = deriveSessionIdFromMCPSession(
       mcpSessionId,
-      data.projectId || undefined
+      data.apiKey || undefined
     );
     data.lastMcpSessionId = mcpSessionId;
     data.sessionSource = "mcp";

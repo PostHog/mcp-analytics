@@ -1,6 +1,14 @@
 import KSUID from "../thirdparty/ksuid/index.js";
-import type { Event, MCPServerLike, UnredactedEvent } from "../types.js";
+import { PostHog } from "posthog-node";
+import type {
+  Event,
+  MCPAnalyticsOptions,
+  MCPServerLike,
+  PostHogCaptureClient,
+  UnredactedEvent,
+} from "../types.js";
 import { getMCPCompatibleErrorMessage } from "./compatibility.js";
+import { buildPostHogCaptureEvents } from "./exporters/posthog.js";
 import { getServerTrackingData } from "./internal.js";
 import { writeToLog } from "./logging.js";
 import { redactEvent } from "./redaction.js";
@@ -9,32 +17,53 @@ import { getSessionInfo } from "./session.js";
 import type { TelemetryManager } from "./telemetry.js";
 import { truncateEvent } from "./truncation.js";
 
+interface QueuedEvent {
+  event: UnredactedEvent;
+  posthogClient?: PostHogCaptureClient;
+}
+
 class EventQueue {
-  private queue: UnredactedEvent[] = [];
+  private queue: QueuedEvent[] = [];
   private processing = false;
-  private maxRetries = 3;
   private maxQueueSize = 10_000; // Prevent unbounded growth
   private concurrency = 5; // Max parallel requests
   private activeRequests = 0;
-  private apiBaseUrl = "https://us.i.posthog.com";
+  private host = "https://us.i.posthog.com";
+  private posthogOptions: NonNullable<MCPAnalyticsOptions["posthogOptions"]> =
+    {};
+  private posthogClients = new Map<string, PostHogCaptureClient>();
   private telemetryManager?: TelemetryManager;
 
-  configure(apiBaseUrl: string): void {
-    this.apiBaseUrl = apiBaseUrl;
+  configure(host: string): void {
+    this.host = host;
+    this.posthogClients.clear();
+  }
+
+  configurePostHogOptions(
+    posthogOptions: NonNullable<MCPAnalyticsOptions["posthogOptions"]>
+  ): void {
+    this.posthogOptions = {
+      ...this.posthogOptions,
+      ...posthogOptions,
+    };
+    if (posthogOptions.host) {
+      this.host = posthogOptions.host;
+    }
+    this.posthogClients.clear();
   }
 
   setTelemetryManager(telemetryManager: TelemetryManager): void {
     this.telemetryManager = telemetryManager;
   }
 
-  add(event: UnredactedEvent): void {
+  add(event: UnredactedEvent, posthogClient?: PostHogCaptureClient): void {
     // Drop oldest events if queue is full (or implement your preferred strategy)
     if (this.queue.length >= this.maxQueueSize) {
       writeToLog("Event queue full, dropping oldest event");
       this.queue.shift();
     }
 
-    this.queue.push(event);
+    this.queue.push({ event, posthogClient });
     this.process();
   }
 
@@ -46,10 +75,11 @@ class EventQueue {
     this.processing = true;
 
     while (this.queue.length > 0 && this.activeRequests < this.concurrency) {
-      const event = this.queue.shift();
-      if (!event) {
+      const queuedEvent = this.queue.shift();
+      if (!queuedEvent) {
         continue;
       }
+      const { event, posthogClient } = queuedEvent;
 
       if (event.redactionFn) {
         try {
@@ -77,7 +107,7 @@ class EventQueue {
 
       event.id = event.id || (await KSUID.withPrefix("evt").random());
       this.activeRequests++;
-      this.sendEvent(event as Event).finally(() => {
+      this.sendEvent(event as Event, posthogClient).finally(() => {
         this.activeRequests--;
         this.process();
       });
@@ -86,7 +116,10 @@ class EventQueue {
     this.processing = false;
   }
 
-  private async sendEvent(event: Event, retries = 0): Promise<void> {
+  private async sendEvent(
+    event: Event,
+    posthogClientOverride?: PostHogCaptureClient
+  ): Promise<void> {
     // Export to telemetry if configured (fire-and-forget)
     if (this.telemetryManager) {
       this.telemetryManager.export(event).catch((error) => {
@@ -96,46 +129,56 @@ class EventQueue {
       });
     }
 
-    // Send to PostHog capture if projectId is provided. During the SDK migration
-    // this field still carries the API key inherited from the original API shape.
-    if (event.projectId) {
+    const posthogClient = this.getPostHogClient(
+      event.apiKey,
+      posthogClientOverride
+    );
+    if (posthogClient) {
       try {
-        const url = new URL("/capture/", this.apiBaseUrl);
-        const response = await fetch(url, {
-          body: JSON.stringify({
-            api_key: event.projectId,
-            distinct_id:
-              event.identifyActorGivenId || event.sessionId || "anonymous",
-            event: event.eventType,
-            properties: event,
-            timestamp: event.timestamp.toISOString(),
-          }),
-          headers: {
-            "Content-Type": "application/json",
-          },
-          method: "POST",
-        });
-        if (!response.ok) {
-          throw new Error(
-            `PostHog capture failed with status ${response.status}`
-          );
+        for (const captureEvent of buildPostHogCaptureEvents(event)) {
+          posthogClient.capture({
+            distinctId: captureEvent.distinct_id,
+            event: captureEvent.event,
+            properties: captureEvent.properties,
+            timestamp: new Date(captureEvent.timestamp),
+          });
         }
         writeToLog(
-          `Successfully sent event ${event.id} | ${event.eventType} | ${event.projectId} | ${event.duration} ms | ${event.identifyActorGivenId || "anonymous"}`
+          `Queued PostHog event ${event.id} | ${event.eventType} | ${event.duration} ms | ${event.identifyActorGivenId || "anonymous"}`
         );
         writeToLog(`Event details: ${JSON.stringify(event)}`);
       } catch (error) {
         writeToLog(
-          `Failed to send event ${event.id}, retrying... [Error: ${getMCPCompatibleErrorMessage(error)}]`
+          `Failed to queue PostHog event ${event.id}: ${getMCPCompatibleErrorMessage(error)}`
         );
-        if (retries < this.maxRetries) {
-          // Exponential backoff: 1s, 2s, 4s
-          await this.delay(2 ** retries * 1000);
-          return this.sendEvent(event, retries + 1);
-        }
         throw error;
       }
     }
+  }
+
+  private getPostHogClient(
+    apiKey?: string,
+    posthogClient?: PostHogCaptureClient
+  ): PostHogCaptureClient | undefined {
+    if (posthogClient) {
+      return posthogClient;
+    }
+
+    if (!apiKey) {
+      return undefined;
+    }
+
+    const existingClient = this.posthogClients.get(apiKey);
+    if (existingClient) {
+      return existingClient;
+    }
+
+    const client = new PostHog(apiKey, {
+      ...this.posthogOptions,
+      host: this.host,
+    });
+    this.posthogClients.set(apiKey, client);
+    return client;
   }
 
   private delay(ms: number): Promise<void> {
@@ -174,6 +217,16 @@ class EventQueue {
         `Shutting down with ${this.queue.length} events still in queue`
       );
     }
+
+    const shutdowns: Promise<void>[] = [];
+    for (const client of this.posthogClients.values()) {
+      if (client.shutdown) {
+        shutdowns.push(client.shutdown(timeout));
+      } else if (client.flush) {
+        shutdowns.push(client.flush());
+      }
+    }
+    await Promise.allSettled(shutdowns);
   }
 }
 
@@ -225,7 +278,7 @@ export function publishEvent(
     // Core fields (id will be generated later in the queue)
     id: eventInput.id || "",
     sessionId: eventInput.sessionId || data.sessionId,
-    projectId: data.projectId,
+    apiKey: data.apiKey,
 
     // Event metadata
     eventType: eventInput.eventType || "",
@@ -262,5 +315,9 @@ export function publishEvent(
     properties: eventInput.properties,
   };
 
-  eventQueue.add(fullEvent);
+  if (data.options.posthogClient) {
+    eventQueue.add(fullEvent, data.options.posthogClient);
+  } else {
+    eventQueue.add(fullEvent);
+  }
 }

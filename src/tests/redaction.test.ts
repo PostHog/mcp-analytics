@@ -37,7 +37,7 @@ describe("redactEvent", () => {
     const event: UnredactedEvent = {
       sessionId: "ses_123",
       id: "evt_456",
-      projectId: "proj_789",
+      apiKey: "proj_789",
       server: "my-server",
       identifyActorGivenId: "actor_123",
       identifyActorName: "John Doe",
@@ -51,7 +51,7 @@ describe("redactEvent", () => {
     // All protected fields should remain unchanged
     expect(redacted.sessionId).toBe("ses_123");
     expect(redacted.id).toBe("evt_456");
-    expect(redacted.projectId).toBe("proj_789");
+    expect(redacted.apiKey).toBe("proj_789");
     expect(redacted.server).toBe("my-server");
     expect(redacted.identifyActorGivenId).toBe("actor_123");
     expect(redacted.identifyActorName).toBe("John Doe");
@@ -338,7 +338,7 @@ describe("redactEvent", () => {
   it("should handle events with all possible fields", async () => {
     const event: UnredactedEvent = {
       id: "evt_123",
-      projectId: "proj_123",
+      apiKey: "proj_123",
       sessionId: "ses_123",
       actorId: "actor_123",
       eventId: "custom_evt_123",
@@ -361,7 +361,7 @@ describe("redactEvent", () => {
 
     // Protected fields
     expect(redacted.id).toBe("evt_123");
-    expect(redacted.projectId).toBe("proj_123");
+    expect(redacted.apiKey).toBe("proj_123");
     expect(redacted.sessionId).toBe("ses_123");
     expect(redacted.actorId).toBe("actor_123");
     expect(redacted.eventType).toBe("mcp:tools/call");
@@ -432,7 +432,8 @@ describe("redactEvent integration tests", () => {
     };
 
     // Enable tracking with redaction
-    track(server, "test-project", {
+    track(server, {
+      apiKey: "test-project",
       enableTracing: true,
       redactSensitiveInformation: redactSensitiveData,
       identify: async () => ({
@@ -499,7 +500,7 @@ describe("redactEvent integration tests", () => {
 
     // Verify protected fields were NOT redacted
     expect(toolCallEvent?.sessionId).toMatch(/^ses_/); // Should start with ses_
-    expect(toolCallEvent?.projectId).toBe("test-project");
+    expect(toolCallEvent?.apiKey).toBe("test-project");
     expect(toolCallEvent?.resourceName).toBe("add_todo");
     expect(toolCallEvent?.eventType).toBe(MCPAnalyticsEventType.mcpToolsCall);
 
@@ -524,7 +525,8 @@ describe("redactEvent integration tests", () => {
     };
 
     // Enable tracking with redaction
-    track(server, "test-project", {
+    track(server, {
+      apiKey: "test-project",
       enableTracing: true,
       redactSensitiveInformation: redactCreditCards,
     });
@@ -578,7 +580,8 @@ describe("redactEvent integration tests", () => {
     };
 
     // Enable tracking
-    track(server, "test-project", {
+    track(server, {
+      apiKey: "test-project",
       enableTracing: true,
       redactSensitiveInformation: aggressiveRedact,
       identify: async () => ({

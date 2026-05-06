@@ -26,17 +26,17 @@ describe("Tracing Initialization Tests", () => {
     try {
       // Call track() multiple times on the same server instance
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -101,7 +101,7 @@ describe("Tracing Initialization Tests", () => {
     try {
       // Initialize tracing with track()
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
