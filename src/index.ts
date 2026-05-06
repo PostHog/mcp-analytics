@@ -42,6 +42,7 @@ import type {
  * @param options.apiKey - PostHog project API key (`phc_...`). Optional when using an injected `posthogClient`.
  * @param options.host - Custom PostHog ingestion host. Defaults to `https://us.i.posthog.com`.
  * @param options.reportMissing - Adds a "get_more_tools" tool that allows LLMs to automatically report missing functionality. Defaults to false.
+ * @param options.enableAITracing - Emits `$ai_span` events for tool calls so MCP activity appears in PostHog LLM analytics. Defaults to false.
  * @param options.enableTracing - Enables tracking of tool calls and usage patterns.
  * @param options.context - Enables the required "context" parameter on tools to capture user intent. Pass false to disable, or an object with a custom description.
  * @param options.identify - Async function to identify users and attach custom data to their sessions.
@@ -199,6 +200,7 @@ function buildTrackingData(
     sessionInfo: getSessionInfo(lowLevelServer, undefined),
     options: {
       reportMissing: options.reportMissing ?? false,
+      enableAITracing: options.enableAITracing ?? false,
       enableTracing: options.enableTracing ?? true,
       context: options.context,
       identify: options.identify,

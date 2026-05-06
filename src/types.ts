@@ -10,6 +10,7 @@ export interface PostHogCaptureClient {
 export interface MCPAnalyticsOptions {
   apiKey?: string | null;
   context?: boolean | MCPAnalyticsContextOptions;
+  enableAITracing?: boolean;
   enableTracing?: boolean;
   eventProperties?: (
     request: any,

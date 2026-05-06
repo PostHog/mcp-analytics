@@ -228,6 +228,39 @@ describe("EventQueue", () => {
       );
     });
 
+    it("should emit AI span events when AI tracing is enabled", async () => {
+      const capture = vi.fn();
+      const posthogClient = {
+        capture,
+        flush: vi.fn().mockResolvedValue(undefined),
+        shutdown: vi.fn().mockResolvedValue(undefined),
+      };
+
+      eventQueue.add(
+        {
+          eventType: "mcp:tools/call",
+          resourceName: "create_insight",
+          sessionId: "ses_test123",
+          timestamp: new Date("2026-05-06T10:00:00.000Z"),
+          userIntent: "Create a trend insight for weekly active users",
+        },
+        posthogClient,
+        true
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(capture).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "$ai_span",
+          properties: expect.objectContaining({
+            $ai_span_name: "create_insight",
+            $mcp_user_intent: "Create a trend insight for weekly active users",
+          }),
+        })
+      );
+    });
+
     it("should handle destroy method without errors", async () => {
       // This should not throw an error
       expect(async () => await eventQueue.destroy()).not.toThrow();

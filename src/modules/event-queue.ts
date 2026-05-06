@@ -17,6 +17,7 @@ import { getSessionInfo } from "./session.js";
 import { truncateEvent } from "./truncation.js";
 
 interface QueuedEvent {
+  enableAITracing?: boolean;
   event: UnredactedEvent;
   posthogClient?: PostHogCaptureClient;
 }
@@ -50,14 +51,18 @@ class EventQueue {
     this.posthogClients.clear();
   }
 
-  add(event: UnredactedEvent, posthogClient?: PostHogCaptureClient): void {
+  add(
+    event: UnredactedEvent,
+    posthogClient?: PostHogCaptureClient,
+    enableAITracing = false
+  ): void {
     // Drop oldest events if queue is full (or implement your preferred strategy)
     if (this.queue.length >= this.maxQueueSize) {
       writeToLog("Event queue full, dropping oldest event");
       this.queue.shift();
     }
 
-    this.queue.push({ event, posthogClient });
+    this.queue.push({ enableAITracing, event, posthogClient });
     this.process();
   }
 
@@ -73,7 +78,7 @@ class EventQueue {
       if (!queuedEvent) {
         continue;
       }
-      const { event, posthogClient } = queuedEvent;
+      const { enableAITracing, event, posthogClient } = queuedEvent;
 
       if (event.redactionFn) {
         try {
@@ -102,7 +107,7 @@ class EventQueue {
       event.id = event.id || (await KSUID.withPrefix("evt").random());
       this.activeRequests++;
       try {
-        this.sendEvent(event as Event, posthogClient);
+        this.sendEvent(event as Event, posthogClient, enableAITracing);
       } finally {
         this.activeRequests--;
         this.process();
@@ -114,7 +119,8 @@ class EventQueue {
 
   private sendEvent(
     event: Event,
-    posthogClientOverride?: PostHogCaptureClient
+    posthogClientOverride?: PostHogCaptureClient,
+    enableAITracing = false
   ): void {
     const posthogClient = this.getPostHogClient(
       event.apiKey,
@@ -122,7 +128,9 @@ class EventQueue {
     );
     if (posthogClient) {
       try {
-        for (const captureEvent of buildPostHogCaptureEvents(event)) {
+        for (const captureEvent of buildPostHogCaptureEvents(event, {
+          enableAITracing,
+        })) {
           posthogClient.capture({
             distinctId: captureEvent.distinct_id,
             event: captureEvent.event,
@@ -299,8 +307,12 @@ export function publishEvent(
   };
 
   if (data.options.posthogClient) {
-    eventQueue.add(fullEvent, data.options.posthogClient);
+    eventQueue.add(
+      fullEvent,
+      data.options.posthogClient,
+      data.options.enableAITracing
+    );
   } else {
-    eventQueue.add(fullEvent);
+    eventQueue.add(fullEvent, undefined, data.options.enableAITracing);
   }
 }
