@@ -1,19 +1,19 @@
-import { createRequire } from "module";
+import { createRequire } from "node:module";
 import type { ChainedErrorData, ErrorData, StackFrame } from "../types.js";
 
 // Lazy-loaded fs module for context_line extraction (Node.js only)
 // Edge environments don't have filesystem access
-let fsModule: typeof import("fs") | null = null;
+let fsModule: typeof import("node:fs") | null = null;
 let fsInitAttempted = false;
 
-function getFsSync(): typeof import("fs") | null {
+function getFsSync(): typeof import("node:fs") | null {
   if (!fsInitAttempted) {
     fsInitAttempted = true;
     try {
       // Use createRequire for ESM compatibility
       // Works in Node.js ESM/CJS, fails gracefully in Workers/edge environments
       const require = createRequire(import.meta.url);
-      fsModule = require("fs");
+      fsModule = require("node:fs");
     } catch {
       fsModule = null;
     }
@@ -26,6 +26,38 @@ const MAX_EXCEPTION_CHAIN_DEPTH = 10;
 
 // Maximum number of stack frames to capture per exception
 const MAX_STACK_FRAMES = 50;
+
+const LOCATION_WITH_LINE_COLUMN_REGEX = /^(.+):(\d+):(\d+)$/;
+const EVAL_LOCATION_REGEX = /^eval at (.+?) \((.+)\)$/;
+const STACK_FRAME_WITH_FUNCTION_REGEX = /^(.+?)\s+\((.+)\)$/;
+const WINDOWS_DRIVE_PREFIX_REGEX = /^[A-Za-z]:/;
+const WINDOWS_ABSOLUTE_PATH_REGEX = /^[A-Za-z]:\\/;
+const WINDOWS_ABSOLUTE_SLASH_PATH_REGEX = /^[A-Za-z]:[/]/;
+const UNIX_USER_HOME_REGEX = /^\/Users\/[^/]+\//;
+const LINUX_USER_HOME_REGEX = /^\/home\/[^/]+\//;
+const WINDOWS_USER_HOME_REGEX = /^[A-Za-z]:[\\/]Users[\\/][^\\/]+[\\/]/;
+const DEPLOYMENT_PREFIX_REGEXES = [
+  /^\/var\/www\/[^/]+\//, // Apache/nginx: /var/www/myapp/
+  /^\/var\/task\//, // AWS Lambda: /var/task/
+  /^\/usr\/src\/app\//, // Docker: /usr/src/app/
+  /^\/app\//, // Heroku, Docker, generic: /app/
+  /^\/opt\/[^/]+\//, // Optional software: /opt/myapp/
+  /^\/srv\/[^/]+\//, // Service data: /srv/myapp/
+];
+
+interface ErrorWithCause extends Error {
+  cause?: unknown;
+}
+
+interface CallToolContentPart {
+  text?: unknown;
+  type?: unknown;
+}
+
+interface CallToolResult {
+  content: unknown[];
+  isError: unknown;
+}
 
 /**
  * Captures detailed exception information including stack traces and cause chains.
@@ -194,7 +226,7 @@ function parseLocation(location: string): {
   }
 
   // Handle normal location format: fileName:lineNumber:columnNumber
-  const match = location.match(/^(.+):(\d+):(\d+)$/);
+  const match = location.match(LOCATION_WITH_LINE_COLUMN_REGEX);
   if (match) {
     const [, filename, lineStr, colStr] = match;
     return {
@@ -239,11 +271,11 @@ function parseEvalOrigin(evalLocation: string): {
   let evalChainPart = evalLocation;
   const commaIndex = findCommaAfterBalancedParens(evalLocation);
   if (commaIndex !== -1) {
-    evalChainPart = evalLocation.substring(0, commaIndex);
+    evalChainPart = evalLocation.slice(0, commaIndex);
   }
 
   // Match "eval at <anything> (<innerLocation>)"
-  const match = evalChainPart.match(/^eval at (.+?) \((.+)\)$/);
+  const match = evalChainPart.match(EVAL_LOCATION_REGEX);
   if (!match) {
     return null;
   }
@@ -256,7 +288,7 @@ function parseEvalOrigin(evalLocation: string): {
   }
 
   // Base case: parse as normal location
-  const locationMatch = innerLocation.match(/^(.+):(\d+):(\d+)$/);
+  const locationMatch = innerLocation.match(LOCATION_WITH_LINE_COLUMN_REGEX);
   if (locationMatch) {
     const [, filename, lineStr, colStr] = locationMatch;
     return {
@@ -325,12 +357,12 @@ function findCommaAfterBalancedParens(str: string): number {
  */
 function parseV8StackFrame(line: string): StackFrame | null {
   // Remove "at " prefix
-  const withoutAt = line.substring(3);
+  const withoutAt = line.slice(3);
 
   // Try to extract function name and location
   // Format 1: "functionName (location)"
   // Location can be: filename:line:col, eval at ..., native, unknown location
-  const matchWithFunction = withoutAt.match(/^(.+?)\s+\((.+)\)$/);
+  const matchWithFunction = withoutAt.match(STACK_FRAME_WITH_FUNCTION_REGEX);
   if (matchWithFunction) {
     const [, functionName, location] = matchWithFunction;
     const parsedLocation = parseLocation(location);
@@ -416,11 +448,11 @@ function isInApp(filename: string): boolean {
 function normalizeUrl(filename: string): string {
   // Handle file:// URLs (common in ESM modules and local testing)
   if (filename.startsWith("file://")) {
-    let result = filename.substring(7); // Remove "file://"
+    let result = filename.slice(7); // Remove "file://"
 
     // Ensure Unix paths start with /
-    if (!(result.startsWith("/") || result.match(/^[A-Za-z]:/))) {
-      result = "/" + result;
+    if (!(result.startsWith("/") || WINDOWS_DRIVE_PREFIX_REGEX.test(result))) {
+      result = `/${result}`;
     }
 
     return result;
@@ -467,16 +499,18 @@ function normalizeNodeInternals(filename: string): string {
  * @returns Path with system prefixes removed
  */
 function stripSystemPrefixes(path: string): string {
+  let result = path;
+
   // Unix/macOS: /Users/username/
-  path = path.replace(/^\/Users\/[^/]+\//, "~/");
+  result = result.replace(UNIX_USER_HOME_REGEX, "~/");
 
   // Linux: /home/username/
-  path = path.replace(/^\/home\/[^/]+\//, "~/");
+  result = result.replace(LINUX_USER_HOME_REGEX, "~/");
 
   // Windows: C:\Users\username\ or C:/Users/username/ (with any separator)
-  path = path.replace(/^[A-Za-z]:[\\/]Users[\\/][^\\/]+[\\/]/, "~/");
+  result = result.replace(WINDOWS_USER_HOME_REGEX, "~/");
 
-  return path;
+  return result;
 }
 
 /**
@@ -495,11 +529,11 @@ function normalizeNodeModules(path: string): string {
   const winIndex = path.lastIndexOf("\\node_modules\\");
 
   if (unixIndex !== -1) {
-    return path.substring(unixIndex + 1); // +1 to exclude leading slash
+    return path.slice(unixIndex + 1); // +1 to exclude leading slash
   }
 
   if (winIndex !== -1) {
-    return path.substring(winIndex + 1).replace(/\\/g, "/");
+    return path.slice(winIndex + 1).replace(/\\/g, "/");
   }
 
   return path;
@@ -519,21 +553,13 @@ function normalizeNodeModules(path: string): string {
  * @returns Path with deployment prefixes removed
  */
 function stripDeploymentPaths(path: string): string {
-  // Common deployment paths
-  const deploymentPrefixes = [
-    /^\/var\/www\/[^/]+\//, // Apache/nginx: /var/www/myapp/
-    /^\/var\/task\//, // AWS Lambda: /var/task/
-    /^\/usr\/src\/app\//, // Docker: /usr/src/app/
-    /^\/app\//, // Heroku, Docker, generic: /app/
-    /^\/opt\/[^/]+\//, // Optional software: /opt/myapp/
-    /^\/srv\/[^/]+\//, // Service data: /srv/myapp/
-  ];
+  let result = path;
 
-  for (const prefix of deploymentPrefixes) {
-    path = path.replace(prefix, "");
+  for (const prefix of DEPLOYMENT_PREFIX_REGEXES) {
+    result = result.replace(prefix, "");
   }
 
-  return path;
+  return result;
 }
 
 /**
@@ -570,7 +596,7 @@ function findProjectPath(path: string): string {
   for (const marker of primaryMarkers) {
     const index = path.lastIndexOf(marker);
     if (index !== -1) {
-      return path.substring(index + 1); // +1 to remove leading slash
+      return path.slice(index + 1); // +1 to remove leading slash
     }
   }
 
@@ -578,7 +604,7 @@ function findProjectPath(path: string): string {
   for (const marker of secondaryMarkers) {
     const index = path.lastIndexOf(marker);
     if (index !== -1) {
-      return path.substring(index + 1);
+      return path.slice(index + 1);
     }
   }
 
@@ -634,7 +660,7 @@ function makeRelativePath(filename: string): string {
   result = normalizeUrl(result);
 
   // Step 2: Handle already-relative paths and special cases
-  if (!(result.startsWith("/") || result.match(/^[A-Za-z]:\\/))) {
+  if (!(result.startsWith("/") || WINDOWS_ABSOLUTE_PATH_REGEX.test(result))) {
     // Already relative or special path (native, <unknown>, etc.)
     // Still normalize Node internals
     if (result.startsWith("node:")) {
@@ -674,26 +700,30 @@ function makeRelativePath(filename: string): string {
   }
 
   if (cwd && result.startsWith(cwd)) {
-    result = result.substring(cwd.length + 1); // +1 to remove leading /
+    result = result.slice(cwd.length + 1); // +1 to remove leading /
   }
 
   // Step 9: Find project boundaries if still absolute-looking
   // Also apply to tilde paths that might have project markers after the tilde
-  if (result.startsWith("/") || result.match(/^[A-Za-z]:[/]/)) {
+  if (
+    result.startsWith("/") ||
+    WINDOWS_ABSOLUTE_SLASH_PATH_REGEX.test(result)
+  ) {
     result = findProjectPath(result);
   } else if (result.startsWith("~")) {
     // For tilde paths, strip the tilde and find markers in the remaining path
-    const withoutTilde = result.substring(2); // Remove ~/
-    const projectPath = findProjectPath("/" + withoutTilde);
+    const withoutTilde = result.slice(2); // Remove ~/
+    const absoluteWithoutTilde = `/${withoutTilde}`;
+    const projectPath = findProjectPath(absoluteWithoutTilde);
     // If a marker was found (path changed), use it; otherwise keep the tilde version
-    if (projectPath !== "/" + withoutTilde) {
+    if (projectPath !== absoluteWithoutTilde) {
       result = projectPath;
     }
   }
 
   // Step 10: Remove leading slash if present (prefer relative paths)
   if (result.startsWith("/")) {
-    result = result.substring(1);
+    result = result.slice(1);
   }
 
   return result;
@@ -714,7 +744,7 @@ function makeRelativePath(filename: string): string {
 function unwrapErrorCauses(error: Error): ChainedErrorData[] {
   const chainedErrors: ChainedErrorData[] = [];
   const seenErrors = new Set<Error>();
-  let currentError: unknown = (error as any).cause;
+  let currentError: unknown = (error as ErrorWithCause).cause;
   let depth = 0;
 
   while (currentError && depth < MAX_EXCEPTION_CHAIN_DEPTH) {
@@ -746,7 +776,7 @@ function unwrapErrorCauses(error: Error): ChainedErrorData[] {
     chainedErrors.push(chainedErrorData);
 
     // Move to next cause in chain
-    currentError = (currentError as any).cause;
+    currentError = (currentError as ErrorWithCause).cause;
     depth++;
   }
 
@@ -762,14 +792,23 @@ function unwrapErrorCauses(error: Error): ChainedErrorData[] {
  * @param value - Value to check
  * @returns True if value is a CallToolResult object
  */
-function isCallToolResult(value: unknown): boolean {
+function isCallToolResult(value: unknown): value is CallToolResult {
   return (
     value !== null &&
     typeof value === "object" &&
     "isError" in value &&
     "content" in value &&
-    Array.isArray((value as any).content)
+    Array.isArray((value as { content?: unknown }).content)
   );
+}
+
+function isTextContentPart(value: unknown): value is { text: string } {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+
+  const contentPart = value as CallToolContentPart;
+  return contentPart.type === "text" && typeof contentPart.text === "string";
 }
 
 /**
@@ -783,14 +822,14 @@ function isCallToolResult(value: unknown): boolean {
  * @returns ErrorData with extracted message (no stack trace)
  */
 function captureCallToolResultError(
-  result: any,
+  result: CallToolResult,
   _contextStack?: Error
 ): ErrorData {
   // Extract message from content array
   const message =
     result.content
-      ?.filter((c: any) => c.type === "text")
-      .map((c: any) => c.text)
+      .filter(isTextContentPart)
+      .map((contentPart) => contentPart.text)
       .join(" ")
       .trim() || "Unknown error";
 
