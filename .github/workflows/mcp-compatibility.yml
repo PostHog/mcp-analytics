@@ -54,22 +54,24 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run test suite against each MCP SDK version
+        env:
+          NODE_VERSION: ${{ matrix.node }}
+          VERSIONS: ${{ steps.get-versions.outputs.versions }}
         run: |
-          VERSIONS='${{ steps.get-versions.outputs.versions }}'
-          echo "Testing MCP versions on Node ${{ matrix.node }}"
+          echo "Testing MCP versions on Node $NODE_VERSION"
 
           # Parse JSON array
           for version in $(echo "$VERSIONS" | jq -r '.[]'); do
             echo "Testing @modelcontextprotocol/sdk@$version"
             
             # Install specific version
-            pnpm add -D @modelcontextprotocol/sdk@$version
+            pnpm add -D "@modelcontextprotocol/sdk@$version"
             
             # Run all tests
             if pnpm test; then
-              echo "✅ Compatible with @modelcontextprotocol/sdk@$version on Node ${{ matrix.node }}"
+              echo "✅ Compatible with @modelcontextprotocol/sdk@$version on Node $NODE_VERSION"
             else
-              echo "❌ Not compatible with @modelcontextprotocol/sdk@$version on Node ${{ matrix.node }}"
+              echo "❌ Not compatible with @modelcontextprotocol/sdk@$version on Node $NODE_VERSION"
               exit 1
             fi
           done
