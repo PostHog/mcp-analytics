@@ -1,6 +1,3 @@
-// Import our minimal interface from types
-
-// Import from modules
 import {
   isCompatibleServerType,
   isHighLevelServer,
@@ -144,7 +141,6 @@ function track<TServer>(
 
     configureIngestion(options);
 
-    // Check if server is already being tracked
     const existingData = getServerTrackingData(lowLevelServer);
     if (existingData) {
       writeToLog(
@@ -212,7 +208,7 @@ function buildTrackingData(
       posthogClient: options.posthogClient,
       posthogOptions: options.posthogOptions,
     },
-    sessionSource: "generated", // Changes to "mcp" if MCP sessionId is provided in requests
+    sessionSource: "generated",
   };
 }
 
@@ -235,7 +231,6 @@ function setupTrackedServer(
 
     if (mcpAnalyticsData.options.enableTracing) {
       try {
-        // Pass the low-level server to the current tracing module
         setupToolCallTracing(lowLevelServer);
       } catch (error) {
         writeToLog(`Warning: Failed to setup tool call tracing - ${error}`);
@@ -306,19 +301,11 @@ function publishCustomEventSync(
 ): void {
   const target = resolveCustomEventTarget(serverOrSessionId, eventData);
 
-  // Build the event object
   const event: UnredactedEvent = {
-    // Core fields
     sessionId: target.sessionId,
     apiKey: target.apiKey,
-
-    // Fixed event type for custom events
     eventType: MCPAnalyticsEventType.custom,
-
-    // Timestamp
     timestamp: new Date(),
-
-    // Event data from parameters
     resourceName: eventData?.resourceName,
     parameters: eventData?.parameters,
     response: eventData?.response,
@@ -328,7 +315,6 @@ function publishCustomEventSync(
     error: resolveCustomEventError(eventData?.error),
   };
 
-  // Wire up customer-defined metadata
   if (eventData?.tags) {
     event.tags = validateTags(eventData.tags);
   }
@@ -336,8 +322,6 @@ function publishCustomEventSync(
     event.properties = eventData.properties;
   }
 
-  // If we have a tracked server, use the publishEvent function
-  // Otherwise, add directly to the event queue
   publishResolvedCustomEvent(target, event);
 
   writeToLog(

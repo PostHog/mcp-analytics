@@ -56,7 +56,6 @@ function isToolResultError(result: unknown): boolean {
   );
 }
 
-// Track if we've already set up list tools tracing per server instance
 const listToolsTracingSetup = new WeakMap<MCPServerLike, boolean>();
 
 export function setupListToolsTracing(
@@ -64,13 +63,10 @@ export function setupListToolsTracing(
 ): void {
   const server = highLevelServer.server;
 
-  // Check if server supports tools capability
   if (!(server as MCPServerWithCapabilities)._capabilities?.tools) {
-    // Server doesn't support tools yet, skip setup
     return;
   }
 
-  // Check if we've already set up tracing for this server instance
   if (listToolsTracingSetup.get(server)) {
     return;
   }
@@ -78,7 +74,6 @@ export function setupListToolsTracing(
   const handlers = server._requestHandlers;
   const originalListToolsHandler = handlers.get("tools/list");
 
-  // No handler to override yet
   if (!originalListToolsHandler) {
     return;
   }
@@ -95,7 +90,6 @@ export function setupListToolsTracing(
         )
     );
 
-    // Mark as setup successful for this server instance
     listToolsTracingSetup.set(server, true);
   } catch (error) {
     writeToLog(`Warning: Failed to override list tools handler - ${error}`);
@@ -218,7 +212,6 @@ export function setupInitializeTracing(
 
         const sessionId = getServerSessionId(server, extra);
 
-        // Try to identify the session
         await handleIdentify(server, data, request, extra);
 
         const event: UnredactedEvent = {
@@ -273,7 +266,6 @@ export function setupToolCallTracing(server: MCPServerLike): void {
 
           const sessionId = getServerSessionId(server, extra);
 
-          // Try to identify the session
           await handleIdentify(server, data, request, extra);
 
           const event: UnredactedEvent = {

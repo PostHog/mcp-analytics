@@ -37,10 +37,8 @@ type MCPRequestHandler = NonNullable<
 type MCPRequest = Parameters<MCPRequestHandler>[0];
 type MCPRequestExtra = Parameters<MCPRequestHandler>[1];
 
-// WeakMap to track which callbacks have already been wrapped
 const wrappedCallbacks = new WeakMap<object, boolean>();
 
-// Symbol to mark tools that have already been processed
 const MCP_ANALYTICS_PROCESSED = Symbol("__posthog_mcp_analytics_processed__");
 
 type ProcessedRegisteredTool = RegisteredTool & {
@@ -85,7 +83,6 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
       return;
     }
 
-    // Create a proxy handler for the _registeredTools object
     const handler: ProxyHandler<Record<string, RegisteredTool>> = {
       set(
         target: Record<string, RegisteredTool>,
@@ -93,48 +90,37 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
         value: RegisteredTool
       ): boolean {
         try {
-          // Check if this is a tool being registered (has callback or handler property)
           if (
             typeof property === "string" &&
             value &&
             typeof value === "object" &&
             hasToolFunction(value)
           ) {
-            // Check if tool has already been processed
             if ((value as ProcessedRegisteredTool)[MCP_ANALYTICS_PROCESSED]) {
               writeToLog(
                 `Tool ${String(property)} already processed, skipping proxy wrapping`
               );
-              // Just set the value without processing
               return Reflect.set(target, property, value);
             }
 
-            // Check if callback/handler is already wrapped
             if (wrappedCallbacks.has(getToolFunction(value))) {
               writeToLog(
                 `Tool ${String(property)} callback already wrapped, skipping proxy wrapping`
               );
-              // Just set the value without processing
               return Reflect.set(target, property, value);
             }
 
-            // Apply tracing to the callback (context injection happens in setupListToolsTracing)
             const nextValue = addTracingToToolCallbackInternal(
               value,
               property,
               server
             );
 
-            // After adding a tool, try to set up list tools tracing
-            // This handles the case where track() is called before tools are registered
             setupListToolsTracing(server);
 
-            // If the tool has an update method, wrap it to handle callback updates
             if (typeof nextValue.update === "function") {
               const originalUpdate = nextValue.update;
               nextValue.update = function (...updateArgs: unknown[]) {
-                // If callback is being updated, wrap the new callback
-                // Note: MCP SDK's update() method API uses "callback" property in its interface
                 if (updateArgs[0]) {
                   const updateObj = updateArgs[0];
                   if (isCallbackUpdate(updateObj)) {
@@ -152,13 +138,11 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
             return Reflect.set(target, property, nextValue);
           }
 
-          // Use Reflect to perform the actual property set
           return Reflect.set(target, property, value);
         } catch (error) {
           writeToLog(
             `Warning: Error in proxy set handler for tool ${String(property)} - ${error}`
           );
-          // Fall back to default behavior on error
           return Reflect.set(target, property, value);
         }
       },
@@ -185,7 +169,6 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
       },
     };
 
-    // Replace _registeredTools with a proxied version
     const originalTools = server._registeredTools || {};
     server._registeredTools = new Proxy(originalTools, handler);
 
@@ -259,16 +242,11 @@ function addTracingToToolCallbackInternal(
     }
   };
 
-  // Mark the original callback as wrapped
   wrappedCallbacks.set(originalCallback, true);
-
-  // Mark the wrapped callback as well (in case it gets re-wrapped)
   wrappedCallbacks.set(wrappedCallback, true);
 
-  // Create a new tool object with the wrapped callback, preserving the property name
   const wrappedTool = createWrappedTool(tool, wrappedCallback);
 
-  // Mark the tool as processed
   (wrappedTool as ProcessedRegisteredTool)[MCP_ANALYTICS_PROCESSED] = true;
 
   return wrappedTool;
@@ -277,7 +255,6 @@ function addTracingToToolCallbackInternal(
 function setupToolsCallHandlerWrapping(server: HighLevelMCPServerLike): void {
   const lowLevelServer = server.server as MCPServerLike;
 
-  // Check if tools/call handler already exists
   const existingHandler = lowLevelServer._requestHandlers.get("tools/call");
   if (existingHandler) {
     const wrappedHandler = createToolsCallWrapper(
@@ -287,7 +264,6 @@ function setupToolsCallHandlerWrapping(server: HighLevelMCPServerLike): void {
     lowLevelServer._requestHandlers.set("tools/call", wrappedHandler);
   }
 
-  // Intercept future calls to setRequestHandler for tools registered after track()
   const originalSetRequestHandler =
     lowLevelServer.setRequestHandler.bind(lowLevelServer);
 
@@ -298,13 +274,11 @@ function setupToolsCallHandlerWrapping(server: HighLevelMCPServerLike): void {
     const shape = getObjectShape(requestSchema);
     const method = shape?.method ? getLiteralValue(shape.method) : undefined;
 
-    // Only wrap tools/call handler
     if (method === "tools/call") {
       const wrappedHandler = createToolsCallWrapper(handler, lowLevelServer);
       return originalSetRequestHandler(requestSchema, wrappedHandler);
     }
 
-    // Pass through all other handlers unchanged
     return originalSetRequestHandler(requestSchema, handler);
   }) as MCPServerLike["setRequestHandler"];
 }
@@ -505,13 +479,10 @@ export function setupTracking(server: HighLevelMCPServerLike): void {
   try {
     const _mcpAnalyticsData = getServerTrackingData(server.server);
 
-    // Setup handler wrapping before any tools are registered
     setupToolsCallHandlerWrapping(server);
 
     setupInitializeTracing(server);
 
-    // Modify existing callbacks to include tracing and publishing events
-    // This now includes get_more_tools if it was added
     server._registeredTools = addTracingToToolRegistry(
       server._registeredTools,
       server
@@ -519,8 +490,6 @@ export function setupTracking(server: HighLevelMCPServerLike): void {
 
     setupListToolsTracing(server);
 
-    // Proxy the high level server's registered tools to ensure new tools are injected with tracing
-    // Note: Context parameter injection now happens in setupListToolsTracing (after JSON Schema conversion)
     setupListenerToRegisteredTools(server);
   } catch (error) {
     writeToLog(`Warning: Failed to setup tool call tracing - ${error}`);
