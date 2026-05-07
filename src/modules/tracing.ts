@@ -2,46 +2,70 @@ import {
   CallToolRequestSchema,
   InitializeRequestSchema,
   ListToolsRequestSchema,
-  ListToolsResult,
+  type ListToolsResult,
 } from "@modelcontextprotocol/sdk/types.js";
-import {
+import type {
   HighLevelMCPServerLike,
+  MCPAnalyticsOptions,
   MCPServerLike,
   UnredactedEvent,
 } from "../types.js";
-import { writeToLog } from "./logging.js";
-import { handleReportMissing } from "./tools.js";
+import { getMCPCompatibleErrorMessage } from "./compatibility.js";
+import {
+  addContextParameterToTools,
+  getContextDescription,
+  isContextEnabled,
+} from "./context-parameters.js";
+import { publishEvent } from "./event-queue.js";
+import { MCPAnalyticsEventType } from "./event-types.js";
+import { captureException } from "./exceptions.js";
 import {
   getServerTrackingData,
   handleIdentify,
-  resolveEventTags,
   resolveEventProperties,
+  resolveEventTags,
 } from "./internal.js";
+import { writeToLog } from "./logging.js";
+import { buildCapturedMcpParameters } from "./mcp-payloads.js";
 import { getServerSessionId } from "./session.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
-import { publishEvent } from "./eventQueue.js";
-import { getMCPCompatibleErrorMessage } from "./compatibility.js";
-import { captureException } from "./exceptions.js";
-import { addContextParameterToTools } from "./context-parameters.js";
 import {
   GET_MORE_TOOLS_NAME,
   getReportMissingToolDescriptor,
+  handleReportMissing,
 } from "./tools.js";
 
-function isToolResultError(result: any): boolean {
-  return result && typeof result === "object" && result.isError === true;
+type MCPRequestHandler = NonNullable<
+  MCPServerLike["_requestHandlers"] extends Map<string, infer THandler>
+    ? THandler
+    : never
+>;
+type MCPRequest = Parameters<MCPRequestHandler>[0];
+type MCPRequestExtra = Parameters<MCPRequestHandler>[1];
+type MCPServerWithCapabilities = MCPServerLike & {
+  _capabilities?: {
+    tools?: unknown;
+  };
+};
+
+function isToolResultError(result: unknown): boolean {
+  return (
+    !!result &&
+    typeof result === "object" &&
+    "isError" in result &&
+    result.isError === true
+  );
 }
 
 // Track if we've already set up list tools tracing per server instance
 const listToolsTracingSetup = new WeakMap<MCPServerLike, boolean>();
 
 export function setupListToolsTracing(
-  highLevelServer: HighLevelMCPServerLike,
+  highLevelServer: HighLevelMCPServerLike
 ): void {
   const server = highLevelServer.server;
 
   // Check if server supports tools capability
-  if (!(server as any)._capabilities?.tools) {
+  if (!(server as MCPServerWithCapabilities)._capabilities?.tools) {
     // Server doesn't support tools yet, skip setup
     return;
   }
@@ -60,95 +84,16 @@ export function setupListToolsTracing(
   }
 
   try {
-    server.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
-      let tools: any[] = [];
-      const data = getServerTrackingData(server);
-      let event: UnredactedEvent = {
-        sessionId: getServerSessionId(server, extra),
-        parameters: {
-          request: request,
-          extra: extra,
-        },
-        eventType: PublishEventRequestEventTypeEnum.mcpToolsList,
-        timestamp: new Date(),
-        redactionFn: data?.options.redactSensitiveInformation,
-      };
-      if (data) {
-        const resolvedTags = await resolveEventTags(data, request, extra);
-        if (resolvedTags) event.tags = resolvedTags;
-        const resolvedProperties = await resolveEventProperties(
-          data,
+    server.setRequestHandler(
+      ListToolsRequestSchema,
+      async (request, extra) =>
+        await handleListToolsRequest(
+          server,
+          originalListToolsHandler,
           request,
-          extra,
-        );
-        if (resolvedProperties) event.properties = resolvedProperties;
-      }
-      try {
-        const originalResponse = (await originalListToolsHandler(
-          request,
-          extra,
-        )) as ListToolsResult;
-        tools = originalResponse.tools || [];
-
-        // Inject context parameters AFTER MCP SDK has converted Zod to JSON Schema
-        if (data?.options.enableToolCallContext) {
-          tools = addContextParameterToTools(
-            tools,
-            data.options.customContextDescription,
-          );
-        }
-
-        // Add get_more_tools tool when enabled
-        if (data?.options.enableReportMissing) {
-          const alreadyPresent = tools.some(
-            (t: any) => t?.name === GET_MORE_TOOLS_NAME,
-          );
-          if (!alreadyPresent) tools.push(getReportMissingToolDescriptor());
-        }
-      } catch (error) {
-        // If original handler fails, start with empty tools
-        writeToLog(
-          `Warning: Original list tools handler failed, this suggests an error MCPCat did not cause - ${error}`,
-        );
-        event.error = { message: getMCPCompatibleErrorMessage(error) };
-        event.isError = true;
-        event.duration =
-          (event.timestamp &&
-            new Date().getTime() - event.timestamp.getTime()) ||
-          0;
-        publishEvent(server, event);
-        throw error;
-      }
-
-      if (!data) {
-        writeToLog(
-          "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls.",
-        );
-        return { tools };
-      }
-
-      if (tools.length === 0) {
-        writeToLog(
-          "Warning: No tools found in the original list. This is likely due to the tools not being registered before MCPCat.track().",
-        );
-        event.error = { message: "No tools were sent to MCP client." };
-        event.isError = true;
-        event.duration =
-          (event.timestamp &&
-            new Date().getTime() - event.timestamp.getTime()) ||
-          0;
-        publishEvent(server, event);
-        return { tools };
-      }
-
-      event.response = { tools };
-      event.isError = false;
-      event.duration =
-        (event.timestamp && new Date().getTime() - event.timestamp.getTime()) ||
-        0;
-      publishEvent(server, event);
-      return { tools };
-    });
+          extra
+        )
+    );
 
     // Mark as setup successful for this server instance
     listToolsTracingSetup.set(server, true);
@@ -157,8 +102,103 @@ export function setupListToolsTracing(
   }
 }
 
+async function handleListToolsRequest(
+  server: MCPServerLike,
+  originalListToolsHandler: MCPRequestHandler,
+  request: MCPRequest,
+  extra: MCPRequestExtra
+): Promise<{ tools: ListToolsResult["tools"] }> {
+  const data = getServerTrackingData(server);
+  const event: UnredactedEvent = {
+    sessionId: getServerSessionId(server, extra),
+    parameters: buildCapturedMcpParameters(request),
+    eventType: MCPAnalyticsEventType.mcpToolsList,
+    timestamp: new Date(),
+    redactionFn: data?.options.redactSensitiveInformation,
+  };
+
+  if (data) {
+    await applyResolvedMetadata(event, data, request, extra);
+  }
+
+  const tools = await getTracedToolsList(
+    server,
+    originalListToolsHandler,
+    request,
+    extra,
+    event
+  );
+
+  if (!data) {
+    writeToLog(
+      "Warning: PostHog MCP analytics is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
+    );
+    return { tools };
+  }
+
+  if (tools.length === 0) {
+    writeToLog(
+      "Warning: No tools found in the original list. This is likely due to the tools not being registered before PostHog MCP analytics.track()."
+    );
+    event.error = { message: "No tools were sent to MCP client." };
+    event.isError = true;
+    event.duration = getEventDuration(event);
+    publishEvent(server, event);
+    return { tools };
+  }
+
+  event.response = { tools };
+  event.isError = false;
+  event.duration = getEventDuration(event);
+  publishEvent(server, event);
+  return { tools };
+}
+
+async function getTracedToolsList(
+  server: MCPServerLike,
+  originalListToolsHandler: MCPRequestHandler,
+  request: MCPRequest,
+  extra: MCPRequestExtra,
+  event: UnredactedEvent
+): Promise<ListToolsResult["tools"]> {
+  try {
+    const data = getServerTrackingData(server);
+    const originalResponse = (await originalListToolsHandler(
+      request,
+      extra
+    )) as ListToolsResult;
+    let tools = originalResponse.tools || [];
+
+    if (data && isContextEnabled(data.options.context)) {
+      tools = addContextParameterToTools(
+        tools,
+        getContextDescription(data.options.context)
+      );
+    }
+
+    if (data?.options.reportMissing) {
+      const alreadyPresent = tools.some(
+        (tool) => tool?.name === GET_MORE_TOOLS_NAME
+      );
+      if (!alreadyPresent) {
+        tools.push(getReportMissingToolDescriptor());
+      }
+    }
+    return tools;
+  } catch (error) {
+    writeToLog(
+      `Warning: Original list tools handler failed, this suggests an error PostHog MCP analytics did not cause - ${error}`
+    );
+    event.error = { message: getMCPCompatibleErrorMessage(error) };
+    event.isError = true;
+    event.duration = getEventDuration(event);
+    publishEvent(server, event);
+    throw error;
+  }
+}
+
 export function setupInitializeTracing(
-  highLevelServer: HighLevelMCPServerLike,
+  highLevelServer: HighLevelMCPServerLike
 ): void {
   const server = highLevelServer.server;
   const handlers = server._requestHandlers;
@@ -171,7 +211,7 @@ export function setupInitializeTracing(
         const data = getServerTrackingData(server);
         if (!data) {
           writeToLog(
-            "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls.",
+            "Warning: PostHog MCP analytics is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
           );
           return await originalInitializeHandler(request, extra);
         }
@@ -181,32 +221,33 @@ export function setupInitializeTracing(
         // Try to identify the session
         await handleIdentify(server, data, request, extra);
 
-        let event: UnredactedEvent = {
-          sessionId: sessionId,
+        const event: UnredactedEvent = {
+          sessionId,
           resourceName: request.params?.name || "Unknown Tool Name",
-          eventType: PublishEventRequestEventTypeEnum.mcpInitialize,
-          parameters: {
-            request: request,
-            extra: extra,
-          },
+          eventType: MCPAnalyticsEventType.mcpInitialize,
+          parameters: buildCapturedMcpParameters(request),
           timestamp: new Date(),
           redactionFn: data.options.redactSensitiveInformation,
         };
 
         const resolvedTags = await resolveEventTags(data, request, extra);
-        if (resolvedTags) event.tags = resolvedTags;
+        if (resolvedTags) {
+          event.tags = resolvedTags;
+        }
         const resolvedProperties = await resolveEventProperties(
           data,
           request,
-          extra,
+          extra
         );
-        if (resolvedProperties) event.properties = resolvedProperties;
+        if (resolvedProperties) {
+          event.properties = resolvedProperties;
+        }
 
         const result = await originalInitializeHandler(request, extra);
         event.response = result;
         publishEvent(server, event);
         return result;
-      },
+      }
     );
   }
 }
@@ -225,7 +266,7 @@ export function setupToolCallTracing(server: MCPServerLike): void {
           const data = getServerTrackingData(server);
           if (!data) {
             writeToLog(
-              "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls.",
+              "Warning: PostHog MCP analytics is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
             );
             return await originalInitializeHandler(request, extra);
           }
@@ -235,121 +276,167 @@ export function setupToolCallTracing(server: MCPServerLike): void {
           // Try to identify the session
           await handleIdentify(server, data, request, extra);
 
-          let event: UnredactedEvent = {
-            sessionId: sessionId,
+          const event: UnredactedEvent = {
+            sessionId,
             resourceName: request.params?.name || "Unknown Tool Name",
-            eventType: PublishEventRequestEventTypeEnum.mcpInitialize,
-            parameters: {
-              request: request,
-              extra: extra,
-            },
+            eventType: MCPAnalyticsEventType.mcpInitialize,
+            parameters: buildCapturedMcpParameters(request),
             timestamp: new Date(),
             redactionFn: data.options.redactSensitiveInformation,
           };
 
           const resolvedTags = await resolveEventTags(data, request, extra);
-          if (resolvedTags) event.tags = resolvedTags;
+          if (resolvedTags) {
+            event.tags = resolvedTags;
+          }
           const resolvedProperties = await resolveEventProperties(
             data,
             request,
-            extra,
+            extra
           );
-          if (resolvedProperties) event.properties = resolvedProperties;
+          if (resolvedProperties) {
+            event.properties = resolvedProperties;
+          }
 
           const result = await originalInitializeHandler(request, extra);
           event.response = result;
           publishEvent(server, event);
           return result;
-        },
+        }
       );
     }
 
-    server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
-      const data = getServerTrackingData(server);
-      if (!data) {
-        writeToLog(
-          "Warning: MCPCat is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls.",
-        );
-        return await originalCallToolHandler?.(request, extra);
-      }
-
-      const sessionId = getServerSessionId(server, extra);
-      let event: UnredactedEvent = {
-        sessionId: sessionId,
-        resourceName: request.params?.name || "Unknown Tool Name",
-        parameters: {
-          request: request,
-          extra: extra,
-        },
-        eventType: PublishEventRequestEventTypeEnum.mcpToolsCall,
-        timestamp: new Date(),
-        redactionFn: data.options.redactSensitiveInformation,
-      };
-
-      try {
-        // Try to identify the session if we haven't already and identify function is provided
-        await handleIdentify(server, data, request, extra);
-
-        const resolvedTags = await resolveEventTags(data, request, extra);
-        if (resolvedTags) event.tags = resolvedTags;
-        const resolvedProperties = await resolveEventProperties(
-          data,
+    server.setRequestHandler(
+      CallToolRequestSchema,
+      async (request, extra) =>
+        await handleToolCallRequest(
+          server,
+          originalCallToolHandler,
           request,
-          extra,
-        );
-        if (resolvedProperties) event.properties = resolvedProperties;
-
-        // Check for missing context if enableToolCallContext is true and it's not report_missing
-        if (
-          data.options.enableToolCallContext &&
-          request.params?.name !== "get_more_tools"
-        ) {
-          const hasContext =
-            request.params?.arguments &&
-            typeof request.params.arguments === "object" &&
-            "context" in request.params.arguments;
-          if (hasContext) {
-            event.userIntent = request.params.arguments.context;
-          }
-        }
-
-        let result;
-        if (request.params?.name === "get_more_tools") {
-          result = await handleReportMissing(request.params.arguments.context);
-          event.userIntent = request.params.arguments.context;
-        } else if (originalCallToolHandler) {
-          result = await originalCallToolHandler(request, extra);
-        } else {
-          event.isError = true;
-          event.error = {
-            message: `Tool call handler not found for ${request.params?.name || "unknown"}`,
-          };
-          event.duration =
-            (event.timestamp &&
-              new Date().getTime() - event.timestamp.getTime()) ||
-            undefined;
-          publishEvent(server, event);
-          throw new Error(`Unknown tool: ${request.params?.name || "unknown"}`);
-        }
-
-        // Check if the result indicates an error
-        if (isToolResultError(result)) {
-          event.isError = true;
-          event.error = captureException(result);
-        }
-
-        event.response = result;
-        publishEvent(server, event);
-        return result;
-      } catch (error) {
-        event.isError = true;
-        event.error = captureException(error);
-        publishEvent(server, event);
-        throw error;
-      }
-    });
+          extra
+        )
+    );
   } catch (error) {
     writeToLog(`Warning: Failed to setup tool call tracing - ${error}`);
     throw error;
   }
+}
+
+async function handleToolCallRequest(
+  server: MCPServerLike,
+  originalCallToolHandler: MCPRequestHandler | undefined,
+  request: MCPRequest,
+  extra: MCPRequestExtra
+): Promise<unknown> {
+  const data = getServerTrackingData(server);
+  if (!data) {
+    writeToLog(
+      "Warning: PostHog MCP analytics is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
+    );
+    return await originalCallToolHandler?.(request, extra);
+  }
+
+  const event: UnredactedEvent = {
+    sessionId: getServerSessionId(server, extra),
+    resourceName: request.params?.name || "Unknown Tool Name",
+    parameters: buildCapturedMcpParameters(request),
+    eventType: MCPAnalyticsEventType.mcpToolsCall,
+    timestamp: new Date(),
+    redactionFn: data.options.redactSensitiveInformation,
+  };
+
+  try {
+    await handleIdentify(server, data, request, extra);
+    await applyResolvedMetadata(event, data, request, extra);
+    setToolCallContext(event, data.options.context, request);
+
+    const result = await executeToolCall(
+      server,
+      originalCallToolHandler,
+      request,
+      extra,
+      event
+    );
+    if (isToolResultError(result)) {
+      event.isError = true;
+      event.error = captureException(result);
+    }
+
+    event.response = result;
+    publishEvent(server, event);
+    return result;
+  } catch (error) {
+    event.isError = true;
+    event.error = captureException(error);
+    publishEvent(server, event);
+    throw error;
+  }
+}
+
+async function executeToolCall(
+  server: MCPServerLike,
+  originalCallToolHandler: MCPRequestHandler | undefined,
+  request: MCPRequest,
+  extra: MCPRequestExtra,
+  event: UnredactedEvent
+): Promise<unknown> {
+  if (request.params?.name === "get_more_tools") {
+    const context = getContextArgument(request) || "";
+    event.userIntent = context;
+    return handleReportMissing({ context });
+  }
+
+  if (originalCallToolHandler) {
+    return await originalCallToolHandler(request, extra);
+  }
+
+  event.isError = true;
+  event.error = {
+    message: `Tool call handler not found for ${request.params?.name || "unknown"}`,
+  };
+  event.duration = getEventDuration(event) || undefined;
+  publishEvent(server, event);
+  throw new Error(`Unknown tool: ${request.params?.name || "unknown"}`);
+}
+
+async function applyResolvedMetadata(
+  event: UnredactedEvent,
+  data: NonNullable<ReturnType<typeof getServerTrackingData>>,
+  request: MCPRequest,
+  extra: MCPRequestExtra
+): Promise<void> {
+  const resolvedTags = await resolveEventTags(data, request, extra);
+  if (resolvedTags) {
+    event.tags = resolvedTags;
+  }
+  const resolvedProperties = await resolveEventProperties(data, request, extra);
+  if (resolvedProperties) {
+    event.properties = resolvedProperties;
+  }
+}
+
+function setToolCallContext(
+  event: UnredactedEvent,
+  context: MCPAnalyticsOptions["context"],
+  request: MCPRequest
+): void {
+  if (
+    !(isContextEnabled(context) && request.params?.name !== "get_more_tools")
+  ) {
+    return;
+  }
+
+  const contextArgument = getContextArgument(request);
+  if (contextArgument) {
+    event.userIntent = contextArgument;
+  }
+}
+
+function getContextArgument(request: MCPRequest): string | undefined {
+  const context = request.params?.arguments?.context;
+  return typeof context === "string" ? context : undefined;
+}
+
+function getEventDuration(event: UnredactedEvent): number {
+  return event.timestamp ? Date.now() - event.timestamp.getTime() : 0;
 }

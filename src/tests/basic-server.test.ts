@@ -1,23 +1,23 @@
-import { describe, it, expect } from "vitest";
-import {
-  setupTestServerAndClient,
-  resetTodos,
-} from "./test-utils/client-server-factory";
-import {
-  ListToolsResultSchema,
-  CallToolResultSchema,
-} from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  CallToolResultSchema,
+  ListToolsResultSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { EventCapture } from "./test-utils";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import {
+  resetTodos,
+  setupTestServerAndClient,
+} from "./test-utils/client-server-factory";
 
 describe("Basic Server Test", () => {
   it("should be able to call tools without tracking", async () => {
     resetTodos();
-    const { server, client, cleanup } = await setupTestServerAndClient();
+    const { client, cleanup } = await setupTestServerAndClient();
 
     try {
       // List tools first to ensure they're available
@@ -26,7 +26,7 @@ describe("Basic Server Test", () => {
           method: "tools/list",
           params: {},
         },
-        ListToolsResultSchema,
+        ListToolsResultSchema
       );
 
       expect(toolsResponse.tools).toBeDefined();
@@ -43,7 +43,7 @@ describe("Basic Server Test", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result).toBeDefined();
@@ -81,14 +81,14 @@ describe("Basic Server Test", () => {
       );
       McpServer = ImportedMcpServer;
       hasCompatibleVersion = true;
-    } catch (error) {
+    } catch {
       // McpServer not available in this version
       hasCompatibleVersion = false;
     }
 
     if (!hasCompatibleVersion) {
       console.log(
-        "Skipping McpServer server info test - requires @modelcontextprotocol/sdk v1.3.0 or higher",
+        "Skipping McpServer server info test - requires @modelcontextprotocol/sdk v1.3.0 or higher"
       );
       return;
     }
@@ -141,8 +141,9 @@ describe("Basic Server Test", () => {
       const { track } = await import("../index.js");
 
       // Call track first with a project ID
-      await track(server, "test-project", {
-        enableToolCallContext: true,
+      await track(server, {
+        apiKey: "test-project",
+        context: true,
         enableTracing: true,
       });
 
@@ -153,16 +154,14 @@ describe("Basic Server Test", () => {
         {
           data: z.string().optional().describe("Optional data parameter"),
         },
-        async (args) => {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `New tool called with data: ${args.data || "no data"}`,
-              },
-            ],
-          };
-        },
+        async (args) => ({
+          content: [
+            {
+              type: "text",
+              text: `New tool called with data: ${args.data || "no data"}`,
+            },
+          ],
+        })
       );
 
       // List tools to verify the new tool appears with context parameter
@@ -171,11 +170,11 @@ describe("Basic Server Test", () => {
           method: "tools/list",
           params: {},
         },
-        ListToolsResultSchema,
+        ListToolsResultSchema
       );
 
       const newTool = toolsResponse.tools.find(
-        (t) => t.name === "new_tool_after_track",
+        (t) => t.name === "new_tool_after_track"
       );
       expect(newTool).toBeDefined();
       expect(newTool?.inputSchema).toBeDefined();
@@ -200,7 +199,7 @@ describe("Basic Server Test", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result).toBeDefined();
@@ -219,8 +218,9 @@ describe("Basic Server Test", () => {
       const { track } = await import("../index.js");
 
       // Call track first with a project ID
-      await track(server, "test-project", {
-        enableToolCallContext: true,
+      await track(server, {
+        apiKey: "test-project",
+        context: true,
         enableTracing: true,
       });
 
@@ -231,7 +231,7 @@ describe("Basic Server Test", () => {
         { a: z.number(), b: z.number() },
         async ({ a, b }) => ({
           content: [{ type: "text", text: String(a + b) }],
-        }),
+        })
       );
 
       // List tools to verify the new tool appears with context parameter
@@ -240,11 +240,11 @@ describe("Basic Server Test", () => {
           method: "tools/list",
           params: {},
         },
-        ListToolsResultSchema,
+        ListToolsResultSchema
       );
 
       const calculatorTool = toolsResponse.tools.find(
-        (t) => t.name === "calculator_add",
+        (t) => t.name === "calculator_add"
       );
       expect(calculatorTool).toBeDefined();
       expect(calculatorTool?.inputSchema).toBeDefined();
@@ -271,7 +271,7 @@ describe("Basic Server Test", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result).toBeDefined();
@@ -294,8 +294,9 @@ describe("Basic Server Test", () => {
       const { track } = await import("../index.js");
 
       // Call track with tracing enabled
-      await track(server, "test-dedup-project", {
-        enableToolCallContext: true,
+      await track(server, {
+        apiKey: "test-dedup-project",
+        context: true,
         enableTracing: true,
       });
 
@@ -327,7 +328,7 @@ describe("Basic Server Test", () => {
             method: "tools/call",
             params: toolCall,
           },
-          CallToolResultSchema,
+          CallToolResultSchema
         );
       }
 
@@ -339,7 +340,7 @@ describe("Basic Server Test", () => {
 
       // Filter for tool call events
       const toolCallEvents = events.filter(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
 
       // Verify we captured some events
@@ -366,10 +367,10 @@ describe("Basic Server Test", () => {
 
       // Verify each tool call resulted in exactly one event
       const addTodoEvents = toolCallEvents.filter(
-        (e) => e.resourceName === "add_todo",
+        (e) => e.resourceName === "add_todo"
       );
       const listTodosEvents = toolCallEvents.filter(
-        (e) => e.resourceName === "list_todos",
+        (e) => e.resourceName === "list_todos"
       );
 
       expect(addTodoEvents.length).toBe(2);
@@ -377,7 +378,7 @@ describe("Basic Server Test", () => {
 
       // Verify unique text in each add_todo event
       const todoTexts = addTodoEvents.map(
-        (e) => (e.parameters as any)?.request?.params?.arguments?.text,
+        (e) => (e.parameters as any)?.request?.params?.arguments?.text
       );
       expect(new Set(todoTexts).size).toBe(2); // Should have 2 unique texts
 
@@ -421,7 +422,7 @@ describe("Basic Server Test", () => {
             result = a * b;
             break;
           case "divide":
-            if (b === 0)
+            if (b === 0) {
               return {
                 content: [
                   {
@@ -430,13 +431,16 @@ describe("Basic Server Test", () => {
                   },
                 ],
               };
+            }
             result = a / b;
             break;
+          default:
+            throw new Error(`Unsupported operation: ${operation}`);
         }
         return {
           content: [{ type: "text", text: String(result) }],
         };
-      },
+      }
     );
 
     // Create client instance
@@ -449,7 +453,7 @@ describe("Basic Server Test", () => {
         capabilities: {
           sampling: {},
         },
-      },
+      }
     );
 
     // Create transport pair and connect
@@ -466,8 +470,9 @@ describe("Basic Server Test", () => {
       const { track } = await import("../index.js");
 
       // NOW call track - after tools are already defined
-      await track(server, "test-project", {
-        enableToolCallContext: true,
+      await track(server, {
+        apiKey: "test-project",
+        context: true,
         enableTracing: true,
       });
 
@@ -477,7 +482,7 @@ describe("Basic Server Test", () => {
           method: "tools/list",
           params: {},
         },
-        ListToolsResultSchema,
+        ListToolsResultSchema
       );
 
       // Check the "add" tool
@@ -493,7 +498,7 @@ describe("Basic Server Test", () => {
 
       // Check the "calculate" tool
       const calculateTool = toolsResponse.tools.find(
-        (t) => t.name === "calculate",
+        (t) => t.name === "calculate"
       );
       expect(calculateTool).toBeDefined();
       expect(calculateTool?.inputSchema).toBeDefined();
@@ -515,7 +520,7 @@ describe("Basic Server Test", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(addResult).toBeDefined();
@@ -534,7 +539,7 @@ describe("Basic Server Test", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(calcResult).toBeDefined();

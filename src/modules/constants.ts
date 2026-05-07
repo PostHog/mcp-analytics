@@ -1,5 +1,32 @@
-// MCPCat Settings
+// PostHog MCP analytics settings
 export const INACTIVITY_TIMEOUT_IN_MINUTES = 30;
 export const DEFAULT_CONTEXT_PARAMETER_DESCRIPTION = `Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): "Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization."`;
-export const MCPCAT_CUSTOM_EVENT_TYPE = "mcpcat:custom";
-export const MCPCAT_SOURCE = "mcpcat";
+export const POSTHOG_MCP_ANALYTICS_SOURCE = "posthog_mcp_analytics";
+
+export const PostHogMCPAnalyticsProperty = {
+  AiInputState: "$ai_input_state",
+  AiIsError: "$ai_is_error",
+  AiLatency: "$ai_latency",
+  AiOutputState: "$ai_output_state",
+  AiProduct: "$ai_product",
+  AiSessionId: "$ai_session_id",
+  AiSpanId: "$ai_span_id",
+  AiSpanName: "$ai_span_name",
+  AiTraceId: "$ai_trace_id",
+  ClientName: "$mcp_client_name",
+  ClientVersion: "$mcp_client_version",
+  DurationMs: "$mcp_duration_ms",
+  IsError: "$mcp_is_error",
+  Intent: "$mcp_intent",
+  Parameters: "$mcp_parameters",
+  ResourceName: "$mcp_resource_name",
+  Response: "$mcp_response",
+  ServerName: "$mcp_server_name",
+  ServerVersion: "$mcp_server_version",
+  SessionId: "$session_id",
+  Source: "$mcp_source",
+  ToolName: "$mcp_tool_name",
+} as const;
+
+export type PostHogMCPAnalyticsProperty =
+  (typeof PostHogMCPAnalyticsProperty)[keyof typeof PostHogMCPAnalyticsProperty];

@@ -7,7 +7,7 @@
  * - Zod schema internal structures (v3 vs v4)
  */
 
-import { RegisteredTool, ToolCallback } from "../types.js";
+import type { RegisteredTool, ToolCallback } from "../types.js";
 
 // --- Tool function property utilities for MCP SDK version compatibility ---
 // MCP SDK 1.23 and earlier use "callback", 1.24+ uses "handler"
@@ -43,7 +43,9 @@ export function getToolFunctionKey(tool: RegisteredTool): ToolFunctionKey {
  * Returns true if the tool has a callback or handler property.
  */
 export function hasToolFunction(tool: unknown): tool is RegisteredTool {
-  if (!tool || typeof tool !== "object") return false;
+  if (!tool || typeof tool !== "object") {
+    return false;
+  }
   const t = tool as Record<string, unknown>;
   return (
     ("handler" in t && typeof t.handler === "function") ||
@@ -57,7 +59,7 @@ export function hasToolFunction(tool: unknown): tool is RegisteredTool {
  */
 export function createWrappedTool(
   originalTool: RegisteredTool,
-  wrappedFunction: ToolCallback,
+  wrappedFunction: ToolCallback
 ): RegisteredTool {
   const key = getToolFunctionKey(originalTool);
   return {
@@ -90,14 +92,18 @@ interface ZodV4Internal {
 }
 
 export function isZ4Schema(schema: unknown): boolean {
-  if (!schema || typeof schema !== "object") return false;
+  if (!schema || typeof schema !== "object") {
+    return false;
+  }
   return !!(schema as ZodV4Internal)._zod;
 }
 
 export function getObjectShape(
-  schema: unknown,
+  schema: unknown
 ): Record<string, unknown> | undefined {
-  if (!schema || typeof schema !== "object") return undefined;
+  if (!schema || typeof schema !== "object") {
+    return;
+  }
 
   let rawShape:
     | Record<string, unknown>
@@ -113,13 +119,15 @@ export function getObjectShape(
     rawShape = v3Schema.shape ?? v3Schema._def?.shape;
   }
 
-  if (!rawShape) return undefined;
+  if (!rawShape) {
+    return;
+  }
 
   if (typeof rawShape === "function") {
     try {
       return rawShape();
     } catch {
-      return undefined;
+      return;
     }
   }
 
@@ -127,12 +135,16 @@ export function getObjectShape(
 }
 
 export function getLiteralValue(schema: unknown): unknown {
-  if (!schema || typeof schema !== "object") return undefined;
+  if (!schema || typeof schema !== "object") {
+    return;
+  }
 
   if (isZ4Schema(schema)) {
     const v4Schema = schema as ZodV4Internal;
     const def = v4Schema._zod?.def;
-    if (def?.value !== undefined) return def.value;
+    if (def?.value !== undefined) {
+      return def.value;
+    }
     // Fallback: values array (for enums)
     if (Array.isArray(def?.values) && def.values.length > 0) {
       return def.values[0];
@@ -140,7 +152,9 @@ export function getLiteralValue(schema: unknown): unknown {
   } else {
     const v3Schema = schema as ZodV3Internal;
     const def = v3Schema._def;
-    if (def?.value !== undefined) return def.value;
+    if (def?.value !== undefined) {
+      return def.value;
+    }
     // Fallback: values array (for enums)
     if (Array.isArray(def?.values) && def.values.length > 0) {
       return def.values[0];
@@ -149,7 +163,9 @@ export function getLiteralValue(schema: unknown): unknown {
 
   // Final fallback: direct .value property (some Zod versions)
   const directValue = (schema as { value?: unknown }).value;
-  if (directValue !== undefined) return directValue;
+  if (directValue !== undefined) {
+    return directValue;
+  }
 
-  return undefined;
+  return;
 }

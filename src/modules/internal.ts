@@ -1,12 +1,13 @@
-import {
-  MCPCatData,
-  MCPServerLike,
-  UserIdentity,
+import type {
   CompatibleRequestHandlerExtra,
+  MCPAnalyticsData,
+  MCPRequestLike,
+  MCPServerLike,
   UnredactedEvent,
+  UserIdentity,
 } from "../types.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
-import { publishEvent } from "./eventQueue.js";
+import { publishEvent } from "./event-queue.js";
+import { MCPAnalyticsEventType } from "./event-types.js";
 import { writeToLog } from "./logging.js";
 import { validateTags } from "./validation.js";
 
@@ -16,10 +17,13 @@ import { validateTags } from "./validation.js";
  * This cache persists across server instance restarts.
  */
 class IdentityCache {
-  private cache: Map<string, { identity: UserIdentity; timestamp: number }>;
-  private maxSize: number;
+  private readonly cache: Map<
+    string,
+    { identity: UserIdentity; timestamp: number }
+  >;
+  private readonly maxSize: number;
 
-  constructor(maxSize: number = 1000) {
+  constructor(maxSize = 1000) {
     this.cache = new Map();
     this.maxSize = maxSize;
   }
@@ -34,7 +38,7 @@ class IdentityCache {
       this.cache.set(sessionId, entry);
       return entry.identity;
     }
-    return undefined;
+    return;
   }
 
   set(sessionId: string, identity: UserIdentity): void {
@@ -66,17 +70,17 @@ class IdentityCache {
 const _globalIdentityCache = new IdentityCache(1000);
 
 // Internal tracking storage
-const _serverTracking = new WeakMap<MCPServerLike, MCPCatData>();
+const _serverTracking = new WeakMap<MCPServerLike, MCPAnalyticsData>();
 
 export function getServerTrackingData(
-  server: MCPServerLike,
-): MCPCatData | undefined {
+  server: MCPServerLike
+): MCPAnalyticsData | undefined {
   return _serverTracking.get(server);
 }
 
 export function setServerTrackingData(
   server: MCPServerLike,
-  data: MCPCatData,
+  data: MCPAnalyticsData
 ): void {
   _serverTracking.set(server, data);
 }
@@ -85,8 +89,12 @@ export function setServerTrackingData(
  * Deep comparison of two UserIdentity objects
  */
 export function areIdentitiesEqual(a: UserIdentity, b: UserIdentity): boolean {
-  if (a.userId !== b.userId) return false;
-  if (a.userName !== b.userName) return false;
+  if (a.userId !== b.userId) {
+    return false;
+  }
+  if (a.userName !== b.userName) {
+    return false;
+  }
 
   // Deep compare userData objects
   const aData = a.userData || {};
@@ -95,11 +103,17 @@ export function areIdentitiesEqual(a: UserIdentity, b: UserIdentity): boolean {
   const aKeys = Object.keys(aData);
   const bKeys = Object.keys(bData);
 
-  if (aKeys.length !== bKeys.length) return false;
+  if (aKeys.length !== bKeys.length) {
+    return false;
+  }
 
   for (const key of aKeys) {
-    if (!(key in bData)) return false;
-    if (JSON.stringify(aData[key]) !== JSON.stringify(bData[key])) return false;
+    if (!(key in bData)) {
+      return false;
+    }
+    if (JSON.stringify(aData[key]) !== JSON.stringify(bData[key])) {
+      return false;
+    }
   }
 
   return true;
@@ -111,7 +125,7 @@ export function areIdentitiesEqual(a: UserIdentity, b: UserIdentity): boolean {
  */
 export function mergeIdentities(
   previous: UserIdentity | undefined,
-  next: UserIdentity,
+  next: UserIdentity
 ): UserIdentity {
   if (!previous) {
     return next;
@@ -139,22 +153,22 @@ export function mergeIdentities(
  */
 export async function handleIdentify(
   server: MCPServerLike,
-  data: MCPCatData,
-  request: any,
-  extra?: CompatibleRequestHandlerExtra,
+  data: MCPAnalyticsData,
+  request: MCPRequestLike,
+  extra?: CompatibleRequestHandlerExtra
 ): Promise<void> {
   if (!data.options.identify) {
     return;
   }
 
   const sessionId = data.sessionId;
-  let identifyEvent: UnredactedEvent = {
-    sessionId: sessionId,
-    resourceName: request.params?.name || "Unknown",
-    eventType: PublishEventRequestEventTypeEnum.mcpcatIdentify,
+  const identifyEvent: UnredactedEvent = {
+    sessionId,
+    resourceName: getRequestResourceName(request),
+    eventType: MCPAnalyticsEventType.identify,
     parameters: {
-      request: request,
-      extra: extra,
+      request,
+      extra,
     },
     timestamp: new Date(),
     redactionFn: data.options.redactSensitiveInformation,
@@ -173,9 +187,9 @@ export async function handleIdentify(
       const mergedIdentity = mergeIdentities(previousIdentity, identityResult);
 
       // Only publish if identity has changed
-      const hasChanged =
-        !previousIdentity ||
-        !areIdentitiesEqual(previousIdentity, mergedIdentity);
+      const hasChanged = !(
+        previousIdentity && areIdentitiesEqual(previousIdentity, mergedIdentity)
+      );
 
       // Update BOTH caches to keep them in sync
       // Global cache: persists across server instances
@@ -185,18 +199,18 @@ export async function handleIdentify(
 
       if (hasChanged) {
         writeToLog(
-          `Identified session ${currentSessionId} with identity: ${JSON.stringify(mergedIdentity)}`,
+          `Identified session ${currentSessionId} with identity: ${JSON.stringify(mergedIdentity)}`
         );
         publishEvent(server, identifyEvent);
       }
     } else {
       writeToLog(
-        `Warning: Supplied identify function returned null for session ${sessionId}`,
+        `Warning: Supplied identify function returned null for session ${sessionId}`
       );
     }
   } catch (error) {
     writeToLog(
-      `Error: User supplied identify function threw an error while identifying session ${sessionId} - ${error}`,
+      `Error: User supplied identify function threw an error while identifying session ${sessionId} - ${error}`
     );
   }
 }
@@ -206,14 +220,18 @@ export async function handleIdentify(
  * Returns null if no callback configured, callback returns nullish, or callback throws.
  */
 export async function resolveEventTags(
-  data: MCPCatData,
-  request: any,
-  extra?: CompatibleRequestHandlerExtra,
+  data: MCPAnalyticsData,
+  request: MCPRequestLike,
+  extra?: CompatibleRequestHandlerExtra
 ): Promise<Record<string, string> | null> {
-  if (!data.options.eventTags) return null;
+  if (!data.options.eventTags) {
+    return null;
+  }
   try {
     const raw = (await data.options.eventTags(request, extra)) ?? null;
-    if (!raw) return null;
+    if (!raw) {
+      return null;
+    }
     return validateTags(raw);
   } catch (e) {
     writeToLog(`eventTags callback error: ${e}`);
@@ -226,15 +244,30 @@ export async function resolveEventTags(
  * Returns null if no callback configured, callback returns nullish, or callback throws.
  */
 export async function resolveEventProperties(
-  data: MCPCatData,
-  request: any,
-  extra?: CompatibleRequestHandlerExtra,
-): Promise<Record<string, any> | null> {
-  if (!data.options.eventProperties) return null;
+  data: MCPAnalyticsData,
+  request: MCPRequestLike,
+  extra?: CompatibleRequestHandlerExtra
+): Promise<Record<string, unknown> | null> {
+  if (!data.options.eventProperties) {
+    return null;
+  }
   try {
     return (await data.options.eventProperties(request, extra)) ?? null;
   } catch (e) {
     writeToLog(`eventProperties callback error: ${e}`);
     return null;
   }
+}
+
+function getRequestResourceName(request: unknown): string {
+  if (!request || typeof request !== "object" || !("params" in request)) {
+    return "Unknown";
+  }
+
+  const params = request.params;
+  if (!params || typeof params !== "object" || !("name" in params)) {
+    return "Unknown";
+  }
+
+  return typeof params.name === "string" ? params.name : "Unknown";
 }

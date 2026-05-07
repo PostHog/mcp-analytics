@@ -1,18 +1,18 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  setupTestServerAndClient,
-  resetTodos,
-} from "./test-utils/client-server-factory";
-import { track } from "../index";
+import { randomUUID } from "node:crypto";
 import {
   CallToolResultSchema,
   ListToolsResultSchema,
-} from "@modelcontextprotocol/sdk/types";
-import { EventCapture } from "./test-utils";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
-import { getServerTrackingData } from "../modules/internal";
-import { randomUUID } from "node:crypto";
+} from "@modelcontextprotocol/sdk/types.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { track } from "../index";
 import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "../modules/constants";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
+import { getServerTrackingData } from "../modules/internal";
+import { EventCapture } from "./test-utils";
+import {
+  resetTodos,
+  setupTestServerAndClient,
+} from "./test-utils/client-server-factory";
 
 describe("Report Missing Tool", () => {
   let server: any;
@@ -32,10 +32,11 @@ describe("Report Missing Tool", () => {
   });
 
   describe("1. Tool Injection Tests", () => {
-    it("should add report_missing to tools list when enableReportMissing is true", async () => {
+    it("should add report_missing to tools list when reportMissing is true", async () => {
       // Enable tracking with report_missing enabled
-      track(server, "test-project", {
-        enableReportMissing: true,
+      track(server, {
+        apiKey: "test-project",
+        reportMissing: true,
         enableTracing: true,
       });
 
@@ -45,29 +46,30 @@ describe("Report Missing Tool", () => {
           method: "tools/list",
           params: {},
         },
-        ListToolsResultSchema,
+        ListToolsResultSchema
       );
 
       // Find report_missing tool
       const reportMissingTool = toolsResponse.tools.find(
-        (tool: any) => tool.name === "get_more_tools",
+        (tool: any) => tool.name === "get_more_tools"
       );
 
       // Verify the tool exists with correct properties
       expect(reportMissingTool).toBeDefined();
       expect(reportMissingTool.name).toBe("get_more_tools");
       expect(reportMissingTool.description).toContain(
-        "Check for additional tools",
+        "Check for additional tools"
       );
 
       // Verify context is required
       expect(reportMissingTool.inputSchema.required).toContain("context");
     });
 
-    it("should NOT add get_more_tools when enableReportMissing is false", async () => {
+    it("should NOT add get_more_tools when reportMissing is false", async () => {
       // Enable tracking with get_more_tools disabled
-      track(server, "test-project", {
-        enableReportMissing: false,
+      track(server, {
+        apiKey: "test-project",
+        reportMissing: false,
         enableTracing: true,
       });
 
@@ -77,22 +79,23 @@ describe("Report Missing Tool", () => {
           method: "tools/list",
           params: {},
         },
-        ListToolsResultSchema,
+        ListToolsResultSchema
       );
 
       // Verify report_missing is not in the list
       const reportMissingTool = toolsResponse.tools.find(
-        (tool: any) => tool.name === "get_more_tools",
+        (tool: any) => tool.name === "get_more_tools"
       );
 
       expect(reportMissingTool).toBeUndefined();
     });
 
-    it("should add report_missing WITHOUT context injection even when enableToolCallContext is true", async () => {
+    it("should add report_missing WITHOUT context injection even when context is true", async () => {
       // Enable tracking with both features enabled
-      track(server, "test-project", {
-        enableReportMissing: true,
-        enableToolCallContext: true,
+      track(server, {
+        apiKey: "test-project",
+        reportMissing: true,
+        context: true,
         enableTracing: true,
       });
 
@@ -102,12 +105,12 @@ describe("Report Missing Tool", () => {
           method: "tools/list",
           params: {},
         },
-        ListToolsResultSchema,
+        ListToolsResultSchema
       );
 
       // Find report_missing tool
       const reportMissingTool = toolsResponse.tools.find(
-        (tool: any) => tool.name === "get_more_tools",
+        (tool: any) => tool.name === "get_more_tools"
       );
 
       // Verify context is NOT required
@@ -115,7 +118,7 @@ describe("Report Missing Tool", () => {
 
       // Check that other tools DO have injected context
       const addTodoTool = toolsResponse.tools.find(
-        (tool: any) => tool.name === "add_todo",
+        (tool: any) => tool.name === "add_todo"
       );
       expect(addTodoTool.inputSchema.properties.context).toEqual({
         type: "string",
@@ -131,8 +134,9 @@ describe("Report Missing Tool", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
-        enableReportMissing: true,
+      track(server, {
+        apiKey: "test-project",
+        reportMissing: true,
         enableTracing: true,
       });
 
@@ -150,7 +154,7 @@ describe("Report Missing Tool", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Verify response
@@ -163,14 +167,12 @@ describe("Report Missing Tool", () => {
       const events = eventCapture.getEvents();
       const reportEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_more_tools",
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+          e.resourceName === "get_more_tools"
       );
 
       expect(reportEvent).toBeDefined();
-      expect(
-        (reportEvent?.parameters as any).request.params.arguments.context,
-      ).toBe(missingDescription);
+      expect(reportEvent?.userIntent).toBe(missingDescription);
 
       await eventCapture.stop();
     });
@@ -180,8 +182,9 @@ describe("Report Missing Tool", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
-        enableReportMissing: true,
+      track(server, {
+        apiKey: "test-project",
+        reportMissing: true,
         enableTracing: true,
       });
 
@@ -199,7 +202,7 @@ describe("Report Missing Tool", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Verify response acknowledges the feedback
@@ -212,14 +215,12 @@ describe("Report Missing Tool", () => {
       const events = eventCapture.getEvents();
       const reportEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_more_tools",
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+          e.resourceName === "get_more_tools"
       );
 
       expect(reportEvent).toBeDefined();
-      expect(
-        (reportEvent?.parameters as any).request.params.arguments.context,
-      ).toBe(additionalContext);
+      expect(reportEvent?.userIntent).toBe(additionalContext);
 
       await eventCapture.stop();
     });
@@ -229,8 +230,9 @@ describe("Report Missing Tool", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
-        enableReportMissing: true,
+      track(server, {
+        apiKey: "test-project",
+        reportMissing: true,
         enableTracing: true,
       });
 
@@ -245,7 +247,7 @@ describe("Report Missing Tool", () => {
             } as any,
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // The function handles undefined gracefully
@@ -261,9 +263,8 @@ describe("Report Missing Tool", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "proj_abc123xyz");
+      track(server, { apiKey: "proj_abc123xyz" });
 
-      const description = "Need file system watcher tool";
       const context = "User wants to monitor file changes in real-time";
 
       // Call report_missing
@@ -273,11 +274,11 @@ describe("Report Missing Tool", () => {
           params: {
             name: "get_more_tools",
             arguments: {
-              context: context,
+              context,
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for events
@@ -287,8 +288,8 @@ describe("Report Missing Tool", () => {
       const events = eventCapture.getEvents();
       const reportEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_more_tools",
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+          e.resourceName === "get_more_tools"
       );
 
       // Verify event structure
@@ -298,17 +299,12 @@ describe("Report Missing Tool", () => {
       expect(reportEvent?.resourceName).toBe("get_more_tools");
       expect(reportEvent?.parameters).toBeDefined();
       expect((reportEvent?.parameters as any).request.params.name).toBe(
-        "get_more_tools",
+        "get_more_tools"
       );
       expect((reportEvent?.parameters as any).request.params.arguments).toEqual(
-        {
-          context: context,
-        },
+        {}
       );
-
-      // Since report_missing has its own context parameter, it should NOT have userIntent
-      // The context is captured in the arguments, not as userIntent
-      expect(reportEvent?.userIntent).toBeDefined();
+      expect(reportEvent?.userIntent).toBe(context);
 
       await eventCapture.stop();
     });
@@ -320,8 +316,9 @@ describe("Report Missing Tool", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
-        enableReportMissing: true,
+      track(server, {
+        apiKey: "test-project",
+        reportMissing: true,
         enableTracing: true,
       });
 
@@ -337,7 +334,7 @@ describe("Report Missing Tool", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Call report_missing
@@ -351,7 +348,7 @@ describe("Report Missing Tool", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Call list_todos
@@ -365,7 +362,7 @@ describe("Report Missing Tool", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for events
@@ -374,7 +371,7 @@ describe("Report Missing Tool", () => {
       // Get all tool call events
       const events = eventCapture.getEvents();
       const toolCallEvents = events.filter(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
 
       // Should have 3 events
@@ -403,8 +400,9 @@ describe("Report Missing Tool", () => {
       };
 
       // Enable tracking with identify
-      track(server, "test-project", {
-        enableReportMissing: true,
+      track(server, {
+        apiKey: "test-project",
+        reportMissing: true,
         enableTracing: true,
         identify: async () => ({
           userId: testUserId,
@@ -423,7 +421,7 @@ describe("Report Missing Tool", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for events
@@ -432,7 +430,7 @@ describe("Report Missing Tool", () => {
       // Verify identify event was triggered
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify,
+        (e) => e.eventType === MCPAnalyticsEventType.identify
       );
 
       expect(identifyEvent).toBeDefined();
@@ -458,8 +456,9 @@ describe("Report Missing Tool", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
-        enableReportMissing: true,
+      track(server, {
+        apiKey: "test-project",
+        reportMissing: true,
         enableTracing: true,
       });
 
@@ -486,7 +485,7 @@ describe("Report Missing Tool", () => {
               arguments: report,
             },
           },
-          CallToolResultSchema,
+          CallToolResultSchema
         );
       }
 
@@ -497,8 +496,8 @@ describe("Report Missing Tool", () => {
       const events = eventCapture.getEvents();
       const reportEvents = events.filter(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_more_tools",
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+          e.resourceName === "get_more_tools"
       );
 
       // Verify we captured all reports with useful data
@@ -506,9 +505,7 @@ describe("Report Missing Tool", () => {
 
       // Each event should have structured data for analysis
       reportEvents.forEach((event, index) => {
-        expect((event.parameters as any).request.params.arguments.context).toBe(
-          reports[index].context,
-        );
+        expect(event.userIntent).toBe(reports[index].context);
         expect(event.sessionId).toBeDefined();
         expect(event.timestamp).toBeDefined();
       });
@@ -528,8 +525,9 @@ describe("Report Missing Tool", () => {
       // First session
       {
         const setup1 = await setupTestServerAndClient();
-        track(setup1.server, "test-project", {
-          enableReportMissing: true,
+        track(setup1.server, {
+          apiKey: "test-project",
+          reportMissing: true,
           enableTracing: true,
         });
 
@@ -543,7 +541,7 @@ describe("Report Missing Tool", () => {
               },
             },
           },
-          CallToolResultSchema,
+          CallToolResultSchema
         );
 
         await setup1.cleanup();
@@ -552,8 +550,9 @@ describe("Report Missing Tool", () => {
       // Second session
       {
         const setup2 = await setupTestServerAndClient();
-        track(setup2.server, "test-project", {
-          enableReportMissing: true,
+        track(setup2.server, {
+          apiKey: "test-project",
+          reportMissing: true,
           enableTracing: true,
         });
 
@@ -567,7 +566,7 @@ describe("Report Missing Tool", () => {
               },
             },
           },
-          CallToolResultSchema,
+          CallToolResultSchema
         );
 
         await setup2.cleanup();
@@ -580,8 +579,8 @@ describe("Report Missing Tool", () => {
       const events = eventCapture.getEvents();
       const reportEvents = events.filter(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_more_tools",
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+          e.resourceName === "get_more_tools"
       );
 
       // Should have 2 events from different sessions
@@ -592,9 +591,7 @@ describe("Report Missing Tool", () => {
       expect(new Set(sessionIds).size).toBe(2);
 
       // Similar content (OAuth) from different sessions indicates a pattern
-      const contexts = reportEvents.map(
-        (e) => (e.parameters as any).request.params.arguments?.context,
-      );
+      const contexts = reportEvents.map((e) => e.userIntent);
       expect(contexts[0]).toContain("OAuth");
       expect(contexts[1]).toContain("OAuth");
 
@@ -606,8 +603,9 @@ describe("Report Missing Tool", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
-        enableReportMissing: true,
+      track(server, {
+        apiKey: "test-project",
+        reportMissing: true,
         enableTracing: true,
       });
 
@@ -634,7 +632,7 @@ describe("Report Missing Tool", () => {
               arguments: tool,
             },
           },
-          CallToolResultSchema,
+          CallToolResultSchema
         );
       }
 
@@ -645,8 +643,8 @@ describe("Report Missing Tool", () => {
       const events = eventCapture.getEvents();
       const reportEvents = events.filter(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_more_tools",
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+          e.resourceName === "get_more_tools"
       );
 
       // All from same session

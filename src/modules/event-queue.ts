@@ -1,63 +1,84 @@
-import {
-  Configuration,
-  EventsApi,
-  PublishEventRequest,
-  PublishEventRequestEventTypeEnum,
-} from "mcpcat-api";
-import { Event, UnredactedEvent, MCPServerLike } from "../types.js";
-import { writeToLog } from "./logging.js";
+import { PostHog } from "posthog-node";
+import type {
+  Event,
+  MCPAnalyticsOptions,
+  MCPServerLike,
+  PostHogCaptureClient,
+  UnredactedEvent,
+} from "../types.js";
+import { getMCPCompatibleErrorMessage } from "./compatibility.js";
+import { newPrefixedId } from "./ids.js";
 import { getServerTrackingData } from "./internal.js";
-import { getSessionInfo } from "./session.js";
+import { writeToLog } from "./logging.js";
+import { buildPostHogCaptureEvents } from "./posthog-events.js";
 import { redactEvent } from "./redaction.js";
 import { sanitizeEvent } from "./sanitization.js";
+import { getSessionInfo } from "./session.js";
 import { truncateEvent } from "./truncation.js";
-import KSUID from "../thirdparty/ksuid/index.js";
-import { getMCPCompatibleErrorMessage } from "./compatibility.js";
-import { TelemetryManager } from "./telemetry.js";
+
+interface QueuedEvent {
+  enableAITracing?: boolean;
+  event: UnredactedEvent;
+  posthogClient?: PostHogCaptureClient;
+}
 
 class EventQueue {
-  private queue: UnredactedEvent[] = [];
+  private readonly queue: QueuedEvent[] = [];
   private processing = false;
-  private maxRetries = 3;
-  private maxQueueSize = 10000; // Prevent unbounded growth
-  private concurrency = 5; // Max parallel requests
+  private readonly maxQueueSize = 10_000; // Prevent unbounded growth
+  private readonly concurrency = 5; // Max parallel requests
   private activeRequests = 0;
-  private apiClient: EventsApi;
-  private telemetryManager?: TelemetryManager;
+  private host = "https://us.i.posthog.com";
+  private posthogOptions: NonNullable<MCPAnalyticsOptions["posthogOptions"]> =
+    {};
+  private readonly posthogClients = new Map<string, PostHogCaptureClient>();
 
-  constructor() {
-    const config = new Configuration({ basePath: "https://api.mcpcat.io" });
-    this.apiClient = new EventsApi(config);
+  configure(host: string): void {
+    this.host = host;
+    this.posthogClients.clear();
   }
 
-  configure(apiBaseUrl: string): void {
-    const config = new Configuration({ basePath: apiBaseUrl });
-    this.apiClient = new EventsApi(config);
+  configurePostHogOptions(
+    posthogOptions: NonNullable<MCPAnalyticsOptions["posthogOptions"]>
+  ): void {
+    this.posthogOptions = {
+      ...this.posthogOptions,
+      ...posthogOptions,
+    };
+    if (posthogOptions.host) {
+      this.host = posthogOptions.host;
+    }
+    this.posthogClients.clear();
   }
 
-  setTelemetryManager(telemetryManager: TelemetryManager): void {
-    this.telemetryManager = telemetryManager;
-  }
-
-  add(event: UnredactedEvent): void {
+  add(
+    event: UnredactedEvent,
+    posthogClient?: PostHogCaptureClient,
+    enableAITracing = false
+  ): void {
     // Drop oldest events if queue is full (or implement your preferred strategy)
     if (this.queue.length >= this.maxQueueSize) {
       writeToLog("Event queue full, dropping oldest event");
       this.queue.shift();
     }
 
-    this.queue.push(event);
+    this.queue.push({ enableAITracing, event, posthogClient });
     this.process();
   }
 
   private async process(): Promise<void> {
-    if (this.processing) return;
+    if (this.processing) {
+      return;
+    }
 
     this.processing = true;
 
     while (this.queue.length > 0 && this.activeRequests < this.concurrency) {
-      const event = this.queue.shift();
-      if (!event) continue;
+      const queuedEvent = this.queue.shift();
+      if (!queuedEvent) {
+        continue;
+      }
+      const { enableAITracing, event, posthogClient } = queuedEvent;
 
       if (event.redactionFn) {
         try {
@@ -83,92 +104,76 @@ class EventQueue {
         continue;
       }
 
-      event.id = event.id || (await KSUID.withPrefix("evt").random());
+      event.id = event.id || newPrefixedId("evt");
       this.activeRequests++;
-      this.sendEvent(event as Event).finally(() => {
+      try {
+        this.sendEvent(event as Event, posthogClient, enableAITracing);
+      } finally {
         this.activeRequests--;
         this.process();
-      });
+      }
     }
 
     this.processing = false;
   }
 
-  private toPublishEventRequest(event: Event): PublishEventRequest {
-    return {
-      // Core fields
-      id: event.id,
-      projectId: event.projectId,
-      sessionId: event.sessionId,
-      timestamp: event.timestamp,
-      duration: event.duration,
-
-      // Event data
-      eventType: event.eventType as PublishEventRequestEventTypeEnum,
-      resourceName: event.resourceName,
-      parameters: event.parameters,
-      response: event.response,
-      userIntent: event.userIntent,
-      isError: event.isError,
-      error: event.error,
-
-      // Actor fields
-      identifyActorGivenId: event.identifyActorGivenId,
-      identifyActorName: event.identifyActorName,
-      identifyData: event.identifyActorData,
-
-      // Session info
-      ipAddress: event.ipAddress,
-      sdkLanguage: event.sdkLanguage,
-      mcpcatVersion: event.mcpcatVersion,
-      serverName: event.serverName,
-      serverVersion: event.serverVersion,
-      clientName: event.clientName,
-      clientVersion: event.clientVersion,
-
-      // Legacy fields
-      actorId: event.actorId || event.identifyActorGivenId,
-      eventId: event.eventId,
-
-      // Customer-defined metadata
-      tags: event.tags ?? undefined,
-      properties: event.properties ?? undefined,
-    };
-  }
-
-  private async sendEvent(event: Event, retries = 0): Promise<void> {
-    // Export to telemetry if configured (fire-and-forget)
-    if (this.telemetryManager) {
-      this.telemetryManager.export(event).catch((error) => {
-        writeToLog(
-          `Telemetry export error: ${getMCPCompatibleErrorMessage(error)}`,
-        );
-      });
-    }
-
-    // Send to MCPCat API if projectId is provided
-    if (event.projectId) {
+  private sendEvent(
+    event: Event,
+    posthogClientOverride?: PostHogCaptureClient,
+    enableAITracing = false
+  ): void {
+    const posthogClient = this.getPostHogClient(
+      event.apiKey,
+      posthogClientOverride
+    );
+    if (posthogClient) {
       try {
-        const publishRequest = this.toPublishEventRequest(event);
-        await this.apiClient.publishEvent({
-          publishEventRequest: publishRequest,
-        });
+        for (const captureEvent of buildPostHogCaptureEvents(event, {
+          enableAITracing,
+        })) {
+          posthogClient.capture({
+            distinctId: captureEvent.distinct_id,
+            event: captureEvent.event,
+            properties: captureEvent.properties,
+            timestamp: new Date(captureEvent.timestamp),
+          });
+        }
         writeToLog(
-          `Successfully sent event ${event.id} | ${event.eventType} | ${event.projectId} | ${event.duration} ms | ${event.identifyActorGivenId || "anonymous"}`,
+          `Queued PostHog event ${event.id} | ${event.eventType} | ${event.duration} ms | ${event.identifyActorGivenId || "anonymous"}`
         );
         writeToLog(`Event details: ${JSON.stringify(event)}`);
       } catch (error) {
         writeToLog(
-          `Failed to send event ${event.id}, retrying... [Error: ${getMCPCompatibleErrorMessage(error)}]`,
+          `Failed to queue PostHog event ${event.id}: ${getMCPCompatibleErrorMessage(error)}`
         );
-        if (retries < this.maxRetries) {
-          // Exponential backoff: 1s, 2s, 4s
-          await this.delay(Math.pow(2, retries) * 1000);
-          return this.sendEvent(event, retries + 1);
-        }
         throw error;
       }
     }
+  }
+
+  private getPostHogClient(
+    apiKey?: string,
+    posthogClient?: PostHogCaptureClient
+  ): PostHogCaptureClient | undefined {
+    if (posthogClient) {
+      return posthogClient;
+    }
+
+    if (!apiKey) {
+      return;
+    }
+
+    const existingClient = this.posthogClients.get(apiKey);
+    if (existingClient) {
+      return existingClient;
+    }
+
+    const client = new PostHog(apiKey, {
+      ...this.posthogOptions,
+      host: this.host,
+    });
+    this.posthogClients.set(apiKey, client);
+    return client;
   }
 
   private delay(ms: number): Promise<void> {
@@ -204,9 +209,19 @@ class EventQueue {
 
     if (this.queue.length > 0) {
       writeToLog(
-        `Shutting down with ${this.queue.length} events still in queue`,
+        `Shutting down with ${this.queue.length} events still in queue`
       );
     }
+
+    const shutdowns: Promise<void>[] = [];
+    for (const client of this.posthogClients.values()) {
+      if (client.shutdown) {
+        shutdowns.push(client.shutdown(timeout));
+      } else if (client.flush) {
+        shutdowns.push(client.flush());
+      }
+    }
+    await Promise.allSettled(shutdowns);
   }
 }
 
@@ -224,18 +239,14 @@ try {
   // process.once not available in this environment - graceful shutdown handlers not registered
 }
 
-export function setTelemetryManager(telemetryManager: TelemetryManager): void {
-  eventQueue.setTelemetryManager(telemetryManager);
-}
-
 export function publishEvent(
   server: MCPServerLike,
-  eventInput: UnredactedEvent,
+  eventInput: UnredactedEvent
 ): void {
   const data = getServerTrackingData(server);
   if (!data) {
     writeToLog(
-      "Warning: Server tracking data not found. Event will not be published.",
+      "Warning: Server tracking data not found. Event will not be published."
     );
     return;
   }
@@ -250,7 +261,7 @@ export function publishEvent(
   const duration =
     eventInput.duration ||
     (eventInput.timestamp
-      ? new Date().getTime() - eventInput.timestamp.getTime()
+      ? Date.now() - eventInput.timestamp.getTime()
       : undefined);
 
   // Build complete Event object with all fields explicit
@@ -258,17 +269,17 @@ export function publishEvent(
     // Core fields (id will be generated later in the queue)
     id: eventInput.id || "",
     sessionId: eventInput.sessionId || data.sessionId,
-    projectId: data.projectId,
+    apiKey: data.apiKey,
 
     // Event metadata
     eventType: eventInput.eventType || "",
     timestamp: eventInput.timestamp || new Date(),
-    duration: duration,
+    duration,
 
     // Session context from sessionInfo
     ipAddress: sessionInfo.ipAddress,
     sdkLanguage: sessionInfo.sdkLanguage,
-    mcpcatVersion: sessionInfo.mcpcatVersion,
+    sdkVersion: sessionInfo.sdkVersion,
     serverName: sessionInfo.serverName,
     serverVersion: sessionInfo.serverVersion,
     clientName: sessionInfo.clientName,
@@ -295,5 +306,13 @@ export function publishEvent(
     properties: eventInput.properties,
   };
 
-  eventQueue.add(fullEvent);
+  if (data.options.posthogClient) {
+    eventQueue.add(
+      fullEvent,
+      data.options.posthogClient,
+      data.options.enableAITracing
+    );
+  } else {
+    eventQueue.add(fullEvent, undefined, data.options.enableAITracing);
+  }
 }

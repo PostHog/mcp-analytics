@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock logging before importing validation
 vi.mock("../modules/logging.js", () => ({
   writeToLog: vi.fn(),
 }));
 
-import { validateTags } from "../modules/validation.js";
 import { writeToLog } from "../modules/logging.js";
+import { validateTags } from "../modules/validation.js";
 
 describe("validateTags", () => {
   beforeEach(() => {
@@ -35,7 +35,7 @@ describe("validateTags", () => {
     const result = validateTags(tags);
     expect(result).toEqual({ valid_key: "value", "good.key": "value" });
     expect(writeToLog).toHaveBeenCalledWith(
-      expect.stringContaining("invalid!key"),
+      expect.stringContaining("invalid!key")
     );
   });
 
@@ -45,7 +45,7 @@ describe("validateTags", () => {
     const result = validateTags(tags);
     expect(result).toEqual({ short: "value" });
     expect(writeToLog).toHaveBeenCalledWith(
-      expect.stringContaining("exceeds max length"),
+      expect.stringContaining("exceeds max length")
     );
   });
 
@@ -55,7 +55,7 @@ describe("validateTags", () => {
     const result = validateTags(tags);
     expect(result).toEqual({ key2: "short" });
     expect(writeToLog).toHaveBeenCalledWith(
-      expect.stringContaining("exceeds max length"),
+      expect.stringContaining("exceeds max length")
     );
   });
 
@@ -71,7 +71,7 @@ describe("validateTags", () => {
     const result = validateTags(tags);
     expect(result).toEqual({ key2: "valid" });
     expect(writeToLog).toHaveBeenCalledWith(
-      expect.stringContaining("non-string"),
+      expect.stringContaining("non-string")
     );
   });
 
@@ -90,7 +90,7 @@ describe("validateTags", () => {
     expect(result).not.toBeNull();
     expect(Object.keys(result!).length).toBe(50);
     expect(writeToLog).toHaveBeenCalledWith(
-      expect.stringContaining("Dropping 10"),
+      expect.stringContaining("Dropping 10")
     );
   });
 

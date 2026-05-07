@@ -1,55 +1,41 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Event, MCPServerLike } from "../types.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Event, MCPServerLike } from "../types.js";
 import { setupTestHooks } from "./test-utils.js";
 
-// Mock external dependencies
-vi.mock("mcpcat-api");
 vi.mock("../modules/logging.js");
 vi.mock("../modules/internal.js");
 vi.mock("../modules/session.js");
-vi.mock("../thirdparty/ksuid/index.js");
+vi.mock("../modules/ids.js", () => ({
+  newPrefixedId: vi.fn(() => "evt_test123"),
+}));
 
 // Import mocked modules
-import { Configuration, EventsApi } from "mcpcat-api";
-import { writeToLog } from "../modules/logging.js";
 import { getServerTrackingData } from "../modules/internal.js";
+import { writeToLog } from "../modules/logging.js";
 import { getSessionInfo } from "../modules/session.js";
-import KSUID from "../thirdparty/ksuid/index.js";
 
 // Import the module under test - need to do this after mocking
-const { publishEvent, eventQueue } = await import("../modules/eventQueue.js");
+const { publishEvent, eventQueue } = await import("../modules/event-queue.js");
 
 describe("EventQueue", () => {
   setupTestHooks();
 
-  let mockApiClient: any;
-  let mockPublishEvent: any;
-  let mockKSUID: any;
-
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Mock API client
-    mockPublishEvent = vi.fn().mockResolvedValue({});
-    mockApiClient = {
-      publishEvent: mockPublishEvent,
-    };
-
-    (EventsApi as any).mockImplementation(() => mockApiClient);
-    (Configuration as any).mockImplementation(() => ({}));
-
-    // Mock KSUID
-    mockKSUID = {
-      random: vi.fn().mockResolvedValue("evt_test123"),
-    };
-    (KSUID.withPrefix as any) = vi.fn().mockReturnValue(mockKSUID);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+      })
+    );
 
     // Mock logging
     (writeToLog as any).mockImplementation(() => {});
 
     // Mock server tracking data
     (getServerTrackingData as any).mockReturnValue({
-      projectId: "test-project",
+      apiKey: "test-project",
       sessionId: "test-session",
       options: { enableTracing: true },
     });
@@ -58,7 +44,7 @@ describe("EventQueue", () => {
     (getSessionInfo as any).mockReturnValue({
       ipAddress: "127.0.0.1",
       sdkLanguage: "typescript",
-      mcpcatVersion: "1.0.0",
+      sdkVersion: "1.0.0",
       serverName: "test-server",
       serverVersion: "1.0.0",
       clientName: "test-client",
@@ -70,6 +56,7 @@ describe("EventQueue", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.resetAllMocks();
   });
 
@@ -106,13 +93,13 @@ describe("EventQueue", () => {
       publishEvent(mockServer, event);
 
       expect(writeToLog).toHaveBeenCalledWith(
-        "Warning: Server tracking data not found. Event will not be published.",
+        "Warning: Server tracking data not found. Event will not be published."
       );
     });
 
     it("should not publish event when enableTracing is false", () => {
       (getServerTrackingData as any).mockReturnValue({
-        projectId: "test-project",
+        apiKey: "test-project",
         sessionId: "test-session",
         options: { enableTracing: false },
       });
@@ -192,6 +179,81 @@ describe("EventQueue", () => {
       expect(() => eventQueue.add(event)).not.toThrow();
     });
 
+    it("should capture mapped events through an injected PostHog client", async () => {
+      const capture = vi.fn();
+      const posthogClient = {
+        capture,
+        flush: vi.fn().mockResolvedValue(undefined),
+        shutdown: vi.fn().mockResolvedValue(undefined),
+      };
+
+      eventQueue.add(
+        {
+          eventType: "mcp:tools/call",
+          identifyActorGivenId: "user-123",
+          resourceName: "create_insight",
+          sessionId: "ses_test123",
+          timestamp: new Date("2026-05-06T10:00:00.000Z"),
+          userIntent: "Create a trend insight for weekly active users",
+        },
+        posthogClient
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(capture).toHaveBeenCalledWith(
+        expect.objectContaining({
+          distinctId: "user-123",
+          event: "mcp_tool_call",
+          timestamp: new Date("2026-05-06T10:00:00.000Z"),
+        })
+      );
+      expect(capture.mock.calls[0][0].properties).toEqual(
+        expect.objectContaining({
+          $mcp_resource_name: "create_insight",
+          $mcp_intent: "Create a trend insight for weekly active users",
+          $mcp_source: "posthog_mcp_analytics",
+          $mcp_tool_name: "create_insight",
+        })
+      );
+      expect(capture.mock.calls[0][0].properties).not.toHaveProperty(
+        "project_id"
+      );
+    });
+
+    it("should emit AI span events when AI tracing is enabled", async () => {
+      const capture = vi.fn();
+      const posthogClient = {
+        capture,
+        flush: vi.fn().mockResolvedValue(undefined),
+        shutdown: vi.fn().mockResolvedValue(undefined),
+      };
+
+      eventQueue.add(
+        {
+          eventType: "mcp:tools/call",
+          resourceName: "create_insight",
+          sessionId: "ses_test123",
+          timestamp: new Date("2026-05-06T10:00:00.000Z"),
+          userIntent: "Create a trend insight for weekly active users",
+        },
+        posthogClient,
+        true
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(capture).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "$ai_span",
+          properties: expect.objectContaining({
+            $ai_span_name: "create_insight",
+            $mcp_intent: "Create a trend insight for weekly active users",
+          }),
+        })
+      );
+    });
+
     it("should handle destroy method without errors", async () => {
       // This should not throw an error
       expect(async () => await eventQueue.destroy()).not.toThrow();
@@ -213,7 +275,7 @@ describe("EventQueue", () => {
 
       // Should log the shutdown message
       expect(writeToLog).toHaveBeenCalledWith(
-        "Queue is shutting down, event dropped",
+        "Queue is shutting down, event dropped"
       );
     });
   });

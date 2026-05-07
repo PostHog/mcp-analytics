@@ -1,7 +1,7 @@
 /**
  * Edge Runtime Compatibility Tests
  *
- * These tests verify that MCPCat gracefully handles environments where
+ * These tests verify that PostHog MCP analytics gracefully handles environments where
  * certain Node.js modules may not be available or have limited functionality
  * (like Cloudflare Workers, Vercel Edge, Deno Deploy).
  *
@@ -10,7 +10,7 @@
  * These tests simulate edge-like conditions within the Node.js test environment.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureException } from "../modules/exceptions.js";
 
 describe("Edge Runtime Compatibility", () => {
@@ -82,7 +82,7 @@ describe("Edge Runtime Compatibility", () => {
       // Create a mock process without cwd
       const mockProcess = { ...originalProcess } as typeof process;
       // @ts-expect-error - intentionally removing cwd for test
-      delete mockProcess.cwd;
+      mockProcess.cwd = undefined;
       globalThis.process = mockProcess;
 
       // captureException should still work
@@ -125,24 +125,24 @@ describe("Edge Runtime Compatibility", () => {
       // Create mock process without once
       const mockProcess = { ...originalProcess } as typeof process;
       // @ts-expect-error - intentionally removing once for test
-      delete mockProcess.once;
+      mockProcess.once = undefined;
       globalThis.process = mockProcess;
 
       // Reset modules to re-run module-level code
       vi.resetModules();
 
       // Should not throw when importing
-      await expect(import("../modules/eventQueue.js")).resolves.toBeDefined();
+      await expect(import("../modules/event-queue.js")).resolves.toBeDefined();
     });
 
     it("should handle process being undefined", async () => {
       // @ts-expect-error - intentionally removing process for test
-      delete globalThis.process;
+      globalThis.process = undefined;
 
       vi.resetModules();
 
       // Should not throw
-      const module = await import("../modules/eventQueue.js");
+      const module = await import("../modules/event-queue.js");
       expect(module.eventQueue).toBeDefined();
 
       // Restore process before other tests run
@@ -179,33 +179,30 @@ describe("Edge Runtime Compatibility", () => {
 
   describe("Full SDK API Availability", () => {
     it("should export track function", async () => {
-      const mcpcat = await import("../index.js");
-      expect(typeof mcpcat.track).toBe("function");
+      const mcpAnalytics = await import("../index.js");
+      expect(typeof mcpAnalytics.track).toBe("function");
     });
 
     it("should export publishCustomEvent function", async () => {
-      const mcpcat = await import("../index.js");
-      expect(typeof mcpcat.publishCustomEvent).toBe("function");
+      const mcpAnalytics = await import("../index.js");
+      expect(typeof mcpAnalytics.publishCustomEvent).toBe("function");
     });
 
     it("should export type definitions", async () => {
       // IdentifyFunction type is exported for users to define their identify callbacks
-      const mcpcat = await import("../index.js");
+      const mcpAnalytics = await import("../index.js");
       // The module should load without issues
-      expect(mcpcat).toBeDefined();
+      expect(mcpAnalytics).toBeDefined();
     });
   });
 
   describe("Edge Environment Detection Patterns", () => {
     it("should detect Node.js environment correctly", () => {
-      // Helper function that MCPCat could use internally
-      const isNodeJs = () => {
-        return (
-          typeof process !== "undefined" &&
-          process.versions != null &&
-          process.versions.node != null
-        );
-      };
+      // Helper function that PostHog MCP analytics could use internally
+      const isNodeJs = () =>
+        typeof process !== "undefined" &&
+        process.versions != null &&
+        process.versions.node != null;
 
       // In test environment, we should be in Node.js
       expect(isNodeJs()).toBe(true);
@@ -261,6 +258,9 @@ describe("Edge Runtime Compatibility", () => {
       ];
 
       const error = new Error("Path test");
+      error.stack = testPaths
+        .map((path, index) => `    at test${index} (${path}:1:1)`)
+        .join("\n");
       const captured = captureException(error);
 
       // Should have parsed the stack without errors
@@ -292,11 +292,11 @@ describe("Integration: SDK in Limited Environment", () => {
     vi.resetModules();
 
     // SDK should still load
-    const mcpcat = await import("../index.js");
+    const mcpAnalytics = await import("../index.js");
 
     // Core functions should exist
-    expect(mcpcat.track).toBeDefined();
-    expect(mcpcat.publishCustomEvent).toBeDefined();
+    expect(mcpAnalytics.track).toBeDefined();
+    expect(mcpAnalytics.publishCustomEvent).toBeDefined();
 
     // Exception capture should work
     const { captureException: capture } = await import(

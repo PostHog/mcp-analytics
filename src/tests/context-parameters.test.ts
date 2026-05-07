@@ -1,17 +1,17 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  setupTestServerAndClient,
-  resetTodos,
-} from "./test-utils/client-server-factory";
-import { addContextParameterToTools } from "../modules/context-parameters";
-import { track } from "../index";
 import {
   CallToolResultSchema,
   ListToolsResultSchema,
-} from "@modelcontextprotocol/sdk/types";
-import { EventCapture } from "./test-utils";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+} from "@modelcontextprotocol/sdk/types.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { track } from "../index";
 import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "../modules/constants";
+import { addContextParameterToTools } from "../modules/context-parameters";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
+import { EventCapture } from "./test-utils";
+import {
+  resetTodos,
+  setupTestServerAndClient,
+} from "./test-utils/client-server-factory";
 
 describe("Context Parameters", () => {
   let server: any;
@@ -45,7 +45,7 @@ describe("Context Parameters", () => {
       expect(modifiedTools[0].inputSchema.type).toBe("object");
       expect(modifiedTools[0].inputSchema.properties.context).toBeDefined();
       expect(modifiedTools[0].inputSchema.properties.context.type).toBe(
-        "string",
+        "string"
       );
       expect(modifiedTools[0].inputSchema.required).toContain("context");
     });
@@ -73,7 +73,7 @@ describe("Context Parameters", () => {
       expect(modifiedTools[0].inputSchema.properties.text).toBeDefined();
       expect(modifiedTools[0].inputSchema.properties.context).toBeDefined();
       expect(modifiedTools[0].inputSchema.properties.context.type).toBe(
-        "string",
+        "string"
       );
       expect(modifiedTools[0].inputSchema.required).toContain("text");
       expect(modifiedTools[0].inputSchema.required).toContain("context");
@@ -100,12 +100,12 @@ describe("Context Parameters", () => {
       const modifiedTools = addContextParameterToTools(tools);
 
       expect(modifiedTools[0].inputSchema.properties.context.description).toBe(
-        "Existing context",
+        "Existing context"
       );
       expect(
         modifiedTools[0].inputSchema.required.filter(
-          (r: string) => r === "context",
-        ),
+          (r: string) => r === "context"
+        )
       ).toHaveLength(1);
     });
 
@@ -140,10 +140,11 @@ describe("Context Parameters", () => {
       await eventCapture.start();
 
       // Enable tracking on the server
-      track(server, "test-project", {
-        enableReportMissing: true,
+      track(server, {
+        apiKey: "test-project",
+        reportMissing: true,
         enableTracing: true,
-        enableToolCallContext: true,
+        context: true,
       });
 
       // Call a tool with context
@@ -159,7 +160,7 @@ describe("Context Parameters", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result.content[0].text).toContain("Added todo");
@@ -171,8 +172,8 @@ describe("Context Parameters", () => {
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "add_todo",
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+          e.resourceName === "add_todo"
       );
 
       expect(toolCallEvent).toBeDefined();
@@ -187,9 +188,7 @@ describe("Context Parameters", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
-        enableToolCallContext: true,
-      });
+      track(server, { apiKey: "test-project", context: true });
 
       // Call complete_todo with context
       // First add a todo
@@ -204,7 +203,7 @@ describe("Context Parameters", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Then complete it with context
@@ -220,7 +219,7 @@ describe("Context Parameters", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result.content[0].text).toContain("Completed todo");
@@ -232,8 +231,8 @@ describe("Context Parameters", () => {
       const events = eventCapture.getEvents();
       const completeEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "complete_todo",
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+          e.resourceName === "complete_todo"
       );
 
       expect(completeEvent).toBeDefined();
@@ -248,9 +247,7 @@ describe("Context Parameters", () => {
       await eventCapture.start();
 
       // Enable tracking
-      track(server, "test-project", {
-        enableToolCallContext: true,
-      });
+      track(server, { apiKey: "test-project", context: true });
 
       // Call list_todos without context - should succeed but have no userIntent
       // Note: Context is advertised as required in JSON Schema (for client/LLM),
@@ -263,7 +260,7 @@ describe("Context Parameters", () => {
             arguments: {},
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
       expect(result1.content[0].text).toBeDefined();
 
@@ -278,7 +275,7 @@ describe("Context Parameters", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result2.content[0].text).toBeDefined();
@@ -290,8 +287,8 @@ describe("Context Parameters", () => {
       const events = eventCapture.getEvents();
       const listEvents = events.filter(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "list_todos",
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+          e.resourceName === "list_todos"
       );
 
       // Should have at least 2 events (one without context, one with)
@@ -303,7 +300,7 @@ describe("Context Parameters", () => {
 
       // Find event with context - should have userIntent
       const eventWithContext = listEvents.find(
-        (e) => e.userIntent === "Listing todos to check current status",
+        (e) => e.userIntent === "Listing todos to check current status"
       );
       expect(eventWithContext).toBeDefined();
 
@@ -312,9 +309,7 @@ describe("Context Parameters", () => {
 
     it("should inject context into tool schemas when listing tools", async () => {
       // Enable tracking
-      track(server, "test-project", {
-        enableToolCallContext: true,
-      });
+      track(server, { apiKey: "test-project", context: true });
 
       // Get the tools list
       const toolsResponse = await client.request(
@@ -322,7 +317,7 @@ describe("Context Parameters", () => {
           method: "tools/list",
           params: {},
         },
-        ListToolsResultSchema,
+        ListToolsResultSchema
       );
 
       // Apply context parameter injection to simulate what the client would see
@@ -335,25 +330,23 @@ describe("Context Parameters", () => {
       // Find the original tools
       const originalTools = ["add_todo", "list_todos", "complete_todo"];
       const originalModifiedTools = modifiedTools.filter((tool: any) =>
-        originalTools.includes(tool.name),
+        originalTools.includes(tool.name)
       );
 
       // Verify the original tools have context parameter in their schema
       expect(originalModifiedTools).toHaveLength(3);
-      originalModifiedTools.forEach((tool: any) => {
+      for (const tool of originalModifiedTools) {
         expect(tool.inputSchema.properties.context).toBeDefined();
         expect(tool.inputSchema.properties.context.type).toBe("string");
         expect(tool.inputSchema.properties.context.description).toBe(
-          DEFAULT_CONTEXT_PARAMETER_DESCRIPTION,
+          DEFAULT_CONTEXT_PARAMETER_DESCRIPTION
         );
-      });
+      }
     });
 
     it("should use default context description when no custom description is provided", async () => {
-      // Enable tracking WITHOUT customContextDescription
-      track(server, "test-project", {
-        enableToolCallContext: true,
-      });
+      // Enable tracking WITHOUT custom context description
+      track(server, { apiKey: "test-project", context: true });
 
       // Get the tools list
       const toolsResponse = await client.request(
@@ -361,24 +354,24 @@ describe("Context Parameters", () => {
           method: "tools/list",
           params: {},
         },
-        ListToolsResultSchema,
+        ListToolsResultSchema
       );
 
       // Find all original tools
       const originalTools = ["add_todo", "list_todos", "complete_todo"];
       const toolsToCheck = toolsResponse.tools.filter((tool: any) =>
-        originalTools.includes(tool.name),
+        originalTools.includes(tool.name)
       );
 
       expect(toolsToCheck.length).toBe(3);
 
       // Verify all tools use the default description
-      toolsToCheck.forEach((tool: any) => {
+      for (const tool of toolsToCheck) {
         expect(tool.inputSchema.properties.context).toBeDefined();
         expect(tool.inputSchema.properties.context.description).toBe(
-          DEFAULT_CONTEXT_PARAMETER_DESCRIPTION,
+          DEFAULT_CONTEXT_PARAMETER_DESCRIPTION
         );
-      });
+      }
     });
 
     it("should remove context parameter before calling tool callback", async () => {
@@ -404,12 +397,12 @@ describe("Context Parameters", () => {
               },
             ],
           };
-        },
+        }
       );
 
       // Enable tracking with context parameters
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -425,7 +418,7 @@ describe("Context Parameters", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for processing

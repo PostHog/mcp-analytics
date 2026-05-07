@@ -1,13 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  setupTestServerAndClient,
-  resetTodos,
-} from "./test-utils/client-server-factory.js";
-import { track } from "../index.js";
-import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types";
-import { EventCapture } from "./test-utils.js";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
+import { track } from "../index.js";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
+import {
+  resetTodos,
+  setupTestServerAndClient,
+} from "./test-utils/client-server-factory.js";
+import { EventCapture } from "./test-utils.js";
 
 describe("Error Capture Integration Tests", () => {
   let eventCapture: EventCapture;
@@ -26,9 +26,9 @@ describe("Error Capture Integration Tests", () => {
     const { server, client, cleanup } = await setupTestServerAndClient();
 
     try {
-      // Track the server with mcpcat (uses default settings including context parameters)
+      // Track the server with mcpAnalytics (uses default settings including context parameters)
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -44,7 +44,7 @@ describe("Error Capture Integration Tests", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // MCP returns errors as tool results with isError: true
@@ -88,12 +88,12 @@ describe("Error Capture Integration Tests", () => {
           const rootCause = new Error("Root cause error");
           const wrapperError = new Error("Wrapper error", { cause: rootCause });
           throw wrapperError;
-        },
+        }
       );
 
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -108,7 +108,7 @@ describe("Error Capture Integration Tests", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // MCP returns errors as tool results with isError: true
@@ -136,7 +136,7 @@ describe("Error Capture Integration Tests", () => {
       expect(errorEvent!.error!.chained_errors).toBeDefined();
       expect(errorEvent!.error!.chained_errors!.length).toBe(1);
       expect(errorEvent!.error!.chained_errors![0].message).toBe(
-        "Root cause error",
+        "Root cause error"
       );
     } finally {
       await cleanup();
@@ -150,15 +150,12 @@ describe("Error Capture Integration Tests", () => {
       // Add a tool that throws a TypeError
       server.tool("type_error_tool", "Throws TypeError", {}, async () => {
         const obj: any = null;
-        obj.property; // This will throw TypeError
-        return {
-          content: [{ type: "text", text: "unreachable" }],
-        };
+        return obj.property; // This will throw TypeError
       });
 
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -173,7 +170,7 @@ describe("Error Capture Integration Tests", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // MCP returns errors as tool results with isError: true
@@ -203,12 +200,12 @@ describe("Error Capture Integration Tests", () => {
     try {
       // Add a tool that throws a string
       server.tool("throw_string", "Throws string", {}, async () => {
-        throw "This is a string error";
+        await Promise.reject("This is a string error");
       });
 
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -223,7 +220,7 @@ describe("Error Capture Integration Tests", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // MCP returns errors as tool results with isError: true
@@ -254,7 +251,7 @@ describe("Error Capture Integration Tests", () => {
     try {
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -285,14 +282,15 @@ describe("Error Capture Integration Tests", () => {
 
       // Check that we have both in_app and library frames
       const hasInAppFrame = errorEvent!.error!.frames!.some(
-        (frame) => frame.in_app,
+        (frame) => frame.in_app
       );
       const hasLibraryFrame = errorEvent!.error!.frames!.some(
-        (frame) => !frame.in_app,
+        (frame) => !frame.in_app
       );
 
       // At least one frame should be from user code
       expect(hasInAppFrame).toBe(true);
+      expect(typeof hasLibraryFrame).toBe("boolean");
     } finally {
       await cleanup();
     }
@@ -304,7 +302,7 @@ describe("Error Capture Integration Tests", () => {
     try {
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -320,7 +318,7 @@ describe("Error Capture Integration Tests", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // MCP returns errors as tool results with isError: true
@@ -337,7 +335,7 @@ describe("Error Capture Integration Tests", () => {
     try {
       // Track with an identify function that throws
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => {
           throw new Error("Identify error");
@@ -355,7 +353,7 @@ describe("Error Capture Integration Tests", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for events
@@ -364,14 +362,14 @@ describe("Error Capture Integration Tests", () => {
       // Verify NO identify event was published (errors in identify should only be logged, not published)
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.McpcatIdentify,
+        (e) => e.eventType === MCPAnalyticsEventType.McpcatIdentify
       );
 
       expect(identifyEvent).toBeUndefined();
 
       // Verify the tool call event was still published
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
       expect(toolCallEvent).toBeDefined();
     } finally {
@@ -385,7 +383,7 @@ describe("Error Capture Integration Tests", () => {
     try {
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -401,7 +399,7 @@ describe("Error Capture Integration Tests", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result).toBeDefined();
@@ -412,7 +410,7 @@ describe("Error Capture Integration Tests", () => {
       const events = eventCapture.findEventsByResourceName("add_todo");
       expect(events.length).toBeGreaterThan(0);
 
-      const successEvent = events[events.length - 1];
+      const successEvent = events.at(-1);
       expect(successEvent.isError).toBeUndefined();
       expect(successEvent.error).toBeUndefined();
     } finally {
@@ -433,16 +431,14 @@ describe("Error Capture Integration Tests", () => {
           a: z.number(),
           b: z.number(),
         },
-        async (args) => {
-          return {
-            content: [{ type: "text", text: `Result: ${args.a}` }],
-          };
-        },
+        async (args) => ({
+          content: [{ type: "text", text: `Result: ${args.a}` }],
+        })
       );
 
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -461,7 +457,7 @@ describe("Error Capture Integration Tests", () => {
               },
             },
           },
-          CallToolResultSchema,
+          CallToolResultSchema
         );
         expect.fail("Should have thrown validation error");
       } catch (error: any) {
@@ -486,7 +482,7 @@ describe("Error Capture Integration Tests", () => {
       // Type can vary by SDK version
       // SDK 1.11.5: "McpError" (actual Error), SDK 1.21.0+: undefined (CallToolResult)
       expect(["McpError", "Error", undefined]).toContain(
-        errorEvent!.error!.type,
+        errorEvent!.error!.type
       );
 
       // Stack trace may be present (older SDK) or not (newer SDK)
@@ -510,7 +506,7 @@ describe("Error Capture Integration Tests", () => {
     try {
       // Track the server
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -526,7 +522,7 @@ describe("Error Capture Integration Tests", () => {
               },
             },
           },
-          CallToolResultSchema,
+          CallToolResultSchema
         );
         expect.fail("Should have thrown unknown tool error");
       } catch (error: any) {
@@ -550,7 +546,7 @@ describe("Error Capture Integration Tests", () => {
       // Type can vary by SDK version
       // SDK 1.11.5: "McpError" (actual Error), SDK 1.21.0+: undefined (CallToolResult)
       expect(["McpError", "Error", undefined]).toContain(
-        errorEvent!.error!.type,
+        errorEvent!.error!.type
       );
 
       // Stack trace may be present (verify if present)
@@ -571,7 +567,7 @@ describe("Error Capture Integration Tests", () => {
     try {
       // add_todo requires 'text' parameter
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -588,7 +584,7 @@ describe("Error Capture Integration Tests", () => {
               },
             },
           },
-          CallToolResultSchema,
+          CallToolResultSchema
         );
         expect.fail("Should have thrown validation error");
       } catch (error: any) {
@@ -607,7 +603,7 @@ describe("Error Capture Integration Tests", () => {
       // Type can vary by SDK version
       // SDK 1.11.5: "McpError" (actual Error), SDK 1.21.0+: undefined (CallToolResult)
       expect(["McpError", "Error", undefined]).toContain(
-        errorEvent!.error!.type,
+        errorEvent!.error!.type
       );
 
       // Stack trace may be present (verify if present)
@@ -624,7 +620,7 @@ describe("Error Capture Integration Tests", () => {
 
     try {
       await track(server, {
-        projectId: "test-project",
+        apiKey: "test-project",
         enableTracing: true,
       });
 
@@ -639,7 +635,7 @@ describe("Error Capture Integration Tests", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for event

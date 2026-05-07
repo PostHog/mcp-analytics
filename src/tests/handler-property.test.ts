@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { track } from "../index.js";
 
@@ -18,12 +18,12 @@ describe("MCP SDK callback/handler compatibility", () => {
   it("should have either callback or handler property (SDK version dependent)", () => {
     const server = new McpServer({ name: "test", version: "1.0.0" });
 
-    server.tool("test_tool", { a: z.number() }, async ({ a }) => {
-      return { content: [{ type: "text", text: String(a) }] };
-    });
+    server.tool("test_tool", { a: z.number() }, async ({ a }) => ({
+      content: [{ type: "text", text: String(a) }],
+    }));
 
     const tools = (server as any)._registeredTools;
-    const tool = tools["test_tool"];
+    const tool = tools.test_tool;
     const propName = getToolFunctionPropertyName(tool);
 
     console.log("\n=== MCP SDK Tool Structure ===");
@@ -42,20 +42,20 @@ describe("MCP SDK callback/handler compatibility", () => {
   it("should preserve the original property name after track() is called", () => {
     const server = new McpServer({ name: "test", version: "1.0.0" });
 
-    server.tool("test_tool", { a: z.number() }, async ({ a }) => {
-      return { content: [{ type: "text", text: String(a) }] };
-    });
+    server.tool("test_tool", { a: z.number() }, async ({ a }) => ({
+      content: [{ type: "text", text: String(a) }],
+    }));
 
     // Get the property name BEFORE track()
     const toolsBefore = (server as any)._registeredTools;
-    const toolBefore = toolsBefore["test_tool"];
+    const toolBefore = toolsBefore.test_tool;
     const originalPropName = getToolFunctionPropertyName(toolBefore);
 
-    // Call track() to apply MCPCat's tracing
-    track(server, "test-project-id");
+    // Call track() to apply PostHog MCP analytics's tracing
+    track(server, { apiKey: "test-project-id" });
 
     const toolsAfter = (server as any)._registeredTools;
-    const toolAfter = toolsAfter["test_tool"];
+    const toolAfter = toolsAfter.test_tool;
     const afterPropName = getToolFunctionPropertyName(toolAfter);
 
     console.log("\n=== After track() ===");
@@ -64,7 +64,7 @@ describe("MCP SDK callback/handler compatibility", () => {
     console.log("Has 'callback':", "callback" in toolAfter);
     console.log("Has 'handler':", "handler" in toolAfter);
 
-    // MCPCat should preserve the original property name
+    // PostHog MCP analytics should preserve the original property name
     expect(afterPropName).toBe(originalPropName);
     expect(typeof toolAfter[afterPropName]).toBe("function");
   });
@@ -73,23 +73,23 @@ describe("MCP SDK callback/handler compatibility", () => {
     const server = new McpServer({ name: "test", version: "1.0.0" });
 
     // Register a tool first to determine SDK's property name
-    server.tool("initial_tool", { a: z.number() }, async ({ a }) => {
-      return { content: [{ type: "text", text: String(a) }] };
-    });
+    server.tool("initial_tool", { a: z.number() }, async ({ a }) => ({
+      content: [{ type: "text", text: String(a) }],
+    }));
     const expectedPropName = getToolFunctionPropertyName(
-      (server as any)._registeredTools["initial_tool"],
+      (server as any)._registeredTools.initial_tool
     );
 
     // Call track() first
-    track(server, "test-project-id");
+    track(server, { apiKey: "test-project-id" });
 
     // Then register a tool after track()
-    server.tool("late_tool", { b: z.string() }, async ({ b }) => {
-      return { content: [{ type: "text", text: b }] };
-    });
+    server.tool("late_tool", { b: z.string() }, async ({ b }) => ({
+      content: [{ type: "text", text: b }],
+    }));
 
     const tools = (server as any)._registeredTools;
-    const tool = tools["late_tool"];
+    const tool = tools.late_tool;
     const propName = getToolFunctionPropertyName(tool);
 
     console.log("\n=== Tool registered after track() ===");

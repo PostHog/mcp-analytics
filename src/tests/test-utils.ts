@@ -1,8 +1,8 @@
-import { existsSync, unlinkSync } from "fs";
-import { beforeEach, afterEach } from "vitest";
-import { Event } from "../types.js";
+import { existsSync, unlinkSync } from "node:fs";
+import { afterEach, beforeEach } from "vitest";
+import type { Event } from "../types.js";
 
-export const LOG_FILE = "mcpcat.log";
+export const LOG_FILE = "posthog-mcp-analytics.log";
 
 export function cleanupLogFile() {
   if (existsSync(LOG_FILE)) {
@@ -27,7 +27,7 @@ export class EventCapture {
 
   async start() {
     // Mock the eventQueue.add method to capture events
-    const eventQueueModule = await import("../modules/eventQueue.js");
+    const eventQueueModule = await import("../modules/event-queue.js");
     this.originalEventQueueAdd = eventQueueModule.eventQueue.add;
 
     // Replace the add method with our capturing version
@@ -41,7 +41,7 @@ export class EventCapture {
   async stop() {
     // Restore the original method
     if (this.originalEventQueueAdd) {
-      const eventQueueModule = await import("../modules/eventQueue.js");
+      const eventQueueModule = await import("../modules/event-queue.js");
       eventQueueModule.eventQueue.add = this.originalEventQueueAdd;
     }
   }

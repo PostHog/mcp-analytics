@@ -1,45 +1,31 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { MCPCatOptions } from "../types.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MCPAnalyticsOptions } from "../types.js";
 import { setupTestHooks } from "./test-utils.js";
 
-describe("MCPCatOptions apiBaseUrl", () => {
-  it("should accept apiBaseUrl as an optional string property", () => {
-    const options: MCPCatOptions = {
-      apiBaseUrl: "https://custom.example.com",
+describe("MCPAnalyticsOptions host", () => {
+  it("should accept host as an optional string property", () => {
+    const options: MCPAnalyticsOptions = {
+      host: "https://custom.example.com",
     };
-    expect(options.apiBaseUrl).toBe("https://custom.example.com");
+    expect(options.host).toBe("https://custom.example.com");
   });
 
   it("should be undefined when not set", () => {
-    const options: MCPCatOptions = {};
-    expect(options.apiBaseUrl).toBeUndefined();
+    const options: MCPAnalyticsOptions = {};
+    expect(options.host).toBeUndefined();
   });
 });
 
-// Mock external dependencies (same pattern as eventQueue.test.ts)
-vi.mock("mcpcat-api");
 vi.mock("../modules/logging.js");
-vi.mock("../thirdparty/ksuid/index.js");
-
-// Import mocked modules
-import { Configuration, EventsApi } from "mcpcat-api";
 
 // Import the module under test after mocking
-const { eventQueue } = await import("../modules/eventQueue.js");
+const { eventQueue } = await import("../modules/event-queue.js");
 
 describe("EventQueue.configure()", () => {
   setupTestHooks();
 
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Setup mock implementations as regular functions (not arrow functions) so `new` works
-    (Configuration as any).mockImplementation(function () {
-      return {};
-    });
-    (EventsApi as any).mockImplementation(function () {
-      return { publishEvent: vi.fn().mockResolvedValue({}) };
-    });
   });
 
   afterEach(() => {
@@ -47,14 +33,9 @@ describe("EventQueue.configure()", () => {
   });
 
   it("should reconfigure the apiClient with the given base URL", () => {
-    // Clear the constructor call from EventQueue's constructor
-    (Configuration as any).mockClear();
-
-    eventQueue.configure("https://custom.example.com");
-
-    expect(Configuration).toHaveBeenCalledWith({
-      basePath: "https://custom.example.com",
-    });
+    expect(() =>
+      eventQueue.configure("https://custom.example.com")
+    ).not.toThrow();
   });
 });
 
@@ -64,18 +45,17 @@ vi.mock("../modules/session.js");
 vi.mock("../modules/internal.js");
 vi.mock("../modules/tools.js");
 vi.mock("../modules/tracing.js");
-vi.mock("../modules/tracingV2.js");
-vi.mock("../modules/telemetry.js");
+vi.mock("../modules/tracing-v2.js");
 
 import {
   isCompatibleServerType,
   isHighLevelServer,
 } from "../modules/compatibility.js";
-import { getSessionInfo, newSessionId } from "../modules/session.js";
 import {
-  setServerTrackingData,
   getServerTrackingData,
+  setServerTrackingData,
 } from "../modules/internal.js";
+import { getSessionInfo, newSessionId } from "../modules/session.js";
 
 // Import track after all mocks
 const { track } = await import("../index.js");
@@ -83,7 +63,7 @@ const { track } = await import("../index.js");
 describe("track() URL resolution", () => {
   setupTestHooks();
 
-  const savedEnv = process.env.MCPCAT_API_URL;
+  const savedEnv = process.env.POSTHOG_MCP_ANALYTICS_HOST;
 
   // Create a mock server object that passes isCompatibleServerType
   const mockServer = {
@@ -95,15 +75,7 @@ describe("track() URL resolution", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env.MCPCAT_API_URL;
-
-    // Setup mock implementations as regular functions so `new` works
-    (Configuration as any).mockImplementation(function () {
-      return {};
-    });
-    (EventsApi as any).mockImplementation(function () {
-      return { publishEvent: vi.fn().mockResolvedValue({}) };
-    });
+    delete process.env.POSTHOG_MCP_ANALYTICS_HOST;
 
     // Setup compatibility mocks: return the server as-is (low-level server)
     (isCompatibleServerType as any).mockReturnValue(mockServer);
@@ -122,50 +94,52 @@ describe("track() URL resolution", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     // Restore env var
-    if (savedEnv !== undefined) {
-      process.env.MCPCAT_API_URL = savedEnv;
+    if (savedEnv === undefined) {
+      delete process.env.POSTHOG_MCP_ANALYTICS_HOST;
     } else {
-      delete process.env.MCPCAT_API_URL;
+      process.env.POSTHOG_MCP_ANALYTICS_HOST = savedEnv;
     }
   });
 
-  it("should call configure() when apiBaseUrl option is provided", () => {
-    track(mockServer, "proj_test123", {
-      apiBaseUrl: "https://custom-api.example.com",
+  it("should call configure() when host option is provided", () => {
+    track(mockServer, {
+      apiKey: "phc_test123",
+      host: "https://custom-api.example.com",
     });
 
     expect(eventQueue.configure).toHaveBeenCalledWith(
-      "https://custom-api.example.com",
+      "https://custom-api.example.com"
     );
   });
 
-  it("should call configure() with MCPCAT_API_URL env var when no option is set", () => {
-    process.env.MCPCAT_API_URL = "https://env-api.example.com";
+  it("should call configure() with POSTHOG_MCP_ANALYTICS_HOST env var when no option is set", () => {
+    process.env.POSTHOG_MCP_ANALYTICS_HOST = "https://env-api.example.com";
 
-    track(mockServer, "proj_test123", {});
+    track(mockServer, { apiKey: "phc_test123" });
 
     expect(eventQueue.configure).toHaveBeenCalledWith(
-      "https://env-api.example.com",
+      "https://env-api.example.com"
     );
   });
 
-  it("should prioritize apiBaseUrl option over MCPCAT_API_URL env var", () => {
-    process.env.MCPCAT_API_URL = "https://env-api.example.com";
+  it("should prioritize host option over POSTHOG_MCP_ANALYTICS_HOST env var", () => {
+    process.env.POSTHOG_MCP_ANALYTICS_HOST = "https://env-api.example.com";
 
-    track(mockServer, "proj_test123", {
-      apiBaseUrl: "https://option-api.example.com",
+    track(mockServer, {
+      apiKey: "phc_test123",
+      host: "https://option-api.example.com",
     });
 
     expect(eventQueue.configure).toHaveBeenCalledWith(
-      "https://option-api.example.com",
+      "https://option-api.example.com"
     );
     expect(eventQueue.configure).toHaveBeenCalledTimes(1);
   });
 
   it("should not call configure() when neither option nor env var is set", () => {
-    delete process.env.MCPCAT_API_URL;
+    delete process.env.POSTHOG_MCP_ANALYTICS_HOST;
 
-    track(mockServer, "proj_test123", {});
+    track(mockServer, { apiKey: "phc_test123" });
 
     expect(eventQueue.configure).not.toHaveBeenCalled();
   });

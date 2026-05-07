@@ -1,13 +1,13 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { CreateMessageRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { CreateMessageRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
 interface Todo {
+  completed: boolean;
   id: string;
   text: string;
-  completed: boolean;
 }
 
 let todos: Todo[] = [];
@@ -47,7 +47,7 @@ export async function setupTestServerAndClient() {
           },
         ],
       };
-    },
+    }
   );
 
   server.tool("list_todos", "List all todo items", {}, async () => {
@@ -86,7 +86,7 @@ export async function setupTestServerAndClient() {
           },
         ],
       };
-    },
+    }
   );
 
   // Create client instance
@@ -99,20 +99,18 @@ export async function setupTestServerAndClient() {
       capabilities: {
         sampling: {},
       },
-    },
+    }
   );
 
   // Set up default request handler for sampling/createMessage
-  client.setRequestHandler(CreateMessageRequestSchema, async () => {
-    return {
-      model: "test-model",
-      role: "assistant",
-      content: {
-        type: "text",
-        text: "This is a test response",
-      },
-    };
-  });
+  client.setRequestHandler(CreateMessageRequestSchema, async () => ({
+    model: "test-model",
+    role: "assistant",
+    content: {
+      type: "text",
+      text: "This is a test response",
+    },
+  }));
 
   // Create transport pair and connect
   const [clientTransport, serverTransport] =

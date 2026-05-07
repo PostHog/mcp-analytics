@@ -1,0 +1,59 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.14/schema.json",
+  "extends": ["ultracite/biome/core", "ultracite/biome/vitest"],
+  "files": {
+    "includes": [
+      "!coverage",
+      "!dist",
+      "!node_modules",
+      "!src/tests/**/*.json",
+      "!src/thirdparty"
+    ]
+  },
+  "linter": {
+    "rules": {
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "warn",
+          "options": {
+            "maxAllowedComplexity": 35
+          }
+        }
+      },
+      "performance": {
+        "noBarrelFile": "warn",
+        "noDelete": "warn"
+      },
+      "style": {
+        "noSubstr": "warn",
+        "useNodejsImportProtocol": "warn",
+        "useTemplate": "warn"
+      },
+      "suspicious": {
+        "noConsole": "warn",
+        "noExplicitAny": "warn",
+        "useAwait": "warn"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["src/tests/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off",
+            "useFilenamingConvention": "off"
+          },
+          "suspicious": {
+            "noEmptyBlockStatements": "off",
+            "noExplicitAny": "off",
+            "noMisplacedAssertion": "off",
+            "noSkippedTests": "off",
+            "useAwait": "off"
+          }
+        }
+      }
+    }
+  ]
+}

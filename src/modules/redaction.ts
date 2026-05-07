@@ -1,4 +1,4 @@
-import { Event, RedactFunction, UnredactedEvent } from "../types.js";
+import type { Event, RedactFunction, UnredactedEvent } from "../types.js";
 
 /**
  * Set of field names that should be protected from redaction.
@@ -8,7 +8,7 @@ import { Event, RedactFunction, UnredactedEvent } from "../types.js";
 const PROTECTED_FIELDS = new Set([
   "sessionId",
   "id",
-  "projectId",
+  "apiKey",
   "server",
   "identifyActorGivenId",
   "identifyActorName",
@@ -32,11 +32,11 @@ const PROTECTED_FIELDS = new Set([
  * @returns A new object with all strings redacted
  */
 async function redactStringsInObject(
-  obj: any,
+  obj: unknown,
   redactFn: RedactFunction,
-  path: string = "",
-  isProtected: boolean = false,
-): Promise<any> {
+  path = "",
+  isProtected = false
+): Promise<unknown> {
   if (obj === null || obj === undefined) {
     return obj;
   }
@@ -54,8 +54,8 @@ async function redactStringsInObject(
   if (Array.isArray(obj)) {
     return Promise.all(
       obj.map((item, index) =>
-        redactStringsInObject(item, redactFn, `${path}[${index}]`, isProtected),
-      ),
+        redactStringsInObject(item, redactFn, `${path}[${index}]`, isProtected)
+      )
     );
   }
 
@@ -66,7 +66,7 @@ async function redactStringsInObject(
 
   // Handle objects
   if (typeof obj === "object") {
-    const redactedObj: any = {};
+    const redactedObj: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(obj)) {
       // Skip functions and undefined values
@@ -83,7 +83,7 @@ async function redactStringsInObject(
         value,
         redactFn,
         fieldPath,
-        isFieldProtected,
+        isFieldProtected
       );
     }
 
@@ -103,9 +103,9 @@ async function redactStringsInObject(
  * @param redactFn - The customer's redaction function
  * @returns A new event object with all strings redacted
  */
-export async function redactEvent(
+export function redactEvent(
   event: UnredactedEvent,
-  redactFn: RedactFunction,
+  redactFn: RedactFunction
 ): Promise<Event> {
   return redactStringsInObject(event, redactFn, "", false) as Promise<Event>;
 }

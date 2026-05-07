@@ -1,16 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  setupTestServerAndClient,
-  resetTodos,
-} from "./test-utils/client-server-factory";
-import { track } from "../index";
-import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types";
-import { EventCapture } from "./test-utils";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
-import { getServerTrackingData } from "../modules/internal";
-import { HighLevelMCPServerLike, UserIdentity } from "../types";
 import { randomUUID } from "node:crypto";
+import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
+import { track } from "../index";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
+import { getServerTrackingData } from "../modules/internal";
+import type { HighLevelMCPServerLike, UserIdentity } from "../types";
+import { EventCapture } from "./test-utils";
+import {
+  resetTodos,
+  setupTestServerAndClient,
+} from "./test-utils/client-server-factory";
 
 describe("Identify Feature", () => {
   let server: HighLevelMCPServerLike;
@@ -42,7 +42,8 @@ describe("Identify Feature", () => {
       };
 
       // Enable tracking with identify function
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async (request, extra) => {
           identifyCalled = true;
@@ -67,7 +68,7 @@ describe("Identify Feature", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result.content[0].text).toContain("Added todo");
@@ -79,7 +80,7 @@ describe("Identify Feature", () => {
       // Verify that an identify event was published
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify,
+        (e) => e.eventType === MCPAnalyticsEventType.identify
       );
 
       expect(identifyEvent).toBeDefined();
@@ -108,12 +109,13 @@ describe("Identify Feature", () => {
       await eventCapture.start();
 
       // Enable tracking with identify function
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => {
           identifyCallCount++;
           return {
-            userId: userId,
+            userId,
             userData: { name: userName },
           };
         },
@@ -131,13 +133,13 @@ describe("Identify Feature", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(identifyCallCount).toBe(1);
       const events1 = await eventCapture.getEvents();
       const identifyEvents1 = events1.filter(
-        (e) => e.eventType === "mcpcat:identify",
+        (e) => e.eventType === "posthog:identify"
       );
       expect(identifyEvents1.length).toBe(1); // First identify event published
 
@@ -152,13 +154,13 @@ describe("Identify Feature", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(identifyCallCount).toBe(2); // Called again
       const events2 = await eventCapture.getEvents();
       const identifyEvents2 = events2.filter(
-        (e) => e.eventType === "mcpcat:identify",
+        (e) => e.eventType === "posthog:identify"
       );
       expect(identifyEvents2.length).toBe(1); // Still only 1 event (no new event published)
 
@@ -174,13 +176,13 @@ describe("Identify Feature", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(identifyCallCount).toBe(3); // Called again
       const events3 = await eventCapture.getEvents();
       const identifyEvents3 = events3.filter(
-        (e) => e.eventType === "mcpcat:identify",
+        (e) => e.eventType === "posthog:identify"
       );
       expect(identifyEvents3.length).toBe(1); // Still only 1 event
 
@@ -199,9 +201,10 @@ describe("Identify Feature", () => {
       };
 
       // Enable tracking with identify function FIRST
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
-        enableToolCallContext: true,
+        context: true,
         identify: async (request, extra) => {
           identifyCalled = true;
           expect(request).toBeDefined();
@@ -220,16 +223,14 @@ describe("Identify Feature", () => {
         {
           message: z.string().describe("A message to process"),
         },
-        async (args) => {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Processed message: ${args.message}`,
-              },
-            ],
-          };
-        },
+        async (args) => ({
+          content: [
+            {
+              type: "text",
+              text: `Processed message: ${args.message}`,
+            },
+          ],
+        })
       );
 
       // Call the newly added tool - this should trigger identify
@@ -245,11 +246,11 @@ describe("Identify Feature", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result.content[0].text).toContain(
-        "Processed message: Testing post-track identification",
+        "Processed message: Testing post-track identification"
       );
       expect(identifyCalled).toBe(true);
 
@@ -259,7 +260,7 @@ describe("Identify Feature", () => {
       // Verify that an identify event was published
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify,
+        (e) => e.eventType === MCPAnalyticsEventType.identify
       );
 
       expect(identifyEvent).toBeDefined();
@@ -268,13 +269,13 @@ describe("Identify Feature", () => {
       // Verify tool call event was tracked with user intent
       const toolCallEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "post_track_tool",
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+          e.resourceName === "post_track_tool"
       );
 
       expect(toolCallEvent).toBeDefined();
       expect(toolCallEvent?.userIntent).toBe(
-        "Verifying identification works for dynamically added tools",
+        "Verifying identification works for dynamically added tools"
       );
 
       // Verify user identity is stored in session
@@ -305,7 +306,8 @@ describe("Identify Feature", () => {
       };
 
       // Enable tracking with identify function
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => ({
           userId: testUserId,
@@ -325,7 +327,7 @@ describe("Identify Feature", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await client.request(
@@ -339,7 +341,7 @@ describe("Identify Feature", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await client.request(
@@ -350,7 +352,7 @@ describe("Identify Feature", () => {
             arguments: { context: "Listing todos for reset task" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for events
@@ -359,7 +361,7 @@ describe("Identify Feature", () => {
       // Get all tool call events
       const events = eventCapture.getEvents();
       const toolCallEvents = events.filter(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
 
       // Verify all events have the same session ID
@@ -387,7 +389,8 @@ describe("Identify Feature", () => {
       await eventCapture.start();
 
       // Enable tracking with identify function that returns null
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => null,
       });
@@ -404,7 +407,7 @@ describe("Identify Feature", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result.content[0].text).toContain("Added todo");
@@ -415,7 +418,7 @@ describe("Identify Feature", () => {
       // Verify no identify event was published (since it returned null)
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify,
+        (e) => e.eventType === MCPAnalyticsEventType.identify
       );
 
       expect(identifyEvent).toBeUndefined();
@@ -435,7 +438,8 @@ describe("Identify Feature", () => {
       await eventCapture.start();
 
       // Enable tracking WITHOUT identify function
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         // No identify function provided
       });
@@ -452,7 +456,7 @@ describe("Identify Feature", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await client.request(
@@ -463,7 +467,7 @@ describe("Identify Feature", () => {
             arguments: { context: "Listing todos for anonymous test" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for events
@@ -472,18 +476,18 @@ describe("Identify Feature", () => {
       // Verify tool events were published with session IDs
       const events = eventCapture.getEvents();
       const toolCallEvents = events.filter(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
 
       expect(toolCallEvents.length).toBe(2);
-      toolCallEvents.forEach((event) => {
+      for (const event of toolCallEvents) {
         expect(event.sessionId).toBeDefined();
         expect(event.sessionId).not.toBe("");
-      });
+      }
 
       // Verify no identify events were published
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify,
+        (e) => e.eventType === MCPAnalyticsEventType.identify
       );
       expect(identifyEvent).toBeUndefined();
 
@@ -502,7 +506,8 @@ describe("Identify Feature", () => {
       };
 
       // Enable tracking with identify function
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => ({
           userId: testUserId,
@@ -523,7 +528,7 @@ describe("Identify Feature", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Get session info from server data
@@ -548,7 +553,8 @@ describe("Identify Feature", () => {
       };
 
       // Enable tracking with identify function
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => ({
           userId: testUserId,
@@ -569,7 +575,7 @@ describe("Identify Feature", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Wait for events
@@ -578,7 +584,7 @@ describe("Identify Feature", () => {
       // Check that events include session info with actor data
       const events = eventCapture.getEvents();
       const toolCallEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
 
       expect(toolCallEvent).toBeDefined();
@@ -601,9 +607,10 @@ describe("Identify Feature", () => {
       let asyncOperationCompleted = false;
 
       // Enable tracking with async identify function
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
-        identify: async (request, extra) => {
+        identify: async (_request, _extra) => {
           // Simulate async operation (e.g., database lookup, API call)
           await new Promise((resolve) => setTimeout(resolve, 100));
           asyncOperationCompleted = true;
@@ -630,7 +637,7 @@ describe("Identify Feature", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result.content[0].text).toContain("Added todo");
@@ -642,7 +649,7 @@ describe("Identify Feature", () => {
       // Verify identify event was published with duration
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify,
+        (e) => e.eventType === MCPAnalyticsEventType.identify
       );
 
       expect(identifyEvent).toBeDefined();
@@ -658,7 +665,8 @@ describe("Identify Feature", () => {
       const errorMessage = "Failed to identify user";
 
       // Enable tracking with identify function that throws
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => {
           throw new Error(errorMessage);
@@ -677,7 +685,7 @@ describe("Identify Feature", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result.content[0].text).toContain("Added todo");
@@ -688,7 +696,7 @@ describe("Identify Feature", () => {
       // Verify NO identify event was published (errors in identify function should not publish events)
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpcatIdentify,
+        (e) => e.eventType === MCPAnalyticsEventType.identify
       );
 
       expect(identifyEvent).toBeUndefined();
@@ -708,7 +716,8 @@ describe("Identify Feature", () => {
       await eventCapture.start();
 
       // Enable tracking with identify function that returns invalid structure
-      track(server, "test-project", {
+      track(server, {
+        apiKey: "test-project",
         enableTracing: true,
         identify: async () => {
           // Return invalid structure (missing required fields)
@@ -728,7 +737,7 @@ describe("Identify Feature", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       expect(result.content[0].text).toContain("Added todo");

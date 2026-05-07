@@ -1,12 +1,12 @@
-import { describe, it, expect } from "vitest";
-import {
-  setupTestServerAndClient,
-  resetTodos,
-} from "./test-utils/client-server-factory";
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import { EventCapture } from "./test-utils";
-import { PublishEventRequestEventTypeEnum } from "mcpcat-api";
+import {
+  resetTodos,
+  setupTestServerAndClient,
+} from "./test-utils/client-server-factory";
 
 describe("E2E Truncation - real MCP tool calls", () => {
   it("should truncate tool responses with text exceeding 32KB", async () => {
@@ -18,8 +18,9 @@ describe("E2E Truncation - real MCP tool calls", () => {
 
     try {
       const { track } = await import("../index.js");
-      await track(server, "test-truncation", {
-        enableToolCallContext: false,
+      await track(server, {
+        apiKey: "test-truncation",
+        context: false,
         enableTracing: true,
       });
 
@@ -32,10 +33,10 @@ describe("E2E Truncation - real MCP tool calls", () => {
           content: [
             {
               type: "text",
-              text: `Report on ${args.topic}: ` + "x".repeat(50_000),
+              text: `Report on ${args.topic}: ${"x".repeat(50_000)}`,
             },
           ],
-        }),
+        })
       );
 
       await client.request(
@@ -46,7 +47,7 @@ describe("E2E Truncation - real MCP tool calls", () => {
             arguments: { topic: "quarterly sales" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -54,14 +55,14 @@ describe("E2E Truncation - real MCP tool calls", () => {
       const events = eventCapture.getEvents();
       const toolEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_large_report",
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+          e.resourceName === "get_large_report"
       );
 
       expect(toolEvent).toBeDefined();
       const text = toolEvent!.response.content[0].text;
       // Text should be capped at 32KB + "..."
-      expect(text.length).toBeLessThanOrEqual(32768 + 3);
+      expect(text.length).toBeLessThanOrEqual(32_768 + 3);
       expect(text.endsWith("...")).toBe(true);
 
       await eventCapture.stop();
@@ -79,8 +80,9 @@ describe("E2E Truncation - real MCP tool calls", () => {
 
     try {
       const { track } = await import("../index.js");
-      await track(server, "test-truncation-params", {
-        enableToolCallContext: false,
+      await track(server, {
+        apiKey: "test-truncation-params",
+        context: false,
         enableTracing: true,
       });
 
@@ -94,7 +96,7 @@ describe("E2E Truncation - real MCP tool calls", () => {
         },
         async () => ({
           content: [{ type: "text", text: "Processed successfully" }],
-        }),
+        })
       );
 
       await client.request(
@@ -108,7 +110,7 @@ describe("E2E Truncation - real MCP tool calls", () => {
             },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -116,13 +118,13 @@ describe("E2E Truncation - real MCP tool calls", () => {
       const events = eventCapture.getEvents();
       const toolEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "process_bulk_data",
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+          e.resourceName === "process_bulk_data"
       );
 
       expect(toolEvent).toBeDefined();
       const eventSize = new TextEncoder().encode(
-        JSON.stringify(toolEvent),
+        JSON.stringify(toolEvent)
       ).length;
       expect(eventSize).toBeLessThanOrEqual(102_400);
 
@@ -141,8 +143,9 @@ describe("E2E Truncation - real MCP tool calls", () => {
 
     try {
       const { track } = await import("../index.js");
-      await track(server, "test-truncation-mixed", {
-        enableToolCallContext: false,
+      await track(server, {
+        apiKey: "test-truncation-mixed",
+        context: false,
         enableTracing: true,
       });
 
@@ -151,8 +154,8 @@ describe("E2E Truncation - real MCP tool calls", () => {
         "Returns a huge log dump",
         {},
         async () => ({
-          content: [{ type: "text", text: "LOG: " + "entry ".repeat(10_000) }],
-        }),
+          content: [{ type: "text", text: `LOG: ${"entry ".repeat(10_000)}` }],
+        })
       );
 
       // Normal todo call
@@ -164,7 +167,7 @@ describe("E2E Truncation - real MCP tool calls", () => {
             arguments: { text: "Write tests" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       // Oversized call
@@ -173,30 +176,30 @@ describe("E2E Truncation - real MCP tool calls", () => {
           method: "tools/call",
           params: { name: "get_verbose_log", arguments: {} },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       const events = eventCapture.getEvents();
       const toolCallEvents = events.filter(
-        (e) => e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall,
+        (e) => e.eventType === MCPAnalyticsEventType.mcpToolsCall
       );
 
       // Normal add_todo response should be fully preserved
       const addTodoEvent = toolCallEvents.find(
-        (e) => e.resourceName === "add_todo",
+        (e) => e.resourceName === "add_todo"
       );
       expect(addTodoEvent).toBeDefined();
       expect(addTodoEvent!.response.content[0].text).toContain("Added todo");
 
       // Verbose log response should be truncated
       const logEvent = toolCallEvents.find(
-        (e) => e.resourceName === "get_verbose_log",
+        (e) => e.resourceName === "get_verbose_log"
       );
       expect(logEvent).toBeDefined();
       const logText = logEvent!.response.content[0].text;
-      expect(logText.length).toBeLessThanOrEqual(32768 + 3);
+      expect(logText.length).toBeLessThanOrEqual(32_768 + 3);
 
       await eventCapture.stop();
     } finally {
@@ -213,8 +216,9 @@ describe("E2E Truncation - real MCP tool calls", () => {
 
     try {
       const { track } = await import("../index.js");
-      await track(server, "test-sanitize-then-truncate", {
-        enableToolCallContext: false,
+      await track(server, {
+        apiKey: "test-sanitize-then-truncate",
+        context: false,
         enableTracing: true,
       });
 
@@ -225,14 +229,14 @@ describe("E2E Truncation - real MCP tool calls", () => {
         { page: z.string() },
         async () => ({
           content: [
-            { type: "text", text: "x".repeat(50_000) },
+            { type: "text", text: "long text ".repeat(5000) },
             {
               type: "image",
               data: "iVBORw0KGgo=",
               mimeType: "image/png",
             },
           ],
-        }),
+        })
       );
 
       await client.request(
@@ -243,7 +247,7 @@ describe("E2E Truncation - real MCP tool calls", () => {
             arguments: { page: "dashboard" },
           },
         },
-        CallToolResultSchema,
+        CallToolResultSchema
       );
 
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -251,26 +255,26 @@ describe("E2E Truncation - real MCP tool calls", () => {
       const events = eventCapture.getEvents();
       const toolEvent = events.find(
         (e) =>
-          e.eventType === PublishEventRequestEventTypeEnum.mcpToolsCall &&
-          e.resourceName === "get_annotated_screenshot",
+          e.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+          e.resourceName === "get_annotated_screenshot"
       );
 
       expect(toolEvent).toBeDefined();
       const content = toolEvent!.response.content;
 
       // Text block should be truncated
-      expect(content[0].text.length).toBeLessThanOrEqual(32768 + 3);
+      expect(content[0].text.length).toBeLessThanOrEqual(32_768 + 3);
       expect(content[0].text.endsWith("...")).toBe(true);
 
       // Image block should be sanitized
       expect(content[1]).toEqual({
         type: "text",
-        text: "[image content redacted - not supported by MCPcat]",
+        text: "[image content redacted - not supported by PostHog MCP analytics]",
       });
 
       // Total event size should still be under 100KB
       const eventSize = new TextEncoder().encode(
-        JSON.stringify(toolEvent),
+        JSON.stringify(toolEvent)
       ).length;
       expect(eventSize).toBeLessThanOrEqual(102_400);
 
