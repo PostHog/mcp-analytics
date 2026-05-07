@@ -30,12 +30,9 @@ Choose the appropriate semver bump:
 
 Commit the generated `.changeset/*.md` file with the PR.
 
-## First release
+## Verifying pending changes
 
-The initial package version is checked in as `0.0.0`.
-The first release PR includes a patch changeset, so the release workflow will version and publish `@posthog/mcp@0.0.1`.
-
-You can verify the pending release locally with:
+You can verify a pending release locally with:
 
 ```bash
 pnpm exec changeset status --verbose
@@ -50,9 +47,10 @@ After a release-triggering PR is merged:
 3. The workflow posts a Slack approval request using PostHog's shared client-libraries approval workflow.
 4. A maintainer approves the `NPM Release` GitHub environment.
 5. If changesets are present, the workflow runs `pnpm bump` and updates the lockfile.
-6. The workflow publishes to npm with public access.
-7. npm runs `prepublishOnly`, which runs `pnpm verify`, immediately before publishing.
-8. The workflow tags the repository and creates a GitHub release.
+6. The workflow commits the version bump with the repository release GitHub App.
+7. The workflow publishes to npm with public access.
+8. npm runs `prepublishOnly`, which runs `pnpm verify`, immediately before publishing.
+9. The workflow tags the repository, creates a GitHub release, and posts a Slack release confirmation.
 
 The package is published publicly as `@posthog/mcp`.
 
