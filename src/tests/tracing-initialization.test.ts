@@ -79,7 +79,7 @@ describe("Tracing Initialization Tests", () => {
       // Wait for any events to be published
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Verify the tool call succeeded (successful calls have undefined isError)
+      // Verify the tool call succeeded.
       expect(result).toBeDefined();
       expect(result.isError).not.toBe(true);
 
@@ -89,7 +89,8 @@ describe("Tracing Initialization Tests", () => {
       // Should have exactly 1 event, not 3 (one per track() call)
       expect(events.length).toBe(1);
       expect(events[0].resourceName).toBe("complete_todo");
-      expect(events[0].isError).toBeUndefined();
+      expect(events[0].isError).toBe(false);
+      expect(events[0].duration).toEqual(expect.any(Number));
     } finally {
       await cleanup();
     }
@@ -123,7 +124,7 @@ describe("Tracing Initialization Tests", () => {
       // Wait for event to be published
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Verify tool call succeeded (successful calls have undefined isError)
+      // Verify tool call succeeded.
       expect(result).toBeDefined();
       expect(result.isError).not.toBe(true);
 
@@ -133,7 +134,8 @@ describe("Tracing Initialization Tests", () => {
       // Should have exactly 1 event for the successful call
       expect(events.length).toBe(1);
       expect(events[0].resourceName).toBe("add_todo");
-      expect(events[0].isError).toBeUndefined();
+      expect(events[0].isError).toBe(false);
+      expect(events[0].duration).toEqual(expect.any(Number));
       expect(events[0].userIntent).toBe(
         "Testing handler-level event publishing"
       );

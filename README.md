@@ -52,6 +52,33 @@ track(server, {
 });
 ```
 
+## Event schema
+
+The SDK emits PostHog events using a stable MCP-specific schema.
+The package exports `PostHogMCPAnalyticsEvent`, `PostHogMCPAnalyticsProperty`, and `POSTHOG_MCP_ANALYTICS_SOURCE` constants so product code can query the same contract without hard-coded strings.
+
+Canonical event names:
+
+- `mcp_tool_call` for each MCP tool call
+- `mcp_tools_list` when clients list available tools
+- `mcp_initialize` when clients initialize a session
+- `$ai_span` for tool-call spans when `enableAITracing: true`
+- `$exception` for captured tool errors
+
+Important properties:
+
+- `$mcp_source = "posthog_mcp_analytics"`
+- `$mcp_intent` from the `context` argument when context capture is enabled
+- `$mcp_tool_name` and `$mcp_resource_name`
+- `$mcp_parameters` and `$mcp_response`, after redaction and truncation
+- `$mcp_duration_ms`
+- `$mcp_is_error`
+- `$session_id`
+- `$ai_trace_id`, `$ai_span_id`, and `$ai_session_id` when AI tracing is enabled
+
+The SDK does not emit `$mcp_context`.
+Use `$mcp_intent` for agent/user intent.
+
 ## Development
 
 ```bash

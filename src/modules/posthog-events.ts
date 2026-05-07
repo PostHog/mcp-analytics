@@ -1,6 +1,7 @@
 import type { Event } from "../types.js";
 import {
   POSTHOG_MCP_ANALYTICS_SOURCE,
+  PostHogMCPAnalyticsEvent,
   PostHogMCPAnalyticsProperty,
 } from "./constants.js";
 import { MCPAnalyticsEventType } from "./event-types.js";
@@ -281,13 +282,16 @@ function buildAISpanEvent(event: Event): PostHogCaptureEvent {
 
 function mapEventType(eventType: string): string {
   const mapping: Record<string, string> = {
-    [MCPAnalyticsEventType.mcpToolsCall]: "mcp_tool_call",
-    [MCPAnalyticsEventType.mcpToolsList]: "mcp_tools_list",
-    [MCPAnalyticsEventType.mcpInitialize]: "mcp_initialize",
-    [MCPAnalyticsEventType.mcpResourcesRead]: "mcp_resource_read",
-    [MCPAnalyticsEventType.mcpResourcesList]: "mcp_resources_list",
-    [MCPAnalyticsEventType.mcpPromptsGet]: "mcp_prompt_get",
-    [MCPAnalyticsEventType.mcpPromptsList]: "mcp_prompts_list",
+    [MCPAnalyticsEventType.mcpToolsCall]: PostHogMCPAnalyticsEvent.ToolCall,
+    [MCPAnalyticsEventType.mcpToolsList]: PostHogMCPAnalyticsEvent.ToolsList,
+    [MCPAnalyticsEventType.mcpInitialize]: PostHogMCPAnalyticsEvent.Initialize,
+    [MCPAnalyticsEventType.mcpResourcesRead]:
+      PostHogMCPAnalyticsEvent.ResourceRead,
+    [MCPAnalyticsEventType.mcpResourcesList]:
+      PostHogMCPAnalyticsEvent.ResourcesList,
+    [MCPAnalyticsEventType.mcpPromptsGet]: PostHogMCPAnalyticsEvent.PromptGet,
+    [MCPAnalyticsEventType.mcpPromptsList]:
+      PostHogMCPAnalyticsEvent.PromptsList,
   };
 
   return (

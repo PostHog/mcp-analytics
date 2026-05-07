@@ -476,6 +476,8 @@ function publishSuccessfulToolEvent(
     tracing.event.isError = true;
     tracing.event.error = captureException(options.capturedError || result);
     options.clearCapturedError?.();
+  } else {
+    tracing.event.isError = false;
   }
 
   tracing.event.response = result;

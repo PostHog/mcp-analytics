@@ -424,7 +424,7 @@ describe("Context Parameters", () => {
       // Wait for processing
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // The tool call should succeed (successful calls have undefined isError)
+      // The tool call should succeed.
       expect(result).toBeDefined();
       expect(result.isError).not.toBe(true);
 

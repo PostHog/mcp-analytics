@@ -3,6 +3,21 @@ export const INACTIVITY_TIMEOUT_IN_MINUTES = 30;
 export const DEFAULT_CONTEXT_PARAMETER_DESCRIPTION = `Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): "Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization."`;
 export const POSTHOG_MCP_ANALYTICS_SOURCE = "posthog_mcp_analytics";
 
+export const PostHogMCPAnalyticsEvent = {
+  AiSpan: "$ai_span",
+  Exception: "$exception",
+  Initialize: "mcp_initialize",
+  PromptGet: "mcp_prompt_get",
+  PromptsList: "mcp_prompts_list",
+  ResourceRead: "mcp_resource_read",
+  ResourcesList: "mcp_resources_list",
+  ToolCall: "mcp_tool_call",
+  ToolsList: "mcp_tools_list",
+} as const;
+
+export type PostHogMCPAnalyticsEvent =
+  (typeof PostHogMCPAnalyticsEvent)[keyof typeof PostHogMCPAnalyticsEvent];
+
 export const PostHogMCPAnalyticsProperty = {
   AiInputState: "$ai_input_state",
   AiIsError: "$ai_is_error",

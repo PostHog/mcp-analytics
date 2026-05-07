@@ -141,7 +141,6 @@ class EventQueue {
         writeToLog(
           `Queued PostHog event ${event.id} | ${event.eventType} | ${event.duration} ms | ${event.identifyActorGivenId || "anonymous"}`
         );
-        writeToLog(`Event details: ${JSON.stringify(event)}`);
       } catch (error) {
         writeToLog(
           `Failed to queue PostHog event ${event.id}: ${getMCPCompatibleErrorMessage(error)}`

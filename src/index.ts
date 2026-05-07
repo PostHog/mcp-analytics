@@ -458,5 +458,9 @@ export type {
 export type IdentifyFunction = MCPAnalyticsOptions["identify"];
 
 // biome-ignore lint/performance/noBarrelFile: the package entrypoint intentionally defines the public SDK API.
-export { PostHogMCPAnalyticsProperty } from "./modules/constants.js";
+export {
+  POSTHOG_MCP_ANALYTICS_SOURCE,
+  PostHogMCPAnalyticsEvent,
+  PostHogMCPAnalyticsProperty,
+} from "./modules/constants.js";
 export { track };

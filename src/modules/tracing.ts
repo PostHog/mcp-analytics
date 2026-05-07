@@ -360,14 +360,18 @@ async function handleToolCallRequest(
     if (isToolResultError(result)) {
       event.isError = true;
       event.error = captureException(result);
+    } else {
+      event.isError = false;
     }
 
     event.response = result;
+    event.duration = getEventDuration(event);
     publishEvent(server, event);
     return result;
   } catch (error) {
     event.isError = true;
     event.error = captureException(error);
+    event.duration = getEventDuration(event);
     publishEvent(server, event);
     throw error;
   }

@@ -411,8 +411,9 @@ describe("Error Capture Integration Tests", () => {
       expect(events.length).toBeGreaterThan(0);
 
       const successEvent = events.at(-1);
-      expect(successEvent.isError).toBeUndefined();
-      expect(successEvent.error).toBeUndefined();
+      expect(successEvent?.isError).toBe(false);
+      expect(successEvent?.duration).toEqual(expect.any(Number));
+      expect(successEvent?.error).toBeUndefined();
     } finally {
       await cleanup();
     }
