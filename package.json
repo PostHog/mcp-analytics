@@ -27,6 +27,7 @@
     "fix": "ultracite fix .",
     "typecheck": "tsgo --noEmit",
     "typecheck:tsc6": "tsc6 --noEmit",
+    "bump": "changeset version",
     "prepare": "husky",
     "verify": "pnpm check && pnpm typecheck && pnpm test && pnpm build",
     "prepublishOnly": "pnpm verify"
@@ -56,7 +57,7 @@
     "LICENSE"
   ],
   "publishConfig": {
-    "access": "public"
+    "access": "restricted"
   },
   "engines": {
     "node": ">=22.22.0"
