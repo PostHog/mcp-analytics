@@ -2,7 +2,12 @@
 
 TypeScript SDK for instrumenting Model Context Protocol servers with PostHog analytics.
 
-This package is in early development. The initial goal is to help MCP server owners understand tool usage, agent intent, client/session metadata, errors, and feedback without hand-rolling MCP-specific analytics.
+> [!WARNING]
+> This package is in very early access and is not suitable for production use yet.
+> The API, event names, PostHog property schema, tracing behavior, and release process may change without notice while we dogfood the SDK.
+> We publish in public because PostHog builds in public, but you should treat `0.0.x` releases as experimental.
+
+The initial goal is to help MCP server owners understand tool usage, agent intent, client/session metadata, errors, and feedback without hand-rolling MCP-specific analytics.
 
 ## Install
 
@@ -65,10 +70,6 @@ pnpm fix
 ```
 
 `pnpm typecheck` uses the TypeScript 7 native preview via `tsgo`.
-
-## Status
-
-This SDK is not ready for public customer use yet. The current repository starts from a proven MCP instrumentation implementation while we replace the product-specific ingestion, API surface, naming, and documentation with PostHog-owned equivalents.
 
 ## Attribution
 
