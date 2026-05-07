@@ -13,7 +13,6 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   check-changesets:
@@ -80,48 +79,10 @@ jobs:
       slack_bot_token: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN }}
       posthog_project_api_key: ${{ secrets.POSTHOG_PROJECT_API_KEY }}
 
-  release-config-preflight:
-    name: Release configuration preflight
-    needs: check-changesets
-    if: needs.check-changesets.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Check shared release variables and secrets
-        env:
-          HAS_SLACK_CHANNEL_ID: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID != '' }}
-          HAS_SLACK_USER_GROUP_ID: ${{ vars.GROUP_CLIENT_LIBRARIES_SLACK_GROUP_ID != '' }}
-          HAS_SLACK_BOT_TOKEN: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN != '' }}
-          HAS_POSTHOG_PROJECT_API_KEY: ${{ secrets.POSTHOG_PROJECT_API_KEY != '' }}
-        run: |
-          echo "SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID available: $HAS_SLACK_CHANNEL_ID"
-          echo "GROUP_CLIENT_LIBRARIES_SLACK_GROUP_ID available: $HAS_SLACK_USER_GROUP_ID"
-          echo "SLACK_CLIENT_LIBRARIES_BOT_TOKEN available: $HAS_SLACK_BOT_TOKEN"
-          echo "POSTHOG_PROJECT_API_KEY available: $HAS_POSTHOG_PROJECT_API_KEY"
-
-          missing=0
-          if [ "$HAS_SLACK_CHANNEL_ID" != "true" ]; then
-            echo "::error::Missing SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID variable for this repository."
-            missing=1
-          fi
-          if [ "$HAS_SLACK_USER_GROUP_ID" != "true" ]; then
-            echo "::error::Missing GROUP_CLIENT_LIBRARIES_SLACK_GROUP_ID variable for this repository."
-            missing=1
-          fi
-          if [ "$HAS_SLACK_BOT_TOKEN" != "true" ]; then
-            echo "::error::Missing SLACK_CLIENT_LIBRARIES_BOT_TOKEN secret for this repository."
-            missing=1
-          fi
-          if [ "$HAS_POSTHOG_PROJECT_API_KEY" != "true" ]; then
-            echo "::error::Missing POSTHOG_PROJECT_API_KEY secret for this repository."
-            missing=1
-          fi
-          exit "$missing"
-
   release:
     name: Publish package
-    needs: [check-changesets, release-config-preflight, notify-approval-needed]
-    if: always() && needs.check-changesets.outputs.should-release == 'true' && needs.release-config-preflight.result == 'success' && needs.notify-approval-needed.result == 'success'
+    needs: [check-changesets, notify-approval-needed]
+    if: always() && needs.check-changesets.outputs.should-release == 'true' && needs.notify-approval-needed.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: NPM Release
@@ -130,25 +91,6 @@ jobs:
       id-token: write
 
     steps:
-      - name: Check NPM Release environment secrets
-        env:
-          HAS_RELEASER_APP_ID: ${{ secrets.GH_APP_POSTHOG_MCP_RELEASER_APP_ID != '' }}
-          HAS_RELEASER_PRIVATE_KEY: ${{ secrets.GH_APP_POSTHOG_MCP_RELEASER_PRIVATE_KEY != '' }}
-        run: |
-          echo "GH_APP_POSTHOG_MCP_RELEASER_APP_ID available: $HAS_RELEASER_APP_ID"
-          echo "GH_APP_POSTHOG_MCP_RELEASER_PRIVATE_KEY available: $HAS_RELEASER_PRIVATE_KEY"
-
-          missing=0
-          if [ "$HAS_RELEASER_APP_ID" != "true" ]; then
-            echo "::error::Missing GH_APP_POSTHOG_MCP_RELEASER_APP_ID secret in the NPM Release environment."
-            missing=1
-          fi
-          if [ "$HAS_RELEASER_PRIVATE_KEY" != "true" ]; then
-            echo "::error::Missing GH_APP_POSTHOG_MCP_RELEASER_PRIVATE_KEY secret in the NPM Release environment."
-            missing=1
-          fi
-          exit "$missing"
-
       - name: Notify Slack - Approved
         if: needs.notify-approval-needed.outputs.slack_ts != ''
         continue-on-error: true
@@ -210,20 +152,15 @@ jobs:
           echo "Resolved @posthog/mcp@$VERSION"
 
       - name: Commit version bump
+        id: commit-version-bump
         if: needs.check-changesets.outputs.has-changesets == 'true'
-        run: |
-          git config user.name "posthog-bot"
-          git config user.email "hey@posthog.com"
-          git add package.json pnpm-lock.yaml .changeset
-          if [ -f CHANGELOG.md ]; then
-            git add CHANGELOG.md
-          fi
-          if git diff --cached --quiet; then
-            echo "No version bump changes to commit."
-            exit 0
-          fi
-          git commit -m "chore: update package version [version bump]"
-          git push origin HEAD:main
+        uses: planetscale/ghcommit-action@25309d8005ac7c3bcd61d3fe19b69e0fe47dbdde
+        with:
+          commit_message: "chore: update package version [version bump]"
+          repo: ${{ github.repository }}
+          branch: main
+        env:
+          GITHUB_TOKEN: ${{ steps.releaser.outputs.token }}
 
       - name: Check whether package version already exists
         id: npm
@@ -247,15 +184,18 @@ jobs:
       - name: Tag release
         if: steps.npm.outputs.should_publish == 'true'
         env:
+          COMMIT_HASH: ${{ steps.commit-version-bump.outputs.commit-hash }}
           VERSION: ${{ steps.package.outputs.version }}
         run: |
-          git tag "@posthog/mcp@$VERSION"
+          git fetch origin main --tags
+          TARGET_SHA="${COMMIT_HASH:-origin/main}"
+          git tag "@posthog/mcp@$VERSION" "$TARGET_SHA"
           git push origin "@posthog/mcp@$VERSION"
 
       - name: Create GitHub release
         if: steps.npm.outputs.should_publish == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.releaser.outputs.token }}
           VERSION: ${{ steps.package.outputs.version }}
         run: |
           if [ -f CHANGELOG.md ]; then
@@ -265,11 +205,24 @@ jobs:
           fi
           gh release create "@posthog/mcp@$VERSION" \
             --target main \
-            --title "@posthog/mcp@$VERSION" \
+            --title "$VERSION" \
             --notes-file release-notes.md
+
+      - name: Notify Slack - Released
+        if: steps.npm.outputs.should_publish == 'true' && needs.notify-approval-needed.outputs.slack_ts != ''
+        continue-on-error: true
+        uses: PostHog/.github/.github/actions/slack-thread-reply@d2e7c952fef6a22b2210bcffc70bec71abeeba03
+        with:
+          slack_bot_token: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN }}
+          slack_channel_id: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID }}
+          thread_ts: ${{ needs.notify-approval-needed.outputs.slack_ts }}
+          message: "🚀 `@posthog/mcp@${{ steps.package.outputs.version }}` released successfully!"
+          emoji_reaction: "rocket"
+          remove_emoji_reaction: "x"
 
       - name: Notify Slack - Failed
         if: ${{ failure() && needs.notify-approval-needed.outputs.slack_ts != '' }}
+        continue-on-error: true
         uses: PostHog/.github/.github/actions/slack-thread-reply@d2e7c952fef6a22b2210bcffc70bec71abeeba03
         with:
           slack_bot_token: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN }}
@@ -277,3 +230,60 @@ jobs:
           thread_ts: ${{ needs.notify-approval-needed.outputs.slack_ts }}
           message: "❌ Failed to release `@posthog/mcp`! <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>"
           emoji_reaction: "x"
+
+      - name: Send failure event to PostHog
+        if: ${{ failure() }}
+        uses: PostHog/posthog-github-action@eea1405eeb2d1d2259f0ee0b44d7b152869e6840
+        with:
+          posthog-token: ${{ secrets.POSTHOG_PROJECT_API_KEY }}
+          event: "posthog-mcp-github-release-workflow-failure"
+          properties: >-
+            {
+              "commitSha": "${{ github.sha }}",
+              "jobStatus": "${{ job.status }}",
+              "ref": "${{ github.ref }}",
+              "jobName": "release",
+              "packageName": "@posthog/mcp",
+              "packageVersion": "${{ steps.package.outputs.version }}"
+            }
+
+  notify-rejected:
+    name: Notify Slack - Rejected
+    needs: [release, notify-approval-needed]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always() && needs.release.result == 'failure' && needs.notify-approval-needed.outputs.slack_ts != ''
+    steps:
+      - name: Check for rejection
+        id: check-rejection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RESPONSE=$(gh api /repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/approvals)
+          REJECTED=$(echo "$RESPONSE" | jq '[.[] | select(.state == "rejected")] | length')
+          if [ "$REJECTED" -gt 0 ]; then
+            echo "was_rejected=true" >> "$GITHUB_OUTPUT"
+            COMMENT=$(echo "$RESPONSE" | jq -r '.[] | select(.state == "rejected") | .comment // empty' | head -1)
+            if [ -n "$COMMENT" ]; then
+              {
+                echo 'message<<EOF'
+                echo "🚫 Release was rejected: $COMMENT"
+                echo 'EOF'
+              } >> "$GITHUB_OUTPUT"
+            else
+              echo "message=🚫 Release was rejected." >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "was_rejected=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Notify Slack - Rejected
+        if: steps.check-rejection.outputs.was_rejected == 'true'
+        continue-on-error: true
+        uses: PostHog/.github/.github/actions/slack-thread-reply@d2e7c952fef6a22b2210bcffc70bec71abeeba03
+        with:
+          slack_bot_token: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN }}
+          slack_channel_id: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID }}
+          thread_ts: ${{ needs.notify-approval-needed.outputs.slack_ts }}
+          message: "${{ steps.check-rejection.outputs.message }}"
+          emoji_reaction: "no_entry_sign"
