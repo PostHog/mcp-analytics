@@ -252,18 +252,31 @@ describe("buildPostHogCaptureEvents", () => {
   });
 
   it("maps MCP event types to PostHog event names", () => {
-    const eventTypes: Record<string, string> = {
-      [MCPAnalyticsEventType.mcpToolsCall]: "mcp_tool_call",
-      [MCPAnalyticsEventType.mcpToolsList]: "mcp_tools_list",
-      [MCPAnalyticsEventType.mcpInitialize]: "mcp_initialize",
-      [MCPAnalyticsEventType.mcpResourcesRead]: "mcp_resource_read",
-      [MCPAnalyticsEventType.mcpResourcesList]: "mcp_resources_list",
-      [MCPAnalyticsEventType.mcpPromptsGet]: "mcp_prompt_get",
-      [MCPAnalyticsEventType.mcpPromptsList]: "mcp_prompts_list",
-      "mcp:custom/type": "mcp_custom_type",
-    };
+    const eventTypes = [
+      [MCPAnalyticsEventType.custom, PostHogMCPAnalyticsEvent.Custom],
+      [MCPAnalyticsEventType.identify, PostHogMCPAnalyticsEvent.Identify],
+      [MCPAnalyticsEventType.mcpToolsCall, PostHogMCPAnalyticsEvent.ToolCall],
+      [MCPAnalyticsEventType.mcpToolsList, PostHogMCPAnalyticsEvent.ToolsList],
+      [
+        MCPAnalyticsEventType.mcpInitialize,
+        PostHogMCPAnalyticsEvent.Initialize,
+      ],
+      [
+        MCPAnalyticsEventType.mcpResourcesRead,
+        PostHogMCPAnalyticsEvent.ResourceRead,
+      ],
+      [
+        MCPAnalyticsEventType.mcpResourcesList,
+        PostHogMCPAnalyticsEvent.ResourcesList,
+      ],
+      [MCPAnalyticsEventType.mcpPromptsGet, PostHogMCPAnalyticsEvent.PromptGet],
+      [
+        MCPAnalyticsEventType.mcpPromptsList,
+        PostHogMCPAnalyticsEvent.PromptsList,
+      ],
+    ] satisfies [MCPAnalyticsEventType, PostHogMCPAnalyticsEvent][];
 
-    for (const [input, expected] of Object.entries(eventTypes)) {
+    for (const [input, expected] of eventTypes) {
       const [event] = buildPostHogCaptureEvents(
         makeEvent({ eventType: input })
       );

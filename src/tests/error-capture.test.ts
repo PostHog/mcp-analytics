@@ -362,7 +362,7 @@ describe("Error Capture Integration Tests", () => {
       // Verify NO identify event was published (errors in identify should only be logged, not published)
       const events = eventCapture.getEvents();
       const identifyEvent = events.find(
-        (e) => e.eventType === MCPAnalyticsEventType.McpcatIdentify
+        (e) => e.eventType === MCPAnalyticsEventType.identify
       );
 
       expect(identifyEvent).toBeUndefined();

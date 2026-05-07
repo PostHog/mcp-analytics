@@ -7,6 +7,7 @@ import type {
   UnredactedEvent,
 } from "../types.js";
 import { getMCPCompatibleErrorMessage } from "./compatibility.js";
+import { MCPAnalyticsEventType } from "./event-types.js";
 import { newPrefixedId } from "./ids.js";
 import { getServerTrackingData } from "./internal.js";
 import { writeToLog } from "./logging.js";
@@ -271,7 +272,7 @@ export function publishEvent(
     apiKey: data.apiKey,
 
     // Event metadata
-    eventType: eventInput.eventType || "",
+    eventType: eventInput.eventType || MCPAnalyticsEventType.custom,
     timestamp: eventInput.timestamp || new Date(),
     duration,
 

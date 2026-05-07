@@ -5,7 +5,9 @@ export const POSTHOG_MCP_ANALYTICS_SOURCE = "posthog_mcp_analytics";
 
 export const PostHogMCPAnalyticsEvent = {
   AiSpan: "$ai_span",
+  Custom: "mcp_custom",
   Exception: "$exception",
+  Identify: "$identify",
   Initialize: "mcp_initialize",
   PromptGet: "mcp_prompt_get",
   PromptsList: "mcp_prompts_list",

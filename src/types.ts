@@ -1,5 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { EventMessage, PostHogOptions } from "posthog-node";
+import type { MCPAnalyticsEventType } from "./modules/event-types.js";
 
 export type JsonRecord = Record<string, unknown>;
 
@@ -91,9 +92,7 @@ export interface Event {
   error?: ErrorData | null;
   eventId?: string; // Custom event ID
 
-  // Event metadata
-  eventType: string; // Changed from enum to string for flexibility
-  // Core identification
+  eventType: MCPAnalyticsEventType;
   id: string;
   identifyActorData?: JsonRecord;
 
