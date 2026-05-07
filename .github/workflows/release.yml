@@ -248,7 +248,9 @@ jobs:
       - name: Publish package to npm
         if: steps.npm.outputs.should_publish == 'true'
         env:
-          NPM_CONFIG_PROVENANCE: true
+          # npm only supports provenance for public source repositories.
+          # Re-enable provenance when this repository is public.
+          NPM_CONFIG_PROVENANCE: false
         run: npm publish --access public
 
       - name: Tag release
