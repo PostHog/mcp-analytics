@@ -2,7 +2,7 @@
 
 TypeScript SDK for instrumenting Model Context Protocol servers with PostHog analytics.
 
-> [!WARNING]
+> Warning:
 > This package is in very early access and is not suitable for production use yet.
 > The API, event names, PostHog property schema, tracing behavior, and release process may change without notice while we dogfood the SDK.
 > We publish in public because PostHog builds in public, but you should treat `0.0.x` releases as experimental.

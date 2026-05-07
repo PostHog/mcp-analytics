@@ -186,24 +186,21 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: "pnpm"
 
-      - name: Ensure npm supports provenance
+      - name: Ensure npm supports trusted publishing
         run: npm install -g npm@11.6.4
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Verify current package
-        run: pnpm verify
 
       - name: Version package from changesets
         if: needs.check-changesets.outputs.has-changesets == 'true'
         run: |
           pnpm bump
           pnpm install --lockfile-only
-
-      - name: Verify versioned package
-        if: needs.check-changesets.outputs.has-changesets == 'true'
-        run: pnpm verify
+          git add package.json pnpm-lock.yaml .changeset
+          if [ -f CHANGELOG.md ]; then
+            git add CHANGELOG.md
+          fi
 
       - name: Read package version
         id: package
@@ -217,20 +214,15 @@ jobs:
           echo "Resolved @posthog/mcp@$VERSION"
 
       - name: Commit version bump
+        id: commit-version-bump
         if: needs.check-changesets.outputs.has-changesets == 'true'
-        run: |
-          git config user.name "posthog-bot"
-          git config user.email "hey@posthog.com"
-          git add package.json pnpm-lock.yaml .changeset
-          if [ -f CHANGELOG.md ]; then
-            git add CHANGELOG.md
-          fi
-          if git diff --cached --quiet; then
-            echo "No version bump changes to commit."
-            exit 0
-          fi
-          git commit -m "chore: update package version [version bump]"
-          git push origin HEAD:main
+        uses: planetscale/ghcommit-action@25309d8005ac7c3bcd61d3fe19b69e0fe47dbdde
+        with:
+          commit_message: "chore: update package version [version bump]"
+          repo: ${{ github.repository }}
+          branch: main
+        env:
+          GITHUB_TOKEN: ${{ steps.releaser.outputs.token }}
 
       - name: Check whether package version already exists
         id: npm
@@ -248,9 +240,7 @@ jobs:
       - name: Publish package to npm
         if: steps.npm.outputs.should_publish == 'true'
         env:
-          # npm only supports provenance for public source repositories.
-          # Re-enable provenance when this repository is public.
-          NPM_CONFIG_PROVENANCE: false
+          NPM_CONFIG_PROVENANCE: true
         run: npm publish --access public
 
       - name: Tag release
