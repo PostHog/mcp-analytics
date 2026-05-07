@@ -54,6 +54,28 @@ After a release-triggering PR is merged:
 
 The package is published publicly as `@posthog/mcp`.
 
+## Required GitHub configuration
+
+The release workflow depends on the same shared release infrastructure used by the PostHog JavaScript SDKs.
+
+Repository or organization variables:
+
+- `SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID`
+- `GROUP_CLIENT_LIBRARIES_SLACK_GROUP_ID`
+
+Repository or organization secrets:
+
+- `SLACK_CLIENT_LIBRARIES_BOT_TOKEN`
+- `POSTHOG_PROJECT_API_KEY`
+
+`NPM Release` environment secrets:
+
+- `GH_APP_POSTHOG_JS_RELEASER_APP_ID`
+- `GH_APP_POSTHOG_JS_RELEASER_PRIVATE_KEY`
+
+The `NPM Release` environment should require approval from the client libraries maintainers.
+The release GitHub App must be allowed to push the version-bump commit to `main`, matching the PostHog JavaScript SDK release setup.
+
 ## Local checks
 
 Before merging release-related changes, run:

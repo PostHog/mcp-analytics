@@ -1,0 +1,69 @@
+name: Release Preflight
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shared-release-config:
+    name: Shared release config
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check shared release variables and secrets
+        env:
+          HAS_SLACK_CHANNEL_ID: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID != '' }}
+          HAS_SLACK_USER_GROUP_ID: ${{ vars.GROUP_CLIENT_LIBRARIES_SLACK_GROUP_ID != '' }}
+          HAS_SLACK_BOT_TOKEN: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN != '' }}
+          HAS_POSTHOG_PROJECT_API_KEY: ${{ secrets.POSTHOG_PROJECT_API_KEY != '' }}
+        run: |
+          echo "SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID available: $HAS_SLACK_CHANNEL_ID"
+          echo "GROUP_CLIENT_LIBRARIES_SLACK_GROUP_ID available: $HAS_SLACK_USER_GROUP_ID"
+          echo "SLACK_CLIENT_LIBRARIES_BOT_TOKEN available: $HAS_SLACK_BOT_TOKEN"
+          echo "POSTHOG_PROJECT_API_KEY available: $HAS_POSTHOG_PROJECT_API_KEY"
+
+          missing=0
+          if [ "$HAS_SLACK_CHANNEL_ID" != "true" ]; then
+            echo "::error::Missing SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID variable for this repository."
+            missing=1
+          fi
+          if [ "$HAS_SLACK_USER_GROUP_ID" != "true" ]; then
+            echo "::error::Missing GROUP_CLIENT_LIBRARIES_SLACK_GROUP_ID variable for this repository."
+            missing=1
+          fi
+          if [ "$HAS_SLACK_BOT_TOKEN" != "true" ]; then
+            echo "::error::Missing SLACK_CLIENT_LIBRARIES_BOT_TOKEN secret for this repository."
+            missing=1
+          fi
+          if [ "$HAS_POSTHOG_PROJECT_API_KEY" != "true" ]; then
+            echo "::error::Missing POSTHOG_PROJECT_API_KEY secret for this repository."
+            missing=1
+          fi
+          exit "$missing"
+
+  npm-release-environment:
+    name: NPM Release environment
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: NPM Release
+    steps:
+      - name: Check NPM Release environment secrets
+        env:
+          HAS_RELEASER_APP_ID: ${{ secrets.GH_APP_POSTHOG_JS_RELEASER_APP_ID != '' }}
+          HAS_RELEASER_PRIVATE_KEY: ${{ secrets.GH_APP_POSTHOG_JS_RELEASER_PRIVATE_KEY != '' }}
+        run: |
+          echo "GH_APP_POSTHOG_JS_RELEASER_APP_ID available: $HAS_RELEASER_APP_ID"
+          echo "GH_APP_POSTHOG_JS_RELEASER_PRIVATE_KEY available: $HAS_RELEASER_PRIVATE_KEY"
+
+          missing=0
+          if [ "$HAS_RELEASER_APP_ID" != "true" ]; then
+            echo "::error::Missing GH_APP_POSTHOG_JS_RELEASER_APP_ID secret in the NPM Release environment."
+            missing=1
+          fi
+          if [ "$HAS_RELEASER_PRIVATE_KEY" != "true" ]; then
+            echo "::error::Missing GH_APP_POSTHOG_JS_RELEASER_PRIVATE_KEY secret in the NPM Release environment."
+            missing=1
+          fi
+          exit "$missing"

@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
   id-token: write
 
 jobs:
@@ -53,15 +53,75 @@ jobs:
       slack_bot_token: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN }}
       posthog_project_api_key: ${{ secrets.POSTHOG_PROJECT_API_KEY }}
 
+  release-config-preflight:
+    name: Release configuration preflight
+    needs: check-changesets
+    if: needs.check-changesets.outputs.has-changesets == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check shared release variables and secrets
+        env:
+          HAS_SLACK_CHANNEL_ID: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID != '' }}
+          HAS_SLACK_USER_GROUP_ID: ${{ vars.GROUP_CLIENT_LIBRARIES_SLACK_GROUP_ID != '' }}
+          HAS_SLACK_BOT_TOKEN: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN != '' }}
+          HAS_POSTHOG_PROJECT_API_KEY: ${{ secrets.POSTHOG_PROJECT_API_KEY != '' }}
+        run: |
+          echo "SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID available: $HAS_SLACK_CHANNEL_ID"
+          echo "GROUP_CLIENT_LIBRARIES_SLACK_GROUP_ID available: $HAS_SLACK_USER_GROUP_ID"
+          echo "SLACK_CLIENT_LIBRARIES_BOT_TOKEN available: $HAS_SLACK_BOT_TOKEN"
+          echo "POSTHOG_PROJECT_API_KEY available: $HAS_POSTHOG_PROJECT_API_KEY"
+
+          missing=0
+          if [ "$HAS_SLACK_CHANNEL_ID" != "true" ]; then
+            echo "::error::Missing SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID variable for this repository."
+            missing=1
+          fi
+          if [ "$HAS_SLACK_USER_GROUP_ID" != "true" ]; then
+            echo "::error::Missing GROUP_CLIENT_LIBRARIES_SLACK_GROUP_ID variable for this repository."
+            missing=1
+          fi
+          if [ "$HAS_SLACK_BOT_TOKEN" != "true" ]; then
+            echo "::error::Missing SLACK_CLIENT_LIBRARIES_BOT_TOKEN secret for this repository."
+            missing=1
+          fi
+          if [ "$HAS_POSTHOG_PROJECT_API_KEY" != "true" ]; then
+            echo "::error::Missing POSTHOG_PROJECT_API_KEY secret for this repository."
+            missing=1
+          fi
+          exit "$missing"
+
   release:
     name: Publish package
-    needs: [check-changesets, notify-approval-needed]
-    if: always() && needs.check-changesets.outputs.has-changesets == 'true'
+    needs: [check-changesets, release-config-preflight, notify-approval-needed]
+    if: always() && needs.check-changesets.outputs.has-changesets == 'true' && needs.release-config-preflight.result == 'success' && needs.notify-approval-needed.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: NPM Release
+    permissions:
+      contents: write
+      id-token: write
 
     steps:
+      - name: Check NPM Release environment secrets
+        env:
+          HAS_RELEASER_APP_ID: ${{ secrets.GH_APP_POSTHOG_JS_RELEASER_APP_ID != '' }}
+          HAS_RELEASER_PRIVATE_KEY: ${{ secrets.GH_APP_POSTHOG_JS_RELEASER_PRIVATE_KEY != '' }}
+        run: |
+          echo "GH_APP_POSTHOG_JS_RELEASER_APP_ID available: $HAS_RELEASER_APP_ID"
+          echo "GH_APP_POSTHOG_JS_RELEASER_PRIVATE_KEY available: $HAS_RELEASER_PRIVATE_KEY"
+
+          missing=0
+          if [ "$HAS_RELEASER_APP_ID" != "true" ]; then
+            echo "::error::Missing GH_APP_POSTHOG_JS_RELEASER_APP_ID secret in the NPM Release environment."
+            missing=1
+          fi
+          if [ "$HAS_RELEASER_PRIVATE_KEY" != "true" ]; then
+            echo "::error::Missing GH_APP_POSTHOG_JS_RELEASER_PRIVATE_KEY secret in the NPM Release environment."
+            missing=1
+          fi
+          exit "$missing"
+
       - name: Notify Slack - Approved
         if: needs.notify-approval-needed.outputs.slack_ts != ''
         continue-on-error: true
@@ -73,11 +133,19 @@ jobs:
           message: "✅ Release approved! Publishing `@posthog/mcp`..."
           emoji_reaction: "white_check_mark"
 
+      - name: Get GitHub App token
+        id: releaser
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3
+        with:
+          client-id: ${{ secrets.GH_APP_POSTHOG_JS_RELEASER_APP_ID }}
+          private-key: ${{ secrets.GH_APP_POSTHOG_JS_RELEASER_PRIVATE_KEY }}
+
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           ref: main
           fetch-depth: 0
+          token: ${{ steps.releaser.outputs.token }}
 
       - name: Install pnpm
         uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
