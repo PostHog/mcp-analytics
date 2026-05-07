@@ -8,9 +8,11 @@ This repository uses Changesets for versioning.
 The current workflow releases from pending changesets merged to `main`; it does not require the `release` label to trigger.
 
 The release workflow runs when a commit lands on `main` with a change under `.changeset/**`.
-It can also be started manually from GitHub Actions, but it still requires a pending changeset file.
+It can also be started manually from GitHub Actions.
 
-If there are no changeset files under `.changeset/*.md` other than `.changeset/README.md`, the workflow skips publishing.
+If there are pending changeset files under `.changeset/*.md` other than `.changeset/README.md`, the workflow versions the package before publishing.
+If there are no pending changesets, the manual workflow can still publish the current `package.json` version when that version is not on npm yet.
+This lets maintainers retry a release after a publish-time failure without creating an artificial version bump.
 
 ## Preparing a release
 
@@ -54,6 +56,11 @@ After a release-triggering PR is merged:
 9. The workflow tags the repository and creates a GitHub release.
 
 The package is published publicly as `@posthog/mcp`.
+
+## Retrying a failed publish
+
+If the workflow pushed the version-bump commit to `main` but failed during `npm publish`, fix the publishing configuration and manually run the `Release` workflow again.
+The workflow will detect that the current `package.json` version is not on npm and publish it without requiring a new changeset.
 
 ## Required GitHub configuration
 

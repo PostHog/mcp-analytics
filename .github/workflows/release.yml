@@ -17,11 +17,14 @@ permissions:
 
 jobs:
   check-changesets:
-    name: Check for changesets
+    name: Check release state
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       has-changesets: ${{ steps.check.outputs.has-changesets }}
+      package-version: ${{ steps.check.outputs.package-version }}
+      package-published: ${{ steps.check.outputs.package-published }}
+      should-release: ${{ steps.check.outputs.should-release }}
 
     steps:
       - name: Checkout repository
@@ -30,21 +33,45 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Check for changesets
+      - name: Check release state
         id: check
         run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "package-version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Current package version: @posthog/mcp@$VERSION"
+
           if find .changeset -maxdepth 1 -type f -name '*.md' ! -name README.md | grep -q .; then
             echo "has-changesets=true" >> "$GITHUB_OUTPUT"
             echo "Found changesets to version."
+            HAS_CHANGESETS=true
           else
             echo "has-changesets=false" >> "$GITHUB_OUTPUT"
-            echo "No changesets found. Skipping release."
+            echo "No changesets found."
+            HAS_CHANGESETS=false
+          fi
+
+          if npm view "@posthog/mcp@$VERSION" version >/dev/null 2>&1; then
+            echo "package-published=true" >> "$GITHUB_OUTPUT"
+            echo "@posthog/mcp@$VERSION is already published."
+            PACKAGE_PUBLISHED=true
+          else
+            echo "package-published=false" >> "$GITHUB_OUTPUT"
+            echo "@posthog/mcp@$VERSION is not published yet."
+            PACKAGE_PUBLISHED=false
+          fi
+
+          if [ "$HAS_CHANGESETS" = "true" ] || [ "$PACKAGE_PUBLISHED" = "false" ]; then
+            echo "should-release=true" >> "$GITHUB_OUTPUT"
+            echo "Release should continue."
+          else
+            echo "should-release=false" >> "$GITHUB_OUTPUT"
+            echo "No pending changesets and current package version is already published. Skipping release."
           fi
 
   notify-approval-needed:
     name: Notify Slack - Approval Needed
     needs: check-changesets
-    if: needs.check-changesets.outputs.has-changesets == 'true'
+    if: needs.check-changesets.outputs.should-release == 'true'
     uses: PostHog/.github/.github/workflows/notify-approval-needed.yml@d2e7c952fef6a22b2210bcffc70bec71abeeba03
     with:
       slack_channel_id: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID }}
@@ -56,7 +83,7 @@ jobs:
   release-config-preflight:
     name: Release configuration preflight
     needs: check-changesets
-    if: needs.check-changesets.outputs.has-changesets == 'true'
+    if: needs.check-changesets.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -94,7 +121,7 @@ jobs:
   release:
     name: Publish package
     needs: [check-changesets, release-config-preflight, notify-approval-needed]
-    if: always() && needs.check-changesets.outputs.has-changesets == 'true' && needs.release-config-preflight.result == 'success' && needs.notify-approval-needed.result == 'success'
+    if: always() && needs.check-changesets.outputs.should-release == 'true' && needs.release-config-preflight.result == 'success' && needs.notify-approval-needed.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: NPM Release
@@ -197,6 +224,10 @@ jobs:
           git add package.json pnpm-lock.yaml .changeset
           if [ -f CHANGELOG.md ]; then
             git add CHANGELOG.md
+          fi
+          if git diff --cached --quiet; then
+            echo "No version bump changes to commit."
+            exit 0
           fi
           git commit -m "chore: update package version [version bump]"
           git push origin HEAD:main
