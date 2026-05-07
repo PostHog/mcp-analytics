@@ -52,10 +52,14 @@ After a release-triggering PR is merged:
 5. The workflow runs `pnpm verify`.
 6. The workflow runs `pnpm bump` and updates the lockfile.
 7. The workflow verifies the versioned package again.
-8. The workflow publishes to npm with public access and npm provenance.
+8. The workflow publishes to npm with public access.
 9. The workflow tags the repository and creates a GitHub release.
 
 The package is published publicly as `@posthog/mcp`.
+
+The workflow uses npm trusted publishing through GitHub Actions OIDC.
+npm provenance is disabled while this repository is not public, because npm only supports provenance for public source repositories.
+Re-enable provenance when the repository is public.
 
 ## Retrying a failed publish
 
