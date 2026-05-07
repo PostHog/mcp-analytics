@@ -1,0 +1,187 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".changeset/**"
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  check-changesets:
+    name: Check for changesets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      has-changesets: ${{ steps.check.outputs.has-changesets }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Check for changesets
+        id: check
+        run: |
+          if find .changeset -maxdepth 1 -type f -name '*.md' ! -name README.md | grep -q .; then
+            echo "has-changesets=true" >> "$GITHUB_OUTPUT"
+            echo "Found changesets to version."
+          else
+            echo "has-changesets=false" >> "$GITHUB_OUTPUT"
+            echo "No changesets found. Skipping release."
+          fi
+
+  notify-approval-needed:
+    name: Notify Slack - Approval Needed
+    needs: check-changesets
+    if: needs.check-changesets.outputs.has-changesets == 'true'
+    uses: PostHog/.github/.github/workflows/notify-approval-needed.yml@d2e7c952fef6a22b2210bcffc70bec71abeeba03
+    with:
+      slack_channel_id: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID }}
+      slack_user_group_id: ${{ vars.GROUP_CLIENT_LIBRARIES_SLACK_GROUP_ID }}
+    secrets:
+      slack_bot_token: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN }}
+      posthog_project_api_key: ${{ secrets.POSTHOG_PROJECT_API_KEY }}
+
+  release:
+    name: Publish package
+    needs: [check-changesets, notify-approval-needed]
+    if: always() && needs.check-changesets.outputs.has-changesets == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: NPM Release
+
+    steps:
+      - name: Notify Slack - Approved
+        if: needs.notify-approval-needed.outputs.slack_ts != ''
+        continue-on-error: true
+        uses: PostHog/.github/.github/actions/slack-thread-reply@d2e7c952fef6a22b2210bcffc70bec71abeeba03
+        with:
+          slack_bot_token: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN }}
+          slack_channel_id: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID }}
+          thread_ts: ${{ needs.notify-approval-needed.outputs.slack_ts }}
+          message: "✅ Release approved! Publishing `@posthog/mcp`..."
+          emoji_reaction: "white_check_mark"
+
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with:
+          version: 10.33.2
+
+      - name: Use Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+          cache: "pnpm"
+
+      - name: Ensure npm supports provenance
+        run: npm install -g npm@11.6.4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify current package
+        run: pnpm verify
+
+      - name: Version package from changesets
+        if: needs.check-changesets.outputs.has-changesets == 'true'
+        run: |
+          pnpm bump
+          pnpm install --lockfile-only
+
+      - name: Verify versioned package
+        if: needs.check-changesets.outputs.has-changesets == 'true'
+        run: pnpm verify
+
+      - name: Read package version
+        id: package
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "Invalid package version: $VERSION" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved @posthog/mcp@$VERSION"
+
+      - name: Commit version bump
+        if: needs.check-changesets.outputs.has-changesets == 'true'
+        run: |
+          git config user.name "posthog-bot"
+          git config user.email "hey@posthog.com"
+          git add package.json pnpm-lock.yaml .changeset
+          if [ -f CHANGELOG.md ]; then
+            git add CHANGELOG.md
+          fi
+          git commit -m "chore: update package version [version bump]"
+          git push origin HEAD:main
+
+      - name: Check whether package version already exists
+        id: npm
+        env:
+          VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          if npm view "@posthog/mcp@$VERSION" version >/dev/null 2>&1; then
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            echo "@posthog/mcp@$VERSION already exists on npm; skipping publish."
+          else
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "@posthog/mcp@$VERSION is not on npm yet; publishing."
+          fi
+
+      - name: Publish package to npm
+        if: steps.npm.outputs.should_publish == 'true'
+        env:
+          NPM_CONFIG_PROVENANCE: true
+        run: npm publish --access public
+
+      - name: Tag release
+        if: steps.npm.outputs.should_publish == 'true'
+        env:
+          VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          git tag "@posthog/mcp@$VERSION"
+          git push origin "@posthog/mcp@$VERSION"
+
+      - name: Create GitHub release
+        if: steps.npm.outputs.should_publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          if [ -f CHANGELOG.md ]; then
+            awk '/^## /{if (seen) exit; seen=1} seen' CHANGELOG.md > release-notes.md
+          else
+            echo "@posthog/mcp@$VERSION" > release-notes.md
+          fi
+          gh release create "@posthog/mcp@$VERSION" \
+            --target main \
+            --title "@posthog/mcp@$VERSION" \
+            --notes-file release-notes.md
+
+      - name: Notify Slack - Failed
+        if: ${{ failure() && needs.notify-approval-needed.outputs.slack_ts != '' }}
+        uses: PostHog/.github/.github/actions/slack-thread-reply@d2e7c952fef6a22b2210bcffc70bec71abeeba03
+        with:
+          slack_bot_token: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN }}
+          slack_channel_id: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID }}
+          thread_ts: ${{ needs.notify-approval-needed.outputs.slack_ts }}
+          message: "❌ Failed to release `@posthog/mcp`! <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>"
+          emoji_reaction: "x"
