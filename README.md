@@ -71,6 +71,13 @@ pnpm fix
 
 `pnpm typecheck` uses the TypeScript 7 native preview via `tsgo`.
 
+## Releases
+
+Releases are semi-automatic through Changesets and GitHub Actions.
+See [RELEASE.md](./RELEASE.md) for the release process.
+
+Release approval requests are posted in Slack to `#approvals-client-libraries`.
+
 ## Attribution
 
 This SDK started from a duplicated copy of the MIT-licensed [MCPcat TypeScript SDK](https://github.com/MCPCat/mcpcat-typescript-sdk). We are grateful for their work on MCP server instrumentation patterns, especially tool-call tracing, context capture, and MCP SDK compatibility handling.

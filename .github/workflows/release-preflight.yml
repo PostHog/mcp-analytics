@@ -43,27 +43,27 @@ jobs:
           fi
           exit "$missing"
 
-  npm-release-environment:
-    name: NPM Release environment
+  release-environment:
+    name: Release environment
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    environment: NPM Release
+    environment: Release
     steps:
-      - name: Check NPM Release environment secrets
+      - name: Check Release environment secrets
         env:
-          HAS_RELEASER_APP_ID: ${{ secrets.GH_APP_POSTHOG_JS_RELEASER_APP_ID != '' }}
-          HAS_RELEASER_PRIVATE_KEY: ${{ secrets.GH_APP_POSTHOG_JS_RELEASER_PRIVATE_KEY != '' }}
+          HAS_RELEASER_APP_ID: ${{ secrets.GH_APP_POSTHOG_MCP_RELEASER_APP_ID != '' }}
+          HAS_RELEASER_PRIVATE_KEY: ${{ secrets.GH_APP_POSTHOG_MCP_RELEASER_PRIVATE_KEY != '' }}
         run: |
-          echo "GH_APP_POSTHOG_JS_RELEASER_APP_ID available: $HAS_RELEASER_APP_ID"
-          echo "GH_APP_POSTHOG_JS_RELEASER_PRIVATE_KEY available: $HAS_RELEASER_PRIVATE_KEY"
+          echo "GH_APP_POSTHOG_MCP_RELEASER_APP_ID available: $HAS_RELEASER_APP_ID"
+          echo "GH_APP_POSTHOG_MCP_RELEASER_PRIVATE_KEY available: $HAS_RELEASER_PRIVATE_KEY"
 
           missing=0
           if [ "$HAS_RELEASER_APP_ID" != "true" ]; then
-            echo "::error::Missing GH_APP_POSTHOG_JS_RELEASER_APP_ID secret in the NPM Release environment."
+            echo "::error::Missing GH_APP_POSTHOG_MCP_RELEASER_APP_ID secret in the Release environment."
             missing=1
           fi
           if [ "$HAS_RELEASER_PRIVATE_KEY" != "true" ]; then
-            echo "::error::Missing GH_APP_POSTHOG_JS_RELEASER_PRIVATE_KEY secret in the NPM Release environment."
+            echo "::error::Missing GH_APP_POSTHOG_MCP_RELEASER_PRIVATE_KEY secret in the Release environment."
             missing=1
           fi
           exit "$missing"

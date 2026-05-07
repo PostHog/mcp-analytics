@@ -4,7 +4,8 @@ This repository uses Changesets and a GitHub Actions release workflow, following
 
 ## Release trigger
 
-Releases do not use a GitHub release label.
+This repository uses Changesets for versioning.
+The current workflow releases from pending changesets merged to `main`; it does not require the `release` label to trigger.
 
 The release workflow runs when a commit lands on `main` with a change under `.changeset/**`.
 It can also be started manually from GitHub Actions, but it still requires a pending changeset file.
@@ -45,7 +46,7 @@ After a release-triggering PR is merged:
 1. GitHub Actions runs the `Release` workflow on `main`.
 2. The workflow checks for pending changesets.
 3. The workflow posts a Slack approval request using PostHog's shared client-libraries approval workflow.
-4. A maintainer approves the `NPM Release` GitHub environment.
+4. A maintainer approves the `Release` GitHub environment.
 5. The workflow runs `pnpm verify`.
 6. The workflow runs `pnpm bump` and updates the lockfile.
 7. The workflow verifies the versioned package again.
@@ -68,12 +69,13 @@ Repository or organization secrets:
 - `SLACK_CLIENT_LIBRARIES_BOT_TOKEN`
 - `POSTHOG_PROJECT_API_KEY`
 
-`NPM Release` environment secrets:
+`Release` environment secrets:
 
-- `GH_APP_POSTHOG_JS_RELEASER_APP_ID`
-- `GH_APP_POSTHOG_JS_RELEASER_PRIVATE_KEY`
+- `GH_APP_POSTHOG_MCP_RELEASER_APP_ID`
+- `GH_APP_POSTHOG_MCP_RELEASER_PRIVATE_KEY`
 
-The `NPM Release` environment should require approval from the client libraries maintainers.
+The `Release` environment should require approval from the client libraries maintainers.
+Create a dedicated GitHub App for this repository, install it only on `PostHog/mcp-analytics`, and grant it `Contents: Read and write`.
 The release GitHub App must be allowed to push the version-bump commit to `main`, matching the PostHog JavaScript SDK release setup.
 
 ## Local checks
