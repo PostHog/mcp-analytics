@@ -9,6 +9,7 @@ import type {
 import {
   type ConversationIdResolution,
   canInjectConversationIdPromptBack,
+  cloneRequestWithoutConversationId,
   injectConversationIdPromptBack,
   resolveConversationId,
   stripConversationId,
@@ -348,23 +349,6 @@ async function handleWrappedToolsCall(
   );
 }
 
-function cloneRequestWithoutConversationId(request: MCPRequest): MCPRequest {
-  if (!request.params || typeof request.params !== "object") {
-    return request;
-  }
-  const args = request.params.arguments;
-  if (!(args && typeof args === "object")) {
-    return request;
-  }
-  const stripped = stripConversationId(args);
-  return {
-    ...request,
-    params: {
-      ...request.params,
-      arguments: stripped as typeof request.params.arguments,
-    },
-  };
-}
 
 async function initializeToolCallEvent(
   server: MCPServerLike,

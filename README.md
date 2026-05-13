@@ -63,6 +63,11 @@ track(server, {
 });
 ```
 
+**Caveats:**
+
+- The prompt-back is appended as a regular `text` content block (the only channel MCP currently offers for server→agent communication). Consumers that surface raw tool-call content to end users will see `[SERVER]: Reuse conversation_id=…` in their UI. If/when the MCP spec grows a server-directives channel (e.g. on `_meta`), the SDK will move there.
+- The captured `$mcp_conversation_id` value is agent-controlled when the agent supplies one — the SDK accepts any non-empty string. Customers wanting to bind it to their own session scheme (chat ID, JWT `jti`, request ID) can do so freely; the trade-off is that nothing prevents a misbehaving agent from sending arbitrary values.
+
 The SDK sends events through `posthog-node`, so it uses the same PostHog ingestion client, batching, retry, flush, and shutdown behavior as the existing Node SDK.
 
 If your application already owns a PostHog client, pass it in instead:

@@ -18,9 +18,9 @@ import {
 import {
   addConversationIdToTools,
   canInjectConversationIdPromptBack,
+  cloneRequestWithoutConversationId,
   injectConversationIdPromptBack,
   resolveConversationId,
-  stripConversationId,
 } from "./conversation-id.js";
 import { publishEvent } from "./event-queue.js";
 import { MCPAnalyticsEventType } from "./event-types.js";
@@ -409,24 +409,6 @@ async function handleToolCallRequest(
     publishEvent(server, event);
     throw error;
   }
-}
-
-function cloneRequestWithoutConversationId(request: MCPRequest): MCPRequest {
-  if (!request.params || typeof request.params !== "object") {
-    return request;
-  }
-  const args = request.params.arguments;
-  if (!(args && typeof args === "object")) {
-    return request;
-  }
-  const stripped = stripConversationId(args);
-  return {
-    ...request,
-    params: {
-      ...request.params,
-      arguments: stripped as typeof request.params.arguments,
-    },
-  };
 }
 
 async function executeToolCall(

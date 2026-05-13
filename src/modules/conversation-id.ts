@@ -136,6 +136,25 @@ export function extractConversationId(args: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+export function cloneRequestWithoutConversationId<
+  TRequest extends { params?: { arguments?: unknown; [k: string]: unknown } },
+>(request: TRequest): TRequest {
+  if (!request.params || typeof request.params !== "object") {
+    return request;
+  }
+  const args = request.params.arguments;
+  if (!(args && typeof args === "object")) {
+    return request;
+  }
+  return {
+    ...request,
+    params: {
+      ...request.params,
+      arguments: stripConversationId(args) as typeof request.params.arguments,
+    },
+  };
+}
+
 export function stripConversationId(args: unknown): unknown {
   if (
     !args ||
@@ -165,18 +184,10 @@ export function injectConversationIdPromptBack(
   result: unknown,
   conversationId: string
 ): unknown {
-  if (!(result && typeof result === "object")) {
+  if (!canInjectConversationIdPromptBack(result)) {
     return result;
   }
-
-  const resultObj = result as { content?: unknown; isError?: unknown };
-  if (resultObj.isError === true) {
-    return result;
-  }
-  if (!Array.isArray(resultObj.content)) {
-    return result;
-  }
-
+  const resultObj = result as { content: unknown[] };
   return {
     ...resultObj,
     content: [
