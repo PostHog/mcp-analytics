@@ -6,7 +6,6 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import type {
   HighLevelMCPServerLike,
-  MCPAnalyticsOptions,
   MCPServerLike,
   UnredactedEvent,
 } from "../types.js";
@@ -19,6 +18,11 @@ import {
 import { publishEvent } from "./event-queue.js";
 import { MCPAnalyticsEventType } from "./event-types.js";
 import { captureException } from "./exceptions.js";
+import {
+  resolveToolCallIntent,
+  setEventIntent,
+  setExplicitContextIntent,
+} from "./intent.js";
 import {
   getServerTrackingData,
   handleIdentify,
@@ -56,7 +60,6 @@ function isToolResultError(result: unknown): boolean {
   );
 }
 
-// Track if we've already set up list tools tracing per server instance
 const listToolsTracingSetup = new WeakMap<MCPServerLike, boolean>();
 
 export function setupListToolsTracing(
@@ -64,13 +67,10 @@ export function setupListToolsTracing(
 ): void {
   const server = highLevelServer.server;
 
-  // Check if server supports tools capability
   if (!(server as MCPServerWithCapabilities)._capabilities?.tools) {
-    // Server doesn't support tools yet, skip setup
     return;
   }
 
-  // Check if we've already set up tracing for this server instance
   if (listToolsTracingSetup.get(server)) {
     return;
   }
@@ -78,7 +78,6 @@ export function setupListToolsTracing(
   const handlers = server._requestHandlers;
   const originalListToolsHandler = handlers.get("tools/list");
 
-  // No handler to override yet
   if (!originalListToolsHandler) {
     return;
   }
@@ -95,7 +94,6 @@ export function setupListToolsTracing(
         )
     );
 
-    // Mark as setup successful for this server instance
     listToolsTracingSetup.set(server, true);
   } catch (error) {
     writeToLog(`Warning: Failed to override list tools handler - ${error}`);
@@ -218,7 +216,6 @@ export function setupInitializeTracing(
 
         const sessionId = getServerSessionId(server, extra);
 
-        // Try to identify the session
         await handleIdentify(server, data, request, extra);
 
         const event: UnredactedEvent = {
@@ -273,7 +270,6 @@ export function setupToolCallTracing(server: MCPServerLike): void {
 
           const sessionId = getServerSessionId(server, extra);
 
-          // Try to identify the session
           await handleIdentify(server, data, request, extra);
 
           const event: UnredactedEvent = {
@@ -348,7 +344,7 @@ async function handleToolCallRequest(
   try {
     await handleIdentify(server, data, request, extra);
     await applyResolvedMetadata(event, data, request, extra);
-    setToolCallContext(event, data.options.context, request);
+    setEventIntent(event, await resolveToolCallIntent(data, request, extra));
 
     const result = await executeToolCall(
       server,
@@ -360,14 +356,18 @@ async function handleToolCallRequest(
     if (isToolResultError(result)) {
       event.isError = true;
       event.error = captureException(result);
+    } else {
+      event.isError = false;
     }
 
     event.response = result;
+    event.duration = getEventDuration(event);
     publishEvent(server, event);
     return result;
   } catch (error) {
     event.isError = true;
     event.error = captureException(error);
+    event.duration = getEventDuration(event);
     publishEvent(server, event);
     throw error;
   }
@@ -382,7 +382,7 @@ async function executeToolCall(
 ): Promise<unknown> {
   if (request.params?.name === "get_more_tools") {
     const context = getContextArgument(request) || "";
-    event.userIntent = context;
+    setExplicitContextIntent(event, context);
     return handleReportMissing({ context });
   }
 
@@ -412,23 +412,6 @@ async function applyResolvedMetadata(
   const resolvedProperties = await resolveEventProperties(data, request, extra);
   if (resolvedProperties) {
     event.properties = resolvedProperties;
-  }
-}
-
-function setToolCallContext(
-  event: UnredactedEvent,
-  context: MCPAnalyticsOptions["context"],
-  request: MCPRequest
-): void {
-  if (
-    !(isContextEnabled(context) && request.params?.name !== "get_more_tools")
-  ) {
-    return;
-  }
-
-  const contextArgument = getContextArgument(request);
-  if (contextArgument) {
-    event.userIntent = contextArgument;
   }
 }
 

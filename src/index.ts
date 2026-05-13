@@ -1,6 +1,3 @@
-// Import our minimal interface from types
-
-// Import from modules
 import {
   isCompatibleServerType,
   isHighLevelServer,
@@ -46,6 +43,7 @@ import type {
  * @param options.enableAITracing - Emits `$ai_span` events for tool calls so MCP activity appears in PostHog LLM analytics. Defaults to false.
  * @param options.enableTracing - Enables tracking of tool calls and usage patterns.
  * @param options.context - Enables the required "context" parameter on tools to capture user intent. Pass false to disable, or an object with a custom description.
+ * @param options.intentFallback - Optional consumer-supplied callback invoked when a tool call has no explicit `context` argument. Return a short user intent string to capture as `$mcp_intent` (with `$mcp_intent_source = "inferred"`). The SDK does not infer anything on its own — this is purely a slot for your own derivation logic (e.g. a switch on `request.params.name`, an LLM call, etc.). Runs on the hot path of every uncontextualized tool call.
  * @param options.identify - Async function to identify users and attach custom data to their sessions.
  * @param options.redactSensitiveInformation - Function to redact sensitive data before sending to PostHog.
  * @param options.eventTags - Callback invoked on every auto-captured event (tool calls, tool lists, initialize) to attach string key-value tags. Tags are intended to be indexed and queryable in PostHog — use them for structured metadata you'll want to filter or group by (e.g., trace IDs, environments, regions). Tags are validated client-side: keys must be ≤32 chars matching `[a-zA-Z0-9$_.:\- ]`, values must be strings ≤200 chars with no newlines, max 50 entries per event. Invalid entries are silently dropped with a warning logged to `~/posthog-mcp-analytics.log`. If the callback throws or returns null, tags are omitted. Receives the same `(request, extra)` arguments as `identify`.
@@ -144,7 +142,6 @@ function track<TServer>(
 
     configureIngestion(options);
 
-    // Check if server is already being tracked
     const existingData = getServerTrackingData(lowLevelServer);
     if (existingData) {
       writeToLog(
@@ -204,6 +201,7 @@ function buildTrackingData(
       enableAITracing: options.enableAITracing ?? false,
       enableTracing: options.enableTracing ?? true,
       context: options.context,
+      intentFallback: options.intentFallback,
       identify: options.identify,
       redactSensitiveInformation: options.redactSensitiveInformation,
       eventTags: options.eventTags,
@@ -212,7 +210,7 @@ function buildTrackingData(
       posthogClient: options.posthogClient,
       posthogOptions: options.posthogOptions,
     },
-    sessionSource: "generated", // Changes to "mcp" if MCP sessionId is provided in requests
+    sessionSource: "generated",
   };
 }
 
@@ -235,7 +233,6 @@ function setupTrackedServer(
 
     if (mcpAnalyticsData.options.enableTracing) {
       try {
-        // Pass the low-level server to the current tracing module
         setupToolCallTracing(lowLevelServer);
       } catch (error) {
         writeToLog(`Warning: Failed to setup tool call tracing - ${error}`);
@@ -306,19 +303,11 @@ function publishCustomEventSync(
 ): void {
   const target = resolveCustomEventTarget(serverOrSessionId, eventData);
 
-  // Build the event object
   const event: UnredactedEvent = {
-    // Core fields
     sessionId: target.sessionId,
     apiKey: target.apiKey,
-
-    // Fixed event type for custom events
     eventType: MCPAnalyticsEventType.custom,
-
-    // Timestamp
     timestamp: new Date(),
-
-    // Event data from parameters
     resourceName: eventData?.resourceName,
     parameters: eventData?.parameters,
     response: eventData?.response,
@@ -328,7 +317,6 @@ function publishCustomEventSync(
     error: resolveCustomEventError(eventData?.error),
   };
 
-  // Wire up customer-defined metadata
   if (eventData?.tags) {
     event.tags = validateTags(eventData.tags);
   }
@@ -336,8 +324,6 @@ function publishCustomEventSync(
     event.properties = eventData.properties;
   }
 
-  // If we have a tracked server, use the publishEvent function
-  // Otherwise, add directly to the event queue
   publishResolvedCustomEvent(target, event);
 
   writeToLog(
@@ -450,6 +436,7 @@ function publishResolvedCustomEvent(
 export type {
   CustomEventData,
   MCPAnalyticsContextOptions,
+  MCPAnalyticsIntentSource,
   MCPAnalyticsOptions,
   RedactFunction,
   UserIdentity,
@@ -458,5 +445,9 @@ export type {
 export type IdentifyFunction = MCPAnalyticsOptions["identify"];
 
 // biome-ignore lint/performance/noBarrelFile: the package entrypoint intentionally defines the public SDK API.
-export { PostHogMCPAnalyticsProperty } from "./modules/constants.js";
+export {
+  POSTHOG_MCP_ANALYTICS_SOURCE,
+  PostHogMCPAnalyticsEvent,
+  PostHogMCPAnalyticsProperty,
+} from "./modules/constants.js";
 export { track };

@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import {
+  POSTHOG_MCP_ANALYTICS_SOURCE,
+  PostHogMCPAnalyticsEvent,
+  PostHogMCPAnalyticsProperty,
+} from "../modules/constants.js";
 import { MCPAnalyticsEventType } from "../modules/event-types.js";
 import {
   buildPostHogCaptureEvents,
@@ -35,21 +40,89 @@ describe("buildPostHogCaptureEvents", () => {
   it("builds the regular MCP tool-call event payload", () => {
     const [event] = buildPostHogCaptureEvents(makeEvent());
 
-    expect(event.event).toBe("mcp_tool_call");
+    expect(event.event).toBe(PostHogMCPAnalyticsEvent.ToolCall);
     expect(event.type).toBe("capture");
     expect(event.distinct_id).toBe("ses_session456");
     expect(event.timestamp).toBe("2025-01-15T10:00:00.000Z");
 
-    expect(event.properties.$session_id).toBe("ses_session456");
-    expect(event.properties.$mcp_tool_name).toBe("get_weather");
-    expect(event.properties.$mcp_resource_name).toBe("get_weather");
-    expect(event.properties.$mcp_duration_ms).toBe(150);
-    expect(event.properties.$mcp_server_name).toBe("weather-server");
-    expect(event.properties.$mcp_server_version).toBe("1.0.0");
-    expect(event.properties.$mcp_client_name).toBe("claude-desktop");
-    expect(event.properties.$mcp_client_version).toBe("2.0.0");
-    expect(event.properties.$mcp_is_error).toBe(false);
+    expect(event.properties[PostHogMCPAnalyticsProperty.SessionId]).toBe(
+      "ses_session456"
+    );
+    expect(event.properties[PostHogMCPAnalyticsProperty.Source]).toBe(
+      POSTHOG_MCP_ANALYTICS_SOURCE
+    );
+    expect(event.properties[PostHogMCPAnalyticsProperty.ToolName]).toBe(
+      "get_weather"
+    );
+    expect(event.properties[PostHogMCPAnalyticsProperty.ResourceName]).toBe(
+      "get_weather"
+    );
+    expect(event.properties[PostHogMCPAnalyticsProperty.DurationMs]).toBe(150);
+    expect(event.properties[PostHogMCPAnalyticsProperty.ServerName]).toBe(
+      "weather-server"
+    );
+    expect(event.properties[PostHogMCPAnalyticsProperty.ServerVersion]).toBe(
+      "1.0.0"
+    );
+    expect(event.properties[PostHogMCPAnalyticsProperty.ClientName]).toBe(
+      "claude-desktop"
+    );
+    expect(event.properties[PostHogMCPAnalyticsProperty.ClientVersion]).toBe(
+      "2.0.0"
+    );
+    expect(event.properties[PostHogMCPAnalyticsProperty.IsError]).toBe(false);
     expect(event.properties).not.toHaveProperty("project_id");
+  });
+
+  it("keeps the canonical MCP analytics event contract stable", () => {
+    const events = buildPostHogCaptureEvents(
+      makeEvent({
+        duration: 250,
+        parameters: { city: "London" },
+        response: { temp: 15 },
+        userIntent: "Check the weather in London",
+        userIntentSource: "context_parameter",
+      }),
+      { enableAITracing: true }
+    );
+
+    const toolCall = findEvent(events, PostHogMCPAnalyticsEvent.ToolCall);
+    const span = findEvent(events, PostHogMCPAnalyticsEvent.AiSpan);
+
+    expect(toolCall?.properties).toEqual(
+      expect.objectContaining({
+        [PostHogMCPAnalyticsProperty.AiSpanId]: "evt_test123",
+        [PostHogMCPAnalyticsProperty.AiTraceId]: "ses_session456",
+        [PostHogMCPAnalyticsProperty.DurationMs]: 250,
+        [PostHogMCPAnalyticsProperty.Intent]: "Check the weather in London",
+        [PostHogMCPAnalyticsProperty.IntentSource]: "context_parameter",
+        [PostHogMCPAnalyticsProperty.IsError]: false,
+        [PostHogMCPAnalyticsProperty.Parameters]: { city: "London" },
+        [PostHogMCPAnalyticsProperty.Response]: { temp: 15 },
+        [PostHogMCPAnalyticsProperty.SessionId]: "ses_session456",
+        [PostHogMCPAnalyticsProperty.Source]: POSTHOG_MCP_ANALYTICS_SOURCE,
+        [PostHogMCPAnalyticsProperty.ToolName]: "get_weather",
+      })
+    );
+    expect(toolCall?.properties).not.toHaveProperty("$mcp_context");
+
+    expect(span?.properties).toEqual(
+      expect.objectContaining({
+        [PostHogMCPAnalyticsProperty.AiInputState]: { city: "London" },
+        [PostHogMCPAnalyticsProperty.AiIsError]: false,
+        [PostHogMCPAnalyticsProperty.AiLatency]: 0.25,
+        [PostHogMCPAnalyticsProperty.AiOutputState]: { temp: 15 },
+        [PostHogMCPAnalyticsProperty.AiSessionId]:
+          "posthog_mcp_analytics_ses_session456",
+        [PostHogMCPAnalyticsProperty.AiSpanId]: "evt_test123",
+        [PostHogMCPAnalyticsProperty.AiSpanName]: "get_weather",
+        [PostHogMCPAnalyticsProperty.AiTraceId]: "ses_session456",
+        [PostHogMCPAnalyticsProperty.Intent]: "Check the weather in London",
+        [PostHogMCPAnalyticsProperty.IntentSource]: "context_parameter",
+        [PostHogMCPAnalyticsProperty.SessionId]: "ses_session456",
+        [PostHogMCPAnalyticsProperty.Source]: POSTHOG_MCP_ANALYTICS_SOURCE,
+      })
+    );
   });
 
   it("uses identifyActorGivenId as distinct_id when available", () => {
@@ -182,18 +255,31 @@ describe("buildPostHogCaptureEvents", () => {
   });
 
   it("maps MCP event types to PostHog event names", () => {
-    const eventTypes: Record<string, string> = {
-      [MCPAnalyticsEventType.mcpToolsCall]: "mcp_tool_call",
-      [MCPAnalyticsEventType.mcpToolsList]: "mcp_tools_list",
-      [MCPAnalyticsEventType.mcpInitialize]: "mcp_initialize",
-      [MCPAnalyticsEventType.mcpResourcesRead]: "mcp_resource_read",
-      [MCPAnalyticsEventType.mcpResourcesList]: "mcp_resources_list",
-      [MCPAnalyticsEventType.mcpPromptsGet]: "mcp_prompt_get",
-      [MCPAnalyticsEventType.mcpPromptsList]: "mcp_prompts_list",
-      "mcp:custom/type": "mcp_custom_type",
-    };
+    const eventTypes = [
+      [MCPAnalyticsEventType.custom, PostHogMCPAnalyticsEvent.Custom],
+      [MCPAnalyticsEventType.identify, PostHogMCPAnalyticsEvent.Identify],
+      [MCPAnalyticsEventType.mcpToolsCall, PostHogMCPAnalyticsEvent.ToolCall],
+      [MCPAnalyticsEventType.mcpToolsList, PostHogMCPAnalyticsEvent.ToolsList],
+      [
+        MCPAnalyticsEventType.mcpInitialize,
+        PostHogMCPAnalyticsEvent.Initialize,
+      ],
+      [
+        MCPAnalyticsEventType.mcpResourcesRead,
+        PostHogMCPAnalyticsEvent.ResourceRead,
+      ],
+      [
+        MCPAnalyticsEventType.mcpResourcesList,
+        PostHogMCPAnalyticsEvent.ResourcesList,
+      ],
+      [MCPAnalyticsEventType.mcpPromptsGet, PostHogMCPAnalyticsEvent.PromptGet],
+      [
+        MCPAnalyticsEventType.mcpPromptsList,
+        PostHogMCPAnalyticsEvent.PromptsList,
+      ],
+    ] satisfies [MCPAnalyticsEventType, PostHogMCPAnalyticsEvent][];
 
-    for (const [input, expected] of Object.entries(eventTypes)) {
+    for (const [input, expected] of eventTypes) {
       const [event] = buildPostHogCaptureEvents(
         makeEvent({ eventType: input })
       );
@@ -230,6 +316,17 @@ describe("buildPostHogCaptureEvents", () => {
     );
 
     expect(event.properties.$mcp_intent).toBe("Check the weather in London");
+  });
+
+  it("maps userIntentSource to the MCP intent source property", () => {
+    const [event] = buildPostHogCaptureEvents(
+      makeEvent({
+        userIntent: "Check the weather in London",
+        userIntentSource: "inferred",
+      })
+    );
+
+    expect(event.properties.$mcp_intent_source).toBe("inferred");
   });
 
   it("emits $ai_span alongside regular event for tool calls when enableAITracing is true", () => {

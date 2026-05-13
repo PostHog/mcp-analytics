@@ -1,5 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { EventMessage, PostHogOptions } from "posthog-node";
+import type { MCPAnalyticsEventType } from "./modules/event-types.js";
 
 export type JsonRecord = Record<string, unknown>;
 
@@ -41,6 +42,10 @@ export interface MCPAnalyticsOptions {
     request: MCPRequestLike,
     extra?: CompatibleRequestHandlerExtra
   ) => Promise<UserIdentity | null>;
+  intentFallback?: (
+    request: MCPRequestLike,
+    extra?: CompatibleRequestHandlerExtra
+  ) => MaybePromise<string | null | undefined>;
   posthogClient?: PostHogCaptureClient;
   posthogOptions?: Pick<
     PostHogOptions,
@@ -60,6 +65,9 @@ export interface MCPAnalyticsOptions {
 export interface MCPAnalyticsContextOptions {
   description?: string;
 }
+
+export type MaybePromise<T> = T | Promise<T>;
+export type MCPAnalyticsIntentSource = "context_parameter" | "inferred";
 
 export type ToolCallback =
   | ((
@@ -91,9 +99,7 @@ export interface Event {
   error?: ErrorData | null;
   eventId?: string; // Custom event ID
 
-  // Event metadata
-  eventType: string; // Changed from enum to string for flexibility
-  // Core identification
+  eventType: MCPAnalyticsEventType;
   id: string;
   identifyActorData?: JsonRecord;
 
@@ -123,6 +129,7 @@ export interface Event {
   tags?: Record<string, string> | null;
   timestamp: Date;
   userIntent?: string;
+  userIntentSource?: MCPAnalyticsIntentSource;
 }
 
 export interface UnredactedEvent extends Partial<Event> {

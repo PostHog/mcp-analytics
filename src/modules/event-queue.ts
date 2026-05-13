@@ -7,6 +7,7 @@ import type {
   UnredactedEvent,
 } from "../types.js";
 import { getMCPCompatibleErrorMessage } from "./compatibility.js";
+import { MCPAnalyticsEventType } from "./event-types.js";
 import { newPrefixedId } from "./ids.js";
 import { getServerTrackingData } from "./internal.js";
 import { writeToLog } from "./logging.js";
@@ -141,7 +142,6 @@ class EventQueue {
         writeToLog(
           `Queued PostHog event ${event.id} | ${event.eventType} | ${event.duration} ms | ${event.identifyActorGivenId || "anonymous"}`
         );
-        writeToLog(`Event details: ${JSON.stringify(event)}`);
       } catch (error) {
         writeToLog(
           `Failed to queue PostHog event ${event.id}: ${getMCPCompatibleErrorMessage(error)}`
@@ -272,7 +272,7 @@ export function publishEvent(
     apiKey: data.apiKey,
 
     // Event metadata
-    eventType: eventInput.eventType || "",
+    eventType: eventInput.eventType || MCPAnalyticsEventType.custom,
     timestamp: eventInput.timestamp || new Date(),
     duration,
 
@@ -295,6 +295,7 @@ export function publishEvent(
     parameters: eventInput.parameters,
     response: eventInput.response,
     userIntent: eventInput.userIntent,
+    userIntentSource: eventInput.userIntentSource,
     isError: eventInput.isError,
     error: eventInput.error,
 

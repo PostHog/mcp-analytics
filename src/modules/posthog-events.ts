@@ -1,12 +1,24 @@
 import type { Event } from "../types.js";
 import {
   POSTHOG_MCP_ANALYTICS_SOURCE,
+  PostHogMCPAnalyticsEvent,
   PostHogMCPAnalyticsProperty,
 } from "./constants.js";
 import { MCPAnalyticsEventType } from "./event-types.js";
 
-const MCP_EVENT_PREFIX_REGEX = /^mcp:/;
-const SLASH_REGEX = /\//g;
+const BUILT_IN_EVENT_NAME_BY_TYPE = {
+  [MCPAnalyticsEventType.custom]: PostHogMCPAnalyticsEvent.Custom,
+  [MCPAnalyticsEventType.identify]: PostHogMCPAnalyticsEvent.Identify,
+  [MCPAnalyticsEventType.mcpInitialize]: PostHogMCPAnalyticsEvent.Initialize,
+  [MCPAnalyticsEventType.mcpPromptsGet]: PostHogMCPAnalyticsEvent.PromptGet,
+  [MCPAnalyticsEventType.mcpPromptsList]: PostHogMCPAnalyticsEvent.PromptsList,
+  [MCPAnalyticsEventType.mcpResourcesList]:
+    PostHogMCPAnalyticsEvent.ResourcesList,
+  [MCPAnalyticsEventType.mcpResourcesRead]:
+    PostHogMCPAnalyticsEvent.ResourceRead,
+  [MCPAnalyticsEventType.mcpToolsCall]: PostHogMCPAnalyticsEvent.ToolCall,
+  [MCPAnalyticsEventType.mcpToolsList]: PostHogMCPAnalyticsEvent.ToolsList,
+} satisfies Record<MCPAnalyticsEventType, PostHogMCPAnalyticsEvent>;
 
 function getDistinctId(event: Event): string {
   return event.identifyActorGivenId || event.sessionId || "anonymous";
@@ -52,7 +64,6 @@ function buildCaptureEvent(
   options: BuildPostHogCaptureEventsOptions
 ): PostHogCaptureEvent {
   const distinctId = getDistinctId(event);
-  const eventName = mapEventType(event.eventType);
   const timestamp = getTimestamp(event);
 
   const properties: Record<string, unknown> = {
@@ -65,7 +76,7 @@ function buildCaptureEvent(
   addCustomEventProperties(event, properties);
 
   return {
-    event: eventName,
+    event: BUILT_IN_EVENT_NAME_BY_TYPE[event.eventType],
     distinct_id: distinctId,
     properties,
     timestamp,
@@ -131,6 +142,10 @@ function addCommonEventProperties(
   }
   if (event.userIntent) {
     properties[PostHogMCPAnalyticsProperty.Intent] = event.userIntent;
+  }
+  if (event.userIntentSource) {
+    properties[PostHogMCPAnalyticsProperty.IntentSource] =
+      event.userIntentSource;
   }
   if (event.isError !== undefined) {
     properties[PostHogMCPAnalyticsProperty.IsError] = event.isError;
@@ -213,7 +228,7 @@ function buildExceptionEvent(event: Event): PostHogCaptureEvent {
   }
 
   return {
-    event: "$exception",
+    event: PostHogMCPAnalyticsEvent.Exception,
     distinct_id: distinctId,
     properties,
     timestamp,
@@ -257,6 +272,10 @@ function buildAISpanEvent(event: Event): PostHogCaptureEvent {
   if (event.userIntent) {
     properties[PostHogMCPAnalyticsProperty.Intent] = event.userIntent;
   }
+  if (event.userIntentSource) {
+    properties[PostHogMCPAnalyticsProperty.IntentSource] =
+      event.userIntentSource;
+  }
 
   if (event.tags) {
     for (const [key, value] of Object.entries(event.tags)) {
@@ -271,27 +290,10 @@ function buildAISpanEvent(event: Event): PostHogCaptureEvent {
   }
 
   return {
-    event: "$ai_span",
+    event: PostHogMCPAnalyticsEvent.AiSpan,
     distinct_id: distinctId,
     properties,
     timestamp,
     type: "capture",
   };
-}
-
-function mapEventType(eventType: string): string {
-  const mapping: Record<string, string> = {
-    [MCPAnalyticsEventType.mcpToolsCall]: "mcp_tool_call",
-    [MCPAnalyticsEventType.mcpToolsList]: "mcp_tools_list",
-    [MCPAnalyticsEventType.mcpInitialize]: "mcp_initialize",
-    [MCPAnalyticsEventType.mcpResourcesRead]: "mcp_resource_read",
-    [MCPAnalyticsEventType.mcpResourcesList]: "mcp_resources_list",
-    [MCPAnalyticsEventType.mcpPromptsGet]: "mcp_prompt_get",
-    [MCPAnalyticsEventType.mcpPromptsList]: "mcp_prompts_list",
-  };
-
-  return (
-    mapping[eventType] ||
-    `mcp_${eventType.replace(MCP_EVENT_PREFIX_REGEX, "").replace(SLASH_REGEX, "_")}`
-  );
 }
