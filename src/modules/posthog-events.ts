@@ -143,6 +143,10 @@ function addCommonEventProperties(
   if (event.userIntent) {
     properties[PostHogMCPAnalyticsProperty.Intent] = event.userIntent;
   }
+  if (event.userIntentSource) {
+    properties[PostHogMCPAnalyticsProperty.IntentSource] =
+      event.userIntentSource;
+  }
   if (event.isError !== undefined) {
     properties[PostHogMCPAnalyticsProperty.IsError] = event.isError;
   }
@@ -267,6 +271,10 @@ function buildAISpanEvent(event: Event): PostHogCaptureEvent {
   }
   if (event.userIntent) {
     properties[PostHogMCPAnalyticsProperty.Intent] = event.userIntent;
+  }
+  if (event.userIntentSource) {
+    properties[PostHogMCPAnalyticsProperty.IntentSource] =
+      event.userIntentSource;
   }
 
   if (event.tags) {

@@ -6,10 +6,14 @@ import type {
   RegisteredTool,
   UnredactedEvent,
 } from "../types.js";
-import { isContextEnabled } from "./context-parameters.js";
 import { publishEvent } from "./event-queue.js";
 import { MCPAnalyticsEventType } from "./event-types.js";
 import { captureException } from "./exceptions.js";
+import {
+  resolveToolCallIntent,
+  setEventIntent,
+  setExplicitContextIntent,
+} from "./intent.js";
 import {
   getServerTrackingData,
   handleIdentify,
@@ -347,10 +351,7 @@ async function initializeToolCallEvent(
     event.sessionId = data.sessionId;
     await applyResolvedMetadata(event, data, request, extra);
 
-    const contextArgument = getContextArgument(request);
-    if (isContextEnabled(data.options.context) && contextArgument) {
-      event.userIntent = contextArgument;
-    }
+    setEventIntent(event, await resolveToolCallIntent(data, request, extra));
 
     return { event, shouldPublishEvent: true };
   } catch (error) {
@@ -390,6 +391,7 @@ async function executeReportMissingTool(
     });
     publishSuccessfulToolEvent(server, tracing, result, startTime, {
       userIntent: context,
+      userIntentSource: "context_parameter",
     });
     return result;
   } catch (error) {
@@ -437,6 +439,7 @@ function publishSuccessfulToolEvent(
     capturedError?: unknown;
     clearCapturedError?: () => void;
     userIntent?: string;
+    userIntentSource?: UnredactedEvent["userIntentSource"];
   } = {}
 ): void {
   if (!(tracing.event && tracing.shouldPublishEvent)) {
@@ -444,7 +447,10 @@ function publishSuccessfulToolEvent(
   }
 
   if (options.userIntent) {
-    tracing.event.userIntent = options.userIntent;
+    setExplicitContextIntent(tracing.event, options.userIntent);
+    if (options.userIntentSource) {
+      tracing.event.userIntentSource = options.userIntentSource;
+    }
   }
   if (isToolResultError(result)) {
     tracing.event.isError = true;

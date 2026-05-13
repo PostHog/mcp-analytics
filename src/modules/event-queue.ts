@@ -295,6 +295,7 @@ export function publishEvent(
     parameters: eventInput.parameters,
     response: eventInput.response,
     userIntent: eventInput.userIntent,
+    userIntentSource: eventInput.userIntentSource,
     isError: eventInput.isError,
     error: eventInput.error,
 

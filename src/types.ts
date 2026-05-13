@@ -42,6 +42,10 @@ export interface MCPAnalyticsOptions {
     request: MCPRequestLike,
     extra?: CompatibleRequestHandlerExtra
   ) => Promise<UserIdentity | null>;
+  intentFallback?: (
+    request: MCPRequestLike,
+    extra?: CompatibleRequestHandlerExtra
+  ) => MaybePromise<string | null | undefined>;
   posthogClient?: PostHogCaptureClient;
   posthogOptions?: Pick<
     PostHogOptions,
@@ -61,6 +65,9 @@ export interface MCPAnalyticsOptions {
 export interface MCPAnalyticsContextOptions {
   description?: string;
 }
+
+export type MaybePromise<T> = T | Promise<T>;
+export type MCPAnalyticsIntentSource = "context_parameter" | "inferred";
 
 export type ToolCallback =
   | ((
@@ -122,6 +129,7 @@ export interface Event {
   tags?: Record<string, string> | null;
   timestamp: Date;
   userIntent?: string;
+  userIntentSource?: MCPAnalyticsIntentSource;
 }
 
 export interface UnredactedEvent extends Partial<Event> {

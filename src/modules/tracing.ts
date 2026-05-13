@@ -6,7 +6,6 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import type {
   HighLevelMCPServerLike,
-  MCPAnalyticsOptions,
   MCPServerLike,
   UnredactedEvent,
 } from "../types.js";
@@ -19,6 +18,11 @@ import {
 import { publishEvent } from "./event-queue.js";
 import { MCPAnalyticsEventType } from "./event-types.js";
 import { captureException } from "./exceptions.js";
+import {
+  resolveToolCallIntent,
+  setEventIntent,
+  setExplicitContextIntent,
+} from "./intent.js";
 import {
   getServerTrackingData,
   handleIdentify,
@@ -340,7 +344,7 @@ async function handleToolCallRequest(
   try {
     await handleIdentify(server, data, request, extra);
     await applyResolvedMetadata(event, data, request, extra);
-    setToolCallContext(event, data.options.context, request);
+    setEventIntent(event, await resolveToolCallIntent(data, request, extra));
 
     const result = await executeToolCall(
       server,
@@ -378,7 +382,7 @@ async function executeToolCall(
 ): Promise<unknown> {
   if (request.params?.name === "get_more_tools") {
     const context = getContextArgument(request) || "";
-    event.userIntent = context;
+    setExplicitContextIntent(event, context);
     return handleReportMissing({ context });
   }
 
@@ -408,23 +412,6 @@ async function applyResolvedMetadata(
   const resolvedProperties = await resolveEventProperties(data, request, extra);
   if (resolvedProperties) {
     event.properties = resolvedProperties;
-  }
-}
-
-function setToolCallContext(
-  event: UnredactedEvent,
-  context: MCPAnalyticsOptions["context"],
-  request: MCPRequest
-): void {
-  if (
-    !(isContextEnabled(context) && request.params?.name !== "get_more_tools")
-  ) {
-    return;
-  }
-
-  const contextArgument = getContextArgument(request);
-  if (contextArgument) {
-    event.userIntent = contextArgument;
   }
 }
 

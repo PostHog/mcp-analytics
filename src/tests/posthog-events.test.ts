@@ -81,6 +81,7 @@ describe("buildPostHogCaptureEvents", () => {
         parameters: { city: "London" },
         response: { temp: 15 },
         userIntent: "Check the weather in London",
+        userIntentSource: "context_parameter",
       }),
       { enableAITracing: true }
     );
@@ -94,6 +95,7 @@ describe("buildPostHogCaptureEvents", () => {
         [PostHogMCPAnalyticsProperty.AiTraceId]: "ses_session456",
         [PostHogMCPAnalyticsProperty.DurationMs]: 250,
         [PostHogMCPAnalyticsProperty.Intent]: "Check the weather in London",
+        [PostHogMCPAnalyticsProperty.IntentSource]: "context_parameter",
         [PostHogMCPAnalyticsProperty.IsError]: false,
         [PostHogMCPAnalyticsProperty.Parameters]: { city: "London" },
         [PostHogMCPAnalyticsProperty.Response]: { temp: 15 },
@@ -116,6 +118,7 @@ describe("buildPostHogCaptureEvents", () => {
         [PostHogMCPAnalyticsProperty.AiSpanName]: "get_weather",
         [PostHogMCPAnalyticsProperty.AiTraceId]: "ses_session456",
         [PostHogMCPAnalyticsProperty.Intent]: "Check the weather in London",
+        [PostHogMCPAnalyticsProperty.IntentSource]: "context_parameter",
         [PostHogMCPAnalyticsProperty.SessionId]: "ses_session456",
         [PostHogMCPAnalyticsProperty.Source]: POSTHOG_MCP_ANALYTICS_SOURCE,
       })
@@ -313,6 +316,17 @@ describe("buildPostHogCaptureEvents", () => {
     );
 
     expect(event.properties.$mcp_intent).toBe("Check the weather in London");
+  });
+
+  it("maps userIntentSource to the MCP intent source property", () => {
+    const [event] = buildPostHogCaptureEvents(
+      makeEvent({
+        userIntent: "Check the weather in London",
+        userIntentSource: "inferred",
+      })
+    );
+
+    expect(event.properties.$mcp_intent_source).toBe("inferred");
   });
 
   it("emits $ai_span alongside regular event for tool calls when enableAITracing is true", () => {

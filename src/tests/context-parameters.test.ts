@@ -2,7 +2,7 @@ import {
   CallToolResultSchema,
   ListToolsResultSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "../index";
 import { DEFAULT_CONTEXT_PARAMETER_DESCRIPTION } from "../modules/constants";
 import { addContextParameterToTools } from "../modules/context-parameters";
@@ -303,6 +303,88 @@ describe("Context Parameters", () => {
         (e) => e.userIntent === "Listing todos to check current status"
       );
       expect(eventWithContext).toBeDefined();
+
+      await eventCapture.stop();
+    });
+
+    it("should capture intent from intentFallback when context is missing", async () => {
+      const eventCapture = new EventCapture();
+      await eventCapture.start();
+
+      track(server, {
+        apiKey: "test-project",
+        context: true,
+        intentFallback: (request) =>
+          request.params?.name === "list_todos"
+            ? "Inspecting the todo list"
+            : undefined,
+      });
+
+      const result = await client.request(
+        {
+          method: "tools/call",
+          params: {
+            name: "list_todos",
+            arguments: {},
+          },
+        },
+        CallToolResultSchema
+      );
+
+      expect(result.content[0].text).toBeDefined();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const event = eventCapture
+        .getEvents()
+        .find(
+          (candidate) =>
+            candidate.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+            candidate.resourceName === "list_todos"
+        );
+
+      expect(event?.userIntent).toBe("Inspecting the todo list");
+      expect(event?.userIntentSource).toBe("inferred");
+
+      await eventCapture.stop();
+    });
+
+    it("should prefer explicit context over intentFallback", async () => {
+      const eventCapture = new EventCapture();
+      await eventCapture.start();
+      const intentFallback = vi.fn(() => "Fallback intent");
+
+      track(server, {
+        apiKey: "test-project",
+        context: true,
+        intentFallback,
+      });
+
+      await client.request(
+        {
+          method: "tools/call",
+          params: {
+            name: "list_todos",
+            arguments: {
+              context: "Listing todos to inspect current work",
+            },
+          },
+        },
+        CallToolResultSchema
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const event = eventCapture
+        .getEvents()
+        .find(
+          (candidate) =>
+            candidate.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+            candidate.resourceName === "list_todos"
+        );
+
+      expect(event?.userIntent).toBe("Listing todos to inspect current work");
+      expect(event?.userIntentSource).toBe("context_parameter");
+      expect(intentFallback).not.toHaveBeenCalled();
 
       await eventCapture.stop();
     });

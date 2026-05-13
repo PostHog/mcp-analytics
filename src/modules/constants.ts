@@ -35,6 +35,7 @@ export const PostHogMCPAnalyticsProperty = {
   DurationMs: "$mcp_duration_ms",
   IsError: "$mcp_is_error",
   Intent: "$mcp_intent",
+  IntentSource: "$mcp_intent_source",
   Parameters: "$mcp_parameters",
   ResourceName: "$mcp_resource_name",
   Response: "$mcp_response",
