@@ -1,5 +1,11 @@
 # @posthog/mcp
 
+## 0.0.3
+
+### Patch Changes
+
+- 26c8992: Stabilize MCP analytics event contracts for tool-call duration, success state, and exported event constants.
+
 ## 0.0.2
 
 ### Patch Changes
