@@ -6,6 +6,13 @@ import type {
   RegisteredTool,
   UnredactedEvent,
 } from "../types.js";
+import {
+  type ConversationIdResolution,
+  canInjectConversationIdPromptBack,
+  injectConversationIdPromptBack,
+  resolveConversationId,
+  stripConversationId,
+} from "./conversation-id.js";
 import { publishEvent } from "./event-queue.js";
 import { MCPAnalyticsEventType } from "./event-types.js";
 import { captureException } from "./exceptions.js";
@@ -30,7 +37,7 @@ import {
   hasToolFunction,
 } from "./mcp-sdk-compat.js";
 import { getServerSessionId } from "./session.js";
-import { handleReportMissing } from "./tools.js";
+import { GET_MORE_TOOLS_NAME, handleReportMissing } from "./tools.js";
 import { setupInitializeTracing, setupListToolsTracing } from "./tracing.js";
 
 type MCPRequestHandler = NonNullable<
@@ -215,16 +222,18 @@ function addTracingToToolCallbackInternal(
       extra = params[0] as CompatibleRequestHandlerExtra;
     }
 
-    const removeContextFromArgs = (args: unknown): unknown => {
-      if (args && typeof args === "object" && "context" in args) {
-        const { context: _context, ...argsWithoutContext } = args;
-        return argsWithoutContext;
+    const removeContextFromArgs = (input: unknown): unknown => {
+      if (input && typeof input === "object" && "context" in input) {
+        const { context: _context, ...rest } = input;
+        return rest;
       }
-      return args;
+      return input;
     };
 
     const cleanedArgs =
-      toolName === "get_more_tools" ? args : removeContextFromArgs(args);
+      toolName === "get_more_tools"
+        ? args
+        : stripConversationId(removeContextFromArgs(args));
 
     try {
       if (cleanedArgs === undefined) {
@@ -295,6 +304,12 @@ function createToolsCallWrapper(
     await handleWrappedToolsCall(originalHandler, server, request, extra);
 }
 
+interface ToolCallTracing {
+  event: UnredactedEvent | null;
+  mintedConversationId: string | undefined;
+  shouldPublishEvent: boolean;
+}
+
 async function handleWrappedToolsCall(
   originalHandler: MCPRequestHandler,
   server: MCPServerLike,
@@ -302,14 +317,24 @@ async function handleWrappedToolsCall(
   extra: MCPRequestExtra
 ): Promise<unknown> {
   const startTime = new Date();
+  const conversation = resolveConversationId(
+    getServerTrackingData(server)?.options.enableConversationId ?? false,
+    request.params?.arguments,
+    request.params?.name
+  );
+  const downstreamRequest = conversation.conversationId
+    ? cloneRequestWithoutConversationId(request)
+    : request;
   const tracing = await initializeToolCallEvent(
     server,
     request,
+    downstreamRequest,
     extra,
-    startTime
+    startTime,
+    conversation
   );
 
-  if (request?.params?.name === "get_more_tools") {
+  if (request?.params?.name === GET_MORE_TOOLS_NAME) {
     return await executeReportMissingTool(server, request, tracing, startTime);
   }
 
@@ -323,25 +348,50 @@ async function handleWrappedToolsCall(
   );
 }
 
+function cloneRequestWithoutConversationId(request: MCPRequest): MCPRequest {
+  if (!request.params || typeof request.params !== "object") {
+    return request;
+  }
+  const args = request.params.arguments;
+  if (!(args && typeof args === "object")) {
+    return request;
+  }
+  const stripped = stripConversationId(args);
+  return {
+    ...request,
+    params: {
+      ...request.params,
+      arguments: stripped as typeof request.params.arguments,
+    },
+  };
+}
+
 async function initializeToolCallEvent(
   server: MCPServerLike,
   request: MCPRequest,
+  downstreamRequest: MCPRequest,
   extra: MCPRequestExtra,
-  startTime: Date
-): Promise<{ event: UnredactedEvent | null; shouldPublishEvent: boolean }> {
+  startTime: Date,
+  conversation: ConversationIdResolution
+): Promise<ToolCallTracing> {
   try {
     const data = getServerTrackingData(server);
     if (!data) {
       writeToLog(
         "Warning: PostHog MCP analytics is unable to find server tracking data. Please ensure you have called track(server, options) before using tool calls."
       );
-      return { event: null, shouldPublishEvent: false };
+      return {
+        event: null,
+        mintedConversationId: undefined,
+        shouldPublishEvent: false,
+      };
     }
 
     const event: UnredactedEvent = {
       sessionId: getServerSessionId(server, extra),
+      conversationId: conversation.conversationId,
       resourceName: request.params?.name || "Unknown Tool",
-      parameters: buildCapturedMcpParameters(request),
+      parameters: buildCapturedMcpParameters(downstreamRequest),
       eventType: MCPAnalyticsEventType.mcpToolsCall,
       timestamp: startTime,
       redactionFn: data.options.redactSensitiveInformation,
@@ -353,12 +403,22 @@ async function initializeToolCallEvent(
 
     setEventIntent(event, await resolveToolCallIntent(data, request, extra));
 
-    return { event, shouldPublishEvent: true };
+    return {
+      event,
+      mintedConversationId: conversation.minted
+        ? conversation.conversationId
+        : undefined,
+      shouldPublishEvent: true,
+    };
   } catch (error) {
     writeToLog(
       `Warning: PostHog MCP analytics tracing failed for tool ${request.params?.name}, falling back to original handler - ${error}`
     );
-    return { event: null, shouldPublishEvent: false };
+    return {
+      event: null,
+      mintedConversationId: undefined,
+      shouldPublishEvent: false,
+    };
   }
 }
 
@@ -381,7 +441,7 @@ async function applyResolvedMetadata(
 async function executeReportMissingTool(
   server: MCPServerLike,
   request: MCPRequest,
-  tracing: { event: UnredactedEvent | null; shouldPublishEvent: boolean },
+  tracing: ToolCallTracing,
   startTime: Date
 ): Promise<unknown> {
   try {
@@ -405,12 +465,25 @@ async function executeOriginalTool(
   server: MCPServerLike,
   request: MCPRequest,
   extra: MCPRequestExtra,
-  tracing: { event: UnredactedEvent | null; shouldPublishEvent: boolean },
+  tracing: ToolCallTracing,
   startTime: Date
 ): Promise<unknown> {
   try {
     const result = await originalHandler(request, extra);
-    publishSuccessfulToolEvent(server, tracing, result, startTime, {
+    let finalResult = result;
+    if (tracing.mintedConversationId) {
+      if (canInjectConversationIdPromptBack(result)) {
+        finalResult = injectConversationIdPromptBack(
+          result,
+          tracing.mintedConversationId
+        );
+      } else if (tracing.event) {
+        // Minted but undeliverable — agent will never see the id; drop it
+        // from the captured event so it doesn't appear as an orphan.
+        tracing.event.conversationId = undefined;
+      }
+    }
+    publishSuccessfulToolEvent(server, tracing, finalResult, startTime, {
       capturedError: extra?.__mcp_analytics_error,
       clearCapturedError: () => {
         if (extra) {
@@ -418,8 +491,11 @@ async function executeOriginalTool(
         }
       },
     });
-    return result;
+    return finalResult;
   } catch (error) {
+    if (tracing.mintedConversationId && tracing.event) {
+      tracing.event.conversationId = undefined;
+    }
     publishFailedToolEvent(server, tracing, error, startTime);
     throw error;
   }
@@ -432,7 +508,7 @@ function getContextArgument(request: MCPRequest): string | undefined {
 
 function publishSuccessfulToolEvent(
   server: MCPServerLike,
-  tracing: { event: UnredactedEvent | null; shouldPublishEvent: boolean },
+  tracing: ToolCallTracing,
   result: unknown,
   startTime: Date,
   options: {
@@ -467,7 +543,7 @@ function publishSuccessfulToolEvent(
 
 function publishFailedToolEvent(
   server: MCPServerLike,
-  tracing: { event: UnredactedEvent | null; shouldPublishEvent: boolean },
+  tracing: ToolCallTracing,
   error: unknown,
   startTime: Date
 ): void {

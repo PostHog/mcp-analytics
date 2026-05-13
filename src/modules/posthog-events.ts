@@ -70,6 +70,7 @@ function buildCaptureEvent(
     [PostHogMCPAnalyticsProperty.SessionId]: event.sessionId,
     [PostHogMCPAnalyticsProperty.Source]: POSTHOG_MCP_ANALYTICS_SOURCE,
   };
+  addConversationIdProperty(event, properties);
 
   addCommonEventProperties(event, properties);
   addTraceReferenceProperties(event, properties, options);
@@ -113,6 +114,16 @@ function addTraceReferenceProperties(
 
   properties[PostHogMCPAnalyticsProperty.AiTraceId] = getAITraceId(event);
   properties[PostHogMCPAnalyticsProperty.AiSpanId] = getAISpanId(event);
+}
+
+function addConversationIdProperty(
+  event: Event,
+  properties: Record<string, unknown>
+): void {
+  if (event.conversationId !== undefined && event.conversationId !== "") {
+    properties[PostHogMCPAnalyticsProperty.ConversationId] =
+      event.conversationId;
+  }
 }
 
 function addCommonEventProperties(
@@ -195,6 +206,7 @@ function buildExceptionEvent(event: Event): PostHogCaptureEvent {
     $exception_source: "backend",
     [PostHogMCPAnalyticsProperty.SessionId]: event.sessionId,
   };
+  addConversationIdProperty(event, properties);
 
   if (event.error) {
     if (event.error.message) {
@@ -250,6 +262,7 @@ function buildAISpanEvent(event: Event): PostHogCaptureEvent {
     [PostHogMCPAnalyticsProperty.SessionId]: event.sessionId,
     [PostHogMCPAnalyticsProperty.Source]: POSTHOG_MCP_ANALYTICS_SOURCE,
   };
+  addConversationIdProperty(event, properties);
 
   if (event.duration !== undefined) {
     properties[PostHogMCPAnalyticsProperty.AiLatency] = event.duration / 1000;

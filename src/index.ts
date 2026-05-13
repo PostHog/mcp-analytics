@@ -209,6 +209,7 @@ function buildTrackingData(
       host: options.host,
       posthogClient: options.posthogClient,
       posthogOptions: options.posthogOptions,
+      enableConversationId: options.enableConversationId ?? false,
     },
     sessionSource: "generated",
   };
