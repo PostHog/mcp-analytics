@@ -191,7 +191,10 @@ describe("buildPostHogCaptureEvents", () => {
       })
     );
 
-    const exceptionEvent = findEvent(events, PostHogMCPAnalyticsEvent.Exception);
+    const exceptionEvent = findEvent(
+      events,
+      PostHogMCPAnalyticsEvent.Exception
+    );
 
     expect(exceptionEvent?.properties.$mcp_organization_id).toBe("org_123");
     expect(exceptionEvent?.properties.deployment).toBe("prod");
