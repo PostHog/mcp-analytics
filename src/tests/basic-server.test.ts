@@ -590,4 +590,39 @@ describe("Basic Server Test", () => {
       await cleanup();
     }
   });
+
+  it("captures listed tool names on mcp_tools_list events", async () => {
+    resetTodos();
+    const { server, client, cleanup } = await setupTestServerAndClient();
+    const eventCapture = new EventCapture();
+    await eventCapture.start();
+
+    try {
+      const { track } = await import("../index.js");
+      await track(server, {
+        apiKey: "test-listed-tool-names",
+        enableTracing: true,
+      });
+
+      await client.request(
+        { method: "tools/list", params: {} },
+        ListToolsResultSchema
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const listEvent = eventCapture
+        .getEvents()
+        .find(
+          (event) => event.eventType === MCPAnalyticsEventType.mcpToolsList
+        );
+
+      expect(listEvent?.listedToolNames).toEqual(
+        expect.arrayContaining(["add_todo", "list_todos", "complete_todo"])
+      );
+      await eventCapture.stop();
+    } finally {
+      await cleanup();
+    }
+  });
 });

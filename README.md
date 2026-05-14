@@ -103,6 +103,7 @@ Important properties:
 - `$mcp_intent_source` as `context_parameter` or `inferred`
 - `$mcp_tool_name` and `$mcp_resource_name`
 - `$mcp_tool_description`, the tool's current `description` at the moment of the call — populated on `mcp_tool_call` and on the paired `$exception` event so the description is visible inline while triaging
+- `$mcp_listed_tool_names`, the array of tool names advertised in a `tools/list` response — populated on `mcp_tools_list` events so you can correlate "tools the agent was offered" with "tools the agent actually called" (e.g. find advertised tools that never get picked)
 - `$mcp_parameters` and `$mcp_response`, after redaction and truncation
 - `$mcp_duration_ms`
 - `$mcp_is_error`

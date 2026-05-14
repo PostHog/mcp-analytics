@@ -153,10 +153,23 @@ async function handleListToolsRequest(
   }
 
   event.response = { tools };
+  event.listedToolNames = collectListedToolNames(tools);
   event.isError = false;
   event.duration = getEventDuration(event);
   publishEvent(server, event);
   return { tools };
+}
+
+function collectListedToolNames(
+  tools: ListToolsResult["tools"] | undefined
+): string[] | undefined {
+  if (!tools || tools.length === 0) {
+    return;
+  }
+  const names = tools
+    .map((tool) => tool?.name)
+    .filter((name): name is string => typeof name === "string");
+  return names.length > 0 ? names : undefined;
 }
 
 async function getTracedToolsList(

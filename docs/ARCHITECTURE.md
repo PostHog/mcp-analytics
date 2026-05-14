@@ -89,7 +89,7 @@ All events are emitted by `buildPostHogCaptureEvents`. The main event name is co
 | PostHog event | When | Notable extras |
 |---|---|---|
 | `mcp_tool_call` | Every tool invocation | `$mcp_tool_name`, `$mcp_tool_description`, `$mcp_parameters`, `$mcp_response`, `$mcp_duration_ms`, `$mcp_is_error`, optionally `$mcp_intent` / `$mcp_intent_source`, AI trace refs if AI tracing on |
-| `mcp_tools_list` | Client lists tools | No tool-specific fields; useful for "did this client discover us?" |
+| `mcp_tools_list` | Client lists tools | `$mcp_listed_tool_names` (array of tool names advertised in the response); useful for "did this client discover us?" and "which advertised tools never get called?" |
 | `mcp_initialize` | Client/server handshake | `$mcp_client_name`, `$mcp_client_version`, `$mcp_server_name`, `$mcp_server_version` |
 | `mcp_resources_list` | Client lists resources | — |
 | `mcp_resource_read` | Resource fetched | `$mcp_resource_name`, `$mcp_parameters`, `$mcp_response` |
@@ -117,6 +117,7 @@ All wire keys live in `PostHogMCPAnalyticsProperty` (`src/modules/constants.ts:6
 | `ResourceName` | `$mcp_resource_name` | string | Tool / resource / prompt name |
 | `ToolName` | `$mcp_tool_name` | string | Same as `ResourceName`, but **only on `mcp_tool_call`** |
 | `ToolDescription` | `$mcp_tool_description` | string | Tool's current `description` at call time. Cached from `tools/list` and (for high-level `McpServer`) seeded from `_registeredTools`. Only on `mcp_tool_call` and the paired `$exception` event |
+| `ListedToolNames` | `$mcp_listed_tool_names` | string[] | Names of tools advertised in a `tools/list` response. Only on `mcp_tools_list` events. Lets you join with `mcp_tool_call` via `$session_id` to find advertised-but-uncalled tools (HogQL `arrayJoin(properties.$mcp_listed_tool_names)`). Only meaningful in multi-tool mode — in single-exec mode the list always contains just `exec` |
 | `DurationMs` | `$mcp_duration_ms` | number (ms) | Wall-clock duration |
 | `IsError` | `$mcp_is_error` | boolean | Set from tool result or thrown exception |
 | `ServerName` | `$mcp_server_name` | string | `server._serverInfo.name` |
@@ -247,6 +248,27 @@ INNER JOIN events s
 WHERE c.event = 'mcp_tool_call'
   AND c.timestamp > now() - INTERVAL 24 HOUR
 LIMIT 100
+```
+
+### Advertised tools that never get called
+Find tools listed in `tools/list` responses but never invoked. Only meaningful in multi-tool registration mode — in single-exec mode the listed array always contains just `exec`.
+```sql
+WITH listed AS (
+  SELECT DISTINCT arrayJoin(properties.$mcp_listed_tool_names) AS tool_name
+  FROM events
+  WHERE event = 'mcp_tools_list'
+    AND timestamp > now() - INTERVAL 30 DAY
+),
+called AS (
+  SELECT DISTINCT properties.$mcp_tool_name AS tool_name
+  FROM events
+  WHERE event = 'mcp_tool_call'
+    AND timestamp > now() - INTERVAL 30 DAY
+)
+SELECT tool_name AS zombie_tool
+FROM listed
+WHERE tool_name NOT IN (SELECT tool_name FROM called)
+ORDER BY tool_name
 ```
 
 ### Active sessions per client
