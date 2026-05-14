@@ -15,6 +15,7 @@ const PROTECTED_FIELDS = new Set([
   "identifyData",
   "resourceName",
   "toolDescription",
+  "listedToolNames",
   "eventType",
   "actorId",
   "tags",

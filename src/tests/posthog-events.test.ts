@@ -265,6 +265,45 @@ describe("buildPostHogCaptureEvents", () => {
     expect(event.properties.$mcp_response).toBe("raw output");
   });
 
+  it("sets $mcp_listed_tool_names on mcp_tools_list events", () => {
+    const [event] = buildPostHogCaptureEvents(
+      makeEvent({
+        eventType: MCPAnalyticsEventType.mcpToolsList,
+        resourceName: undefined,
+        listedToolNames: ["get_weather", "list_alerts", "find_station"],
+      })
+    );
+
+    expect(
+      event.properties[PostHogMCPAnalyticsProperty.ListedToolNames]
+    ).toEqual(["get_weather", "list_alerts", "find_station"]);
+  });
+
+  it("does not set $mcp_listed_tool_names on non-tools/list events", () => {
+    const [event] = buildPostHogCaptureEvents(
+      makeEvent({
+        listedToolNames: ["should_be_ignored"],
+      })
+    );
+
+    expect(
+      event.properties[PostHogMCPAnalyticsProperty.ListedToolNames]
+    ).toBeUndefined();
+  });
+
+  it("does not set $mcp_listed_tool_names when the array is empty", () => {
+    const [event] = buildPostHogCaptureEvents(
+      makeEvent({
+        eventType: MCPAnalyticsEventType.mcpToolsList,
+        listedToolNames: [],
+      })
+    );
+
+    expect(
+      event.properties[PostHogMCPAnalyticsProperty.ListedToolNames]
+    ).toBeUndefined();
+  });
+
   it("sets $mcp_tool_description on tool-call and exception events", () => {
     const description =
       "Fetches the current weather for a given city, returning temperature and conditions.";

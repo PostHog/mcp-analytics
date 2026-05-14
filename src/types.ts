@@ -115,6 +115,7 @@ export interface Event {
 
   // Error tracking
   isError?: boolean;
+  listedToolNames?: string[]; // Tool names advertised in a tools/list response (for mcp_tools_list events)
   parameters?: unknown;
   properties?: JsonRecord | null;
 

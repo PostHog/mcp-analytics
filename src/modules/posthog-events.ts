@@ -143,6 +143,14 @@ function addCommonEventProperties(
     properties[PostHogMCPAnalyticsProperty.ToolDescription] =
       event.toolDescription;
   }
+  if (
+    event.listedToolNames &&
+    event.listedToolNames.length > 0 &&
+    event.eventType === MCPAnalyticsEventType.mcpToolsList
+  ) {
+    properties[PostHogMCPAnalyticsProperty.ListedToolNames] =
+      event.listedToolNames;
+  }
   if (event.duration !== undefined) {
     properties[PostHogMCPAnalyticsProperty.DurationMs] = event.duration;
   }
