@@ -1,6 +1,6 @@
 {
   "name": "@posthog/mcp",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "PostHog SDK for MCP servers",
   "type": "module",
   "main": "dist/index.cjs",
