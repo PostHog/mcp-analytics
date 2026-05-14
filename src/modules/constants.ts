@@ -1,6 +1,8 @@
 // PostHog MCP analytics settings
 export const INACTIVITY_TIMEOUT_IN_MINUTES = 30;
 export const DEFAULT_CONTEXT_PARAMETER_DESCRIPTION = `Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): "Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization."`;
+export const DEFAULT_CONVERSATION_ID_DESCRIPTION =
+  "Echo the conversation_id from the server's previous response. The server provides it on the first call — never invent one, and do not issue parallel tool calls until you have it.";
 export const POSTHOG_MCP_ANALYTICS_SOURCE = "posthog_mcp_analytics";
 
 export const PostHogMCPAnalyticsEvent = {
@@ -32,6 +34,7 @@ export const PostHogMCPAnalyticsProperty = {
   AiTraceId: "$ai_trace_id",
   ClientName: "$mcp_client_name",
   ClientVersion: "$mcp_client_version",
+  ConversationId: "$mcp_conversation_id",
   DurationMs: "$mcp_duration_ms",
   IsError: "$mcp_is_error",
   Intent: "$mcp_intent",

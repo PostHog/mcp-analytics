@@ -52,6 +52,22 @@ track(server, {
 With `enableAITracing: true`, tool calls also emit `$ai_span` events with `$ai_trace_id` and `$ai_span_id`.
 The regular `mcp_tool_call` event includes the same trace/span IDs so it can be joined back to the LLM analytics span.
 
+### Conversation ID (opt-in)
+
+When `enableConversationId: true` is passed to `track()`, the SDK injects an optional `conversation_id` argument into every tool's input schema and tells the agent to reuse the value the server returns. When the agent omits it on a call, the SDK mints a UUID and appends a short text block to the tool's response asking the agent to echo the same `conversation_id` on subsequent calls. The value the agent supplies (or the SDK mints) is captured on PostHog events as `$mcp_conversation_id` — separate from `$session_id`, which is unchanged. Off by default.
+
+```ts
+track(server, {
+  apiKey: process.env.POSTHOG_API_KEY,
+  enableConversationId: true,
+});
+```
+
+**Caveats:**
+
+- The prompt-back is appended as a regular `text` content block (the only channel MCP currently offers for server→agent communication). Consumers that surface raw tool-call content to end users will see `[SERVER]: Reuse conversation_id=…` in their UI. If/when the MCP spec grows a server-directives channel (e.g. on `_meta`), the SDK will move there.
+- The captured `$mcp_conversation_id` value is agent-controlled when the agent supplies one — the SDK accepts any non-empty string. Customers wanting to bind it to their own session scheme (chat ID, JWT `jti`, request ID) can do so freely; the trade-off is that nothing prevents a misbehaving agent from sending arbitrary values.
+
 The SDK sends events through `posthog-node`, so it uses the same PostHog ingestion client, batching, retry, flush, and shutdown behavior as the existing Node SDK.
 
 If your application already owns a PostHog client, pass it in instead:

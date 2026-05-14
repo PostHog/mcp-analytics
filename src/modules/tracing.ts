@@ -15,6 +15,13 @@ import {
   getContextDescription,
   isContextEnabled,
 } from "./context-parameters.js";
+import {
+  addConversationIdToTools,
+  canInjectConversationIdPromptBack,
+  cloneRequestWithoutConversationId,
+  injectConversationIdPromptBack,
+  resolveConversationId,
+} from "./conversation-id.js";
 import { publishEvent } from "./event-queue.js";
 import { MCPAnalyticsEventType } from "./event-types.js";
 import { captureException } from "./exceptions.js";
@@ -172,6 +179,10 @@ async function getTracedToolsList(
         tools,
         getContextDescription(data.options.context)
       );
+    }
+
+    if (data?.options.enableConversationId) {
+      tools = addConversationIdToTools(tools);
     }
 
     if (data?.options.reportMissing) {
@@ -332,10 +343,20 @@ async function handleToolCallRequest(
     return await originalCallToolHandler?.(request, extra);
   }
 
+  const conversation = resolveConversationId(
+    data.options.enableConversationId ?? false,
+    request.params?.arguments,
+    request.params?.name
+  );
+  const downstreamRequest = conversation.conversationId
+    ? cloneRequestWithoutConversationId(request)
+    : request;
+
   const event: UnredactedEvent = {
     sessionId: getServerSessionId(server, extra),
+    conversationId: conversation.conversationId,
     resourceName: request.params?.name || "Unknown Tool Name",
-    parameters: buildCapturedMcpParameters(request),
+    parameters: buildCapturedMcpParameters(downstreamRequest),
     eventType: MCPAnalyticsEventType.mcpToolsCall,
     timestamp: new Date(),
     redactionFn: data.options.redactSensitiveInformation,
@@ -349,7 +370,7 @@ async function handleToolCallRequest(
     const result = await executeToolCall(
       server,
       originalCallToolHandler,
-      request,
+      downstreamRequest,
       extra,
       event
     );
@@ -360,13 +381,30 @@ async function handleToolCallRequest(
       event.isError = false;
     }
 
-    event.response = result;
+    let finalResult = result;
+    if (conversation.minted) {
+      if (canInjectConversationIdPromptBack(result)) {
+        finalResult = injectConversationIdPromptBack(
+          result,
+          conversation.conversationId
+        );
+      } else {
+        // Agent never received the minted id → clear so the event is not
+        // an orphan in analytics.
+        event.conversationId = undefined;
+      }
+    }
+
+    event.response = finalResult;
     event.duration = getEventDuration(event);
     publishEvent(server, event);
-    return result;
+    return finalResult;
   } catch (error) {
     event.isError = true;
     event.error = captureException(error);
+    if (conversation.minted) {
+      event.conversationId = undefined;
+    }
     event.duration = getEventDuration(event);
     publishEvent(server, event);
     throw error;

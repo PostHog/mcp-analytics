@@ -22,6 +22,9 @@ describe("E2E Sanitization - real MCP tool calls", () => {
         apiKey: "test-sanitization",
         context: false,
         enableTracing: true,
+        // Off: the prompt-back appended on first mint would add an extra
+        // content block and break this test's response-shape assertions.
+        enableConversationId: false,
       });
 
       // Register a tool that returns an image content block

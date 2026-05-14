@@ -28,6 +28,7 @@ export interface MCPAnalyticsOptions {
   apiKey?: string | null;
   context?: boolean | MCPAnalyticsContextOptions;
   enableAITracing?: boolean;
+  enableConversationId?: boolean;
   enableTracing?: boolean;
   eventProperties?: (
     request: MCPRequestLike,
@@ -95,6 +96,7 @@ export interface Event {
   apiKey?: string; // PostHog project API key used by the default ingestion client.
   clientName?: string;
   clientVersion?: string;
+  conversationId?: string; // Raw agent-supplied or SDK-minted conversation_id
   duration?: number;
   error?: ErrorData | null;
   eventId?: string; // Custom event ID

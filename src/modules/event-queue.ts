@@ -298,6 +298,7 @@ export function publishEvent(
     userIntentSource: eventInput.userIntentSource,
     isError: eventInput.isError,
     error: eventInput.error,
+    conversationId: eventInput.conversationId,
 
     // Preserve redaction function
     redactionFn: eventInput.redactionFn,
