@@ -549,4 +549,45 @@ describe("Basic Server Test", () => {
       await serverTransport.close?.();
     }
   });
+
+  it("captures the tool description on tool call events", async () => {
+    resetTodos();
+    const { server, client, cleanup } = await setupTestServerAndClient();
+    const eventCapture = new EventCapture();
+    await eventCapture.start();
+
+    try {
+      const { track } = await import("../index.js");
+      await track(server, {
+        apiKey: "test-tool-description",
+        enableTracing: true,
+      });
+
+      await client.request(
+        {
+          method: "tools/call",
+          params: {
+            name: "add_todo",
+            arguments: { text: "with description" },
+          },
+        },
+        CallToolResultSchema
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const toolCallEvent = eventCapture
+        .getEvents()
+        .find(
+          (event) =>
+            event.eventType === MCPAnalyticsEventType.mcpToolsCall &&
+            event.resourceName === "add_todo"
+        );
+
+      expect(toolCallEvent?.toolDescription).toBe("Add a new todo item");
+      await eventCapture.stop();
+    } finally {
+      await cleanup();
+    }
+  });
 });

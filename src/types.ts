@@ -130,6 +130,7 @@ export interface Event {
   // Customer-defined metadata
   tags?: Record<string, string> | null;
   timestamp: Date;
+  toolDescription?: string; // Current description of the tool being called (for tool call events)
   userIntent?: string;
   userIntentSource?: MCPAnalyticsIntentSource;
 }
@@ -219,6 +220,7 @@ export interface MCPAnalyticsData {
   sessionId: string; // Unique SDK session identifier.
   sessionInfo: SessionInfo;
   sessionSource: "generated" | "mcp"; // Track whether session ID came from MCP protocol or SDK generation
+  toolDescriptions: Map<string, string>; // Cached tool descriptions by tool name
 }
 
 // Error tracking types
