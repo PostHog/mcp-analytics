@@ -175,6 +175,37 @@ describe("buildPostHogCaptureEvents", () => {
     expect(exceptionEvent.properties.$mcp_server_name).toBe("weather-server");
   });
 
+  it("spreads customer eventProperties and eventTags onto the $exception event", () => {
+    const events = buildPostHogCaptureEvents(
+      makeEvent({
+        isError: true,
+        error: { message: "boom" },
+        tags: {
+          $mcp_organization_id: "org_123",
+          deployment: "prod",
+        },
+        properties: {
+          $mcp_exec_tool_call_description: "Run a HogQL/SQL query.",
+          $groups: { organization: "org_123" },
+        },
+      })
+    );
+
+    const exceptionEvent = findEvent(
+      events,
+      PostHogMCPAnalyticsEvent.Exception
+    );
+
+    expect(exceptionEvent?.properties.$mcp_organization_id).toBe("org_123");
+    expect(exceptionEvent?.properties.deployment).toBe("prod");
+    expect(exceptionEvent?.properties.$mcp_exec_tool_call_description).toBe(
+      "Run a HogQL/SQL query."
+    );
+    expect(exceptionEvent?.properties.$groups).toEqual({
+      organization: "org_123",
+    });
+  });
+
   it("does not build an $exception event when isError is false", () => {
     const events = buildPostHogCaptureEvents(makeEvent({ isError: false }));
 

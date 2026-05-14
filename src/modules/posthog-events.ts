@@ -253,6 +253,8 @@ function buildExceptionEvent(event: Event): PostHogCaptureEvent {
     properties[PostHogMCPAnalyticsProperty.ClientVersion] = event.clientVersion;
   }
 
+  addCustomEventProperties(event, properties);
+
   return {
     event: PostHogMCPAnalyticsEvent.Exception,
     distinct_id: distinctId,
