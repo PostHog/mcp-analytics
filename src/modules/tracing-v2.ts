@@ -349,7 +349,6 @@ async function handleWrappedToolsCall(
   );
 }
 
-
 async function initializeToolCallEvent(
   server: MCPServerLike,
   request: MCPRequest,
