@@ -102,6 +102,7 @@ Important properties:
 - `$mcp_intent` from the `context` argument, or from `intentFallback` when no context was provided
 - `$mcp_intent_source` as `context_parameter` or `inferred`
 - `$mcp_tool_name` and `$mcp_resource_name`
+- `$mcp_tool_description`, the tool's current `description` at the moment of the call — populated on `mcp_tool_call` and on the paired `$exception` event so the description is visible inline while triaging
 - `$mcp_parameters` and `$mcp_response`, after redaction and truncation
 - `$mcp_duration_ms`
 - `$mcp_is_error`

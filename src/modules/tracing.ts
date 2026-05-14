@@ -193,6 +193,11 @@ async function getTracedToolsList(
         tools.push(getReportMissingToolDescriptor());
       }
     }
+
+    if (data) {
+      cacheToolDescriptions(data.toolDescriptions, tools);
+    }
+
     return tools;
   } catch (error) {
     writeToLog(
@@ -352,13 +357,15 @@ async function handleToolCallRequest(
     ? cloneRequestWithoutConversationId(request)
     : request;
 
+  const toolName = request.params?.name;
   const event: UnredactedEvent = {
     sessionId: getServerSessionId(server, extra),
     conversationId: conversation.conversationId,
-    resourceName: request.params?.name || "Unknown Tool Name",
+    resourceName: toolName || "Unknown Tool Name",
     parameters: buildCapturedMcpParameters(downstreamRequest),
     eventType: MCPAnalyticsEventType.mcpToolsCall,
     timestamp: new Date(),
+    toolDescription: toolName ? data.toolDescriptions.get(toolName) : undefined,
     redactionFn: data.options.redactSensitiveInformation,
   };
 
@@ -460,4 +467,18 @@ function getContextArgument(request: MCPRequest): string | undefined {
 
 function getEventDuration(event: UnredactedEvent): number {
   return event.timestamp ? Date.now() - event.timestamp.getTime() : 0;
+}
+
+export function cacheToolDescriptions(
+  cache: Map<string, string>,
+  tools: ListToolsResult["tools"] | undefined
+): void {
+  if (!tools) {
+    return;
+  }
+  for (const tool of tools) {
+    if (tool?.name && typeof tool.description === "string") {
+      cache.set(tool.name, tool.description);
+    }
+  }
 }

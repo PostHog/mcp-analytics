@@ -108,6 +108,9 @@ function setupListenerToRegisteredTools(server: HighLevelMCPServerLike): void {
             typeof value === "object" &&
             hasToolFunction(value)
           ) {
+            if (typeof value.description === "string") {
+              data.toolDescriptions.set(property, value.description);
+            }
             if ((value as ProcessedRegisteredTool)[MCP_ANALYTICS_PROCESSED]) {
               writeToLog(
                 `Tool ${String(property)} already processed, skipping proxy wrapping`
@@ -370,13 +373,17 @@ async function initializeToolCallEvent(
       };
     }
 
+    const toolName = request.params?.name;
     const event: UnredactedEvent = {
       sessionId: getServerSessionId(server, extra),
       conversationId: conversation.conversationId,
-      resourceName: request.params?.name || "Unknown Tool",
+      resourceName: toolName || "Unknown Tool",
       parameters: buildCapturedMcpParameters(downstreamRequest),
       eventType: MCPAnalyticsEventType.mcpToolsCall,
       timestamp: startTime,
+      toolDescription: toolName
+        ? data.toolDescriptions.get(toolName)
+        : undefined,
       redactionFn: data.options.redactSensitiveInformation,
     };
 
@@ -542,7 +549,7 @@ function publishFailedToolEvent(
 
 export function setupTracking(server: HighLevelMCPServerLike): void {
   try {
-    const _mcpAnalyticsData = getServerTrackingData(server.server);
+    const mcpAnalyticsData = getServerTrackingData(server.server);
 
     setupToolsCallHandlerWrapping(server);
 
@@ -553,10 +560,28 @@ export function setupTracking(server: HighLevelMCPServerLike): void {
       server
     );
 
+    if (mcpAnalyticsData) {
+      seedToolDescriptionsFromRegistry(
+        mcpAnalyticsData.toolDescriptions,
+        server._registeredTools
+      );
+    }
+
     setupListToolsTracing(server);
 
     setupListenerToRegisteredTools(server);
   } catch (error) {
     writeToLog(`Warning: Failed to setup tool call tracing - ${error}`);
+  }
+}
+
+function seedToolDescriptionsFromRegistry(
+  cache: Map<string, string>,
+  tools: Record<string, RegisteredTool>
+): void {
+  for (const [name, tool] of Object.entries(tools)) {
+    if (typeof tool?.description === "string") {
+      cache.set(name, tool.description);
+    }
   }
 }

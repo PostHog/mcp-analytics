@@ -292,6 +292,7 @@ export function publishEvent(
 
     // Event-specific data from input
     resourceName: eventInput.resourceName,
+    toolDescription: eventInput.toolDescription,
     parameters: eventInput.parameters,
     response: eventInput.response,
     userIntent: eventInput.userIntent,

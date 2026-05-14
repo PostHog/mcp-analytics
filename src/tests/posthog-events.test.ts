@@ -234,6 +234,44 @@ describe("buildPostHogCaptureEvents", () => {
     expect(event.properties.$mcp_response).toBe("raw output");
   });
 
+  it("sets $mcp_tool_description on tool-call and exception events", () => {
+    const description =
+      "Fetches the current weather for a given city, returning temperature and conditions.";
+    const events = buildPostHogCaptureEvents(
+      makeEvent({
+        toolDescription: description,
+        isError: true,
+        error: { message: "boom" },
+      })
+    );
+
+    const toolCallEvent = findEvent(events, PostHogMCPAnalyticsEvent.ToolCall);
+    const exceptionEvent = findEvent(
+      events,
+      PostHogMCPAnalyticsEvent.Exception
+    );
+
+    expect(
+      toolCallEvent?.properties[PostHogMCPAnalyticsProperty.ToolDescription]
+    ).toBe(description);
+    expect(
+      exceptionEvent?.properties[PostHogMCPAnalyticsProperty.ToolDescription]
+    ).toBe(description);
+  });
+
+  it("does not set $mcp_tool_description for non tools/call events", () => {
+    const [event] = buildPostHogCaptureEvents(
+      makeEvent({
+        eventType: MCPAnalyticsEventType.mcpResourcesRead,
+        toolDescription: "should be omitted",
+      })
+    );
+
+    expect(
+      event.properties[PostHogMCPAnalyticsProperty.ToolDescription]
+    ).toBeUndefined();
+  });
+
   it("only sets $mcp_tool_name for tools/call events", () => {
     const [toolCallEvent] = buildPostHogCaptureEvents(
       makeEvent({

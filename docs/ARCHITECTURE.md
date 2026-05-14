@@ -88,7 +88,7 @@ All events are emitted by `buildPostHogCaptureEvents`. The main event name is co
 
 | PostHog event | When | Notable extras |
 |---|---|---|
-| `mcp_tool_call` | Every tool invocation | `$mcp_tool_name`, `$mcp_parameters`, `$mcp_response`, `$mcp_duration_ms`, `$mcp_is_error`, optionally `$mcp_intent` / `$mcp_intent_source`, AI trace refs if AI tracing on |
+| `mcp_tool_call` | Every tool invocation | `$mcp_tool_name`, `$mcp_tool_description`, `$mcp_parameters`, `$mcp_response`, `$mcp_duration_ms`, `$mcp_is_error`, optionally `$mcp_intent` / `$mcp_intent_source`, AI trace refs if AI tracing on |
 | `mcp_tools_list` | Client lists tools | No tool-specific fields; useful for "did this client discover us?" |
 | `mcp_initialize` | Client/server handshake | `$mcp_client_name`, `$mcp_client_version`, `$mcp_server_name`, `$mcp_server_version` |
 | `mcp_resources_list` | Client lists resources | — |
@@ -116,6 +116,7 @@ All wire keys live in `PostHogMCPAnalyticsProperty` (`src/modules/constants.ts:6
 | `Source` | `$mcp_source` | string | Hardcoded `"posthog_mcp_analytics"` |
 | `ResourceName` | `$mcp_resource_name` | string | Tool / resource / prompt name |
 | `ToolName` | `$mcp_tool_name` | string | Same as `ResourceName`, but **only on `mcp_tool_call`** |
+| `ToolDescription` | `$mcp_tool_description` | string | Tool's current `description` at call time. Cached from `tools/list` and (for high-level `McpServer`) seeded from `_registeredTools`. Only on `mcp_tool_call` and the paired `$exception` event |
 | `DurationMs` | `$mcp_duration_ms` | number (ms) | Wall-clock duration |
 | `IsError` | `$mcp_is_error` | boolean | Set from tool result or thrown exception |
 | `ServerName` | `$mcp_server_name` | string | `server._serverInfo.name` |
@@ -152,7 +153,7 @@ All wire keys live in `PostHogMCPAnalyticsProperty` (`src/modules/constants.ts:6
 
 ### Exception properties (`$exception` event)
 
-`$exception_source = "backend"`, `$exception_message`, `$exception_type`, `$exception_stacktrace`, plus `$session_id`, `$mcp_resource_name`, `$mcp_tool_name` (tool calls only), `$mcp_server_*`, `$mcp_client_*`.
+`$exception_source = "backend"`, `$exception_message`, `$exception_type`, `$exception_stacktrace`, plus `$session_id`, `$mcp_resource_name`, `$mcp_tool_name` and `$mcp_tool_description` (tool calls only), `$mcp_server_*`, `$mcp_client_*`.
 
 ### Customer-defined properties
 

@@ -136,6 +136,13 @@ function addCommonEventProperties(
       properties[PostHogMCPAnalyticsProperty.ToolName] = event.resourceName;
     }
   }
+  if (
+    event.toolDescription &&
+    event.eventType === MCPAnalyticsEventType.mcpToolsCall
+  ) {
+    properties[PostHogMCPAnalyticsProperty.ToolDescription] =
+      event.toolDescription;
+  }
   if (event.duration !== undefined) {
     properties[PostHogMCPAnalyticsProperty.DurationMs] = event.duration;
   }
@@ -225,6 +232,13 @@ function buildExceptionEvent(event: Event): PostHogCaptureEvent {
     if (event.eventType === MCPAnalyticsEventType.mcpToolsCall) {
       properties[PostHogMCPAnalyticsProperty.ToolName] = event.resourceName;
     }
+  }
+  if (
+    event.toolDescription &&
+    event.eventType === MCPAnalyticsEventType.mcpToolsCall
+  ) {
+    properties[PostHogMCPAnalyticsProperty.ToolDescription] =
+      event.toolDescription;
   }
   if (event.serverName) {
     properties[PostHogMCPAnalyticsProperty.ServerName] = event.serverName;

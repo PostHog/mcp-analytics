@@ -195,6 +195,7 @@ function buildTrackingData(
     sessionId: newSessionId(),
     lastActivity: new Date(),
     identifiedSessions: new Map<string, UserIdentity>(),
+    toolDescriptions: new Map<string, string>(),
     sessionInfo: getSessionInfo(lowLevelServer, undefined),
     options: {
       reportMissing: options.reportMissing ?? false,
