@@ -84,6 +84,7 @@
   "pnpm": {
     "overrides": {
       "js-yaml": ">=4.1.1",
+      "read-yaml-file": "^2.1.0",
       "tmp": ">=0.2.4",
       "vite": ">=6.4.1",
       "body-parser": ">=2.2.1",
@@ -91,6 +92,7 @@
     },
     "overridesComments": {
       "js-yaml": "Fixes GHSA-mh29-5h37-fv8m (prototype pollution in merge) - via @changesets/cli",
+      "read-yaml-file": "v1 uses yaml.safeLoad which was removed in js-yaml 4 — force v2 which uses yaml.load - via @changesets/cli",
       "tmp": "Fixes GHSA-52f5-9888-hmc6 (symlink attack) - via @changesets/cli",
       "vite": "Fixes GHSA-93m4-6634-74q7 and other vite security issues - via vitest",
       "body-parser": "Fixes GHSA-wqch-xfxh-vrr4 (DoS via url encoding) - via @modelcontextprotocol/sdk",
