@@ -29,7 +29,7 @@
     "typecheck:tsc6": "tsc6 --noEmit",
     "bump": "changeset version",
     "prepare": "husky",
-    "verify": "pnpm check && pnpm typecheck && pnpm test && pnpm build",
+    "verify": "pnpm check && pnpm typecheck && pnpm test --no-watch && pnpm build",
     "prepublishOnly": "pnpm verify"
   },
   "keywords": [
