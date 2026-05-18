@@ -1,11 +1,12 @@
-# PostHog MCP
+# PostHog MCP Analytics
 
-TypeScript SDK for instrumenting Model Context Protocol servers with PostHog analytics.
+TypeScript SDK for instrumenting Model Context Protocol (MCP) servers with PostHog analytics.
 
-> Warning:
+> [!WARNING]
 > This package is in very early access and is not suitable for production use yet.
 > The API, event names, PostHog property schema, tracing behavior, and release process may change without notice while we dogfood the SDK.
 > We publish in public because PostHog builds in public, but you should treat `0.0.x` releases as experimental.
+> We do no promise that this will eventually be shipped as a PostHog product. We are using it internally for our MCP for testing purposes.
 
 The initial goal is to help MCP server owners understand tool usage, agent intent, client/session metadata, errors, and feedback without hand-rolling MCP-specific analytics.
 
@@ -18,17 +19,17 @@ pnpm add @posthog/mcp
 ## Usage
 
 ```ts
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { track } from "@posthog/mcp";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js"
+import { track } from "@posthog/mcp"
 
-const server = new Server({ name: "my-mcp-server", version: "1.0.0" });
+const server = new Server({ name: "my-mcp-server", version: "1.0.0" })
 
 track(server, {
   apiKey: process.env.POSTHOG_API_KEY,
   context: true,
   enableAITracing: true,
   host: "https://us.i.posthog.com",
-});
+})
 ```
 
 With `context: true`, the SDK adds a required `context` argument to every tool call, strips it before invoking your handler, and captures it as `$mcp_intent` on PostHog events.
@@ -43,10 +44,10 @@ track(server, {
   apiKey: process.env.POSTHOG_API_KEY,
   context: true,
   intentFallback: (request) => {
-    const toolName = request.params?.name;
-    return toolName ? `Calling ${toolName}` : undefined;
+    const toolName = request.params?.name
+    return toolName ? `Calling ${toolName}` : undefined
   },
-});
+})
 ```
 
 With `enableAITracing: true`, tool calls also emit `$ai_span` events with `$ai_trace_id` and `$ai_span_id`.
@@ -60,7 +61,7 @@ When `enableConversationId: true` is passed to `track()`, the SDK injects an opt
 track(server, {
   apiKey: process.env.POSTHOG_API_KEY,
   enableConversationId: true,
-});
+})
 ```
 
 **Caveats:**
@@ -73,14 +74,14 @@ The SDK sends events through `posthog-node`, so it uses the same PostHog ingesti
 If your application already owns a PostHog client, pass it in instead:
 
 ```ts
-import { PostHog } from "posthog-node";
-import { track } from "@posthog/mcp";
+import { PostHog } from "posthog-node"
+import { track } from "@posthog/mcp"
 
-const posthog = new PostHog(process.env.POSTHOG_API_KEY ?? "");
+const posthog = new PostHog(process.env.POSTHOG_API_KEY ?? "")
 
 track(server, {
   posthogClient: posthog,
-});
+})
 ```
 
 ## Event schema
@@ -143,4 +144,4 @@ Release approval requests are posted in Slack to `#approvals-client-libraries`.
 
 ## Attribution
 
-This SDK started from a duplicated copy of the MIT-licensed [MCPcat TypeScript SDK](https://github.com/MCPCat/mcpcat-typescript-sdk). We are grateful for their work on MCP server instrumentation patterns, especially tool-call tracing, context capture, and MCP SDK compatibility handling.
+This SDK started as a fork from [mcpcat.io](https://mcpcat.io)'s [MCPcat TypeScript SDK](https://github.com/MCPCat/mcpcat-typescript-sdk). We are grateful for their work on MCP server instrumentation patterns, especially tool-call tracing, context capture, and MCP SDK compatibility handling.
