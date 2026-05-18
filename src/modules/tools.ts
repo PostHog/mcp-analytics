@@ -35,6 +35,12 @@ export function getReportMissingToolDescriptor(): ReportMissingToolDescriptor {
       },
       required: ["context"],
     },
+    annotations: {
+      readOnlyHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+      destructiveHint: false,
+    },
   };
 }
 
@@ -131,7 +137,11 @@ export function setupMCPAnalyticsTools(server: MCPServerLike): void {
         const alreadyPresent = tools.some(
           (tool) => tool?.name === GET_MORE_TOOLS_NAME
         );
-        if (!alreadyPresent) {
+        if (alreadyPresent) {
+          writeToLog(
+            "Warning: report_missing tool already present in tools list. Skipping addition. This is likely due to the server already including a report_missing tool. If you want to rely on the PostHog MCP Analytics report_missing tool, you should disable the server's report_missing tool."
+          );
+        } else {
           tools.push(getReportMissingToolDescriptor());
         }
       }
