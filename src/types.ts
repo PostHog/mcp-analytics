@@ -39,10 +39,13 @@ export interface MCPAnalyticsOptions {
     extra?: CompatibleRequestHandlerExtra
   ) => Record<string, string> | null | Promise<Record<string, string> | null>;
   host?: string;
-  identify?: (
-    request: MCPRequestLike,
-    extra?: CompatibleRequestHandlerExtra
-  ) => Promise<UserIdentity | null>;
+  identify?:
+    | ((
+        request: MCPRequestLike,
+        extra?: CompatibleRequestHandlerExtra
+      ) => Promise<UserIdentity | null>)
+    | UserIdentity
+    | null;
   intentFallback?: (
     request: MCPRequestLike,
     extra?: CompatibleRequestHandlerExtra
