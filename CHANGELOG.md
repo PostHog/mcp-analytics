@@ -1,5 +1,15 @@
 # @posthog/mcp
 
+## 0.0.9
+
+### Patch Changes
+
+- 158b959: refactor: Simplify `executeReportMissingTool` to avoid being async
+- 158b959: fix: Avoid interactivity when running `verify`
+- 158b959: feat: Update and explain rationale behind each default annotation in the `get_more_tools` tool
+- 158b959: feat: Support identification via hardcoded object rather than requiring function
+- 158b959: chore: Add PostHog to the LICENSE
+
 ## 0.0.8
 
 ### Patch Changes
