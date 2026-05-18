@@ -438,7 +438,7 @@ async function executeToolCall(
   extra: MCPRequestExtra,
   event: UnredactedEvent
 ): Promise<unknown> {
-  if (request.params?.name === "get_more_tools") {
+  if (request.params?.name === GET_MORE_TOOLS_NAME) {
     const context = getContextArgument(request) || "";
     setExplicitContextIntent(event, context);
     return handleReportMissing({ context });

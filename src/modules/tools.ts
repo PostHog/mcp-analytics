@@ -1,4 +1,5 @@
 import {
+  type CallToolResult,
   ListToolsRequestSchema,
   type ListToolsResult,
 } from "@modelcontextprotocol/sdk/types.js";
@@ -36,15 +37,22 @@ export function getReportMissingToolDescriptor(): ReportMissingToolDescriptor {
       required: ["context"],
     },
     annotations: {
+      title: "Get More Tools",
+      // Doesn't mutate state on the MCP server
       readOnlyHint: true,
-      idempotentHint: false,
-      openWorldHint: false,
+      // Interacts with external entities because we store this in analytics
+      openWorldHint: true,
+      // A tool like `get_more_tools` would usually NOT be idempontent, but since we are
+      // only using this to keep track of missing tools/feedback/analytics, it is actually idempontent.
+      // It's also preferable to track it as idempontent to make agents more prone to call it proactively.
+      idempotentHint: true,
+      // Never deletes any data from the MCP server
       destructiveHint: false,
     },
   };
 }
 
-export function handleReportMissing(args: { context: string }) {
+export function handleReportMissing(args: { context: string }): CallToolResult {
   writeToLog(`Missing tool reported: ${JSON.stringify(args)}`);
 
   return {

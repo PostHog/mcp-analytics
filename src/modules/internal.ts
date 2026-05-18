@@ -175,7 +175,11 @@ export async function handleIdentify(
   };
 
   try {
-    const identityResult = await data.options.identify(request, extra);
+    const identityResult =
+      typeof data.options.identify === "function"
+        ? await data.options.identify(request, extra)
+        : data.options.identify;
+
     if (identityResult) {
       // Now use the (possibly updated) sessionId for all subsequent operations
       const currentSessionId = data.sessionId;

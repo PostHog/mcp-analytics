@@ -59,11 +59,12 @@ coverage
 .tmp/
 .temp/
 
-# Optional npm cache directory
+# Optional npm/pnpm cache directory
 .npm
+.pnpm-store
 
-# Optional eslint cache
-.eslintcache
+# Optional oxlint cache
+.oxlintcache
 
 # Changeset files (optional, some projects want to track these)
 # .changeset/
