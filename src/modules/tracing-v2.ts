@@ -339,7 +339,7 @@ async function handleWrappedToolsCall(
   );
 
   if (request?.params?.name === GET_MORE_TOOLS_NAME) {
-    return await executeReportMissingTool(server, request, tracing, startTime);
+    return executeReportMissingTool(server, request, tracing, startTime);
   }
 
   return await executeOriginalTool(
@@ -428,21 +428,21 @@ async function applyResolvedMetadata(
   }
 }
 
-async function executeReportMissingTool(
+function executeReportMissingTool(
   server: MCPServerLike,
   request: MCPRequest,
   tracing: ToolCallTracing,
   startTime: Date
-): Promise<unknown> {
+): CallToolResult {
   try {
     const context = getContextArgument(request) || "";
-    const result = await handleReportMissing({
-      context,
-    });
+    const result = handleReportMissing({ context });
+
     publishSuccessfulToolEvent(server, tracing, result, startTime, {
       userIntent: context,
       userIntentSource: "context_parameter",
     });
+
     return result;
   } catch (error) {
     publishFailedToolEvent(server, tracing, error, startTime);

@@ -1,4 +1,5 @@
 import {
+  type CallToolResult,
   ListToolsRequestSchema,
   type ListToolsResult,
 } from "@modelcontextprotocol/sdk/types.js";
@@ -51,7 +52,7 @@ export function getReportMissingToolDescriptor(): ReportMissingToolDescriptor {
   };
 }
 
-export function handleReportMissing(args: { context: string }) {
+export function handleReportMissing(args: { context: string }): CallToolResult {
   writeToLog(`Missing tool reported: ${JSON.stringify(args)}`);
 
   return {
