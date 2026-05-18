@@ -1,5 +1,11 @@
 # @posthog/mcp
 
+## 0.0.8
+
+### Patch Changes
+
+- e69f50f: Expose annotation hints on `report_missing` tool
+
 ## 0.0.7
 
 ### Patch Changes
